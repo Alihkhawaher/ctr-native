@@ -285,6 +285,112 @@
           "size": "0x4"
         }
       ]
+    },
+    {
+      "artifact": "224",
+      "source": "game/224.c",
+      "include_directories": [
+        "include"
+      ],
+      "forced_includes": [
+        "tools/matching/overlays/224/retail_symbols.h"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 8,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "symbols": {
+        "sdata_static": "0x8008cf6c",
+        "data": "0x800809a0",
+        "CTR_Box_DrawClearBox": "0x8002177c",
+        "DecalFont_GetLineWidth": "0x800224d0",
+        "DecalFont_DrawLine": "0x80022878",
+        "GAMEPROG_CheckGhostsBeaten": "0x80026ae4",
+        "RECTMENU_DrawPolyGT4": "0x80044ef8",
+        "RECTMENU_DrawTime": "0x80044ff8",
+        "RECTMENU_DrawInnerRect": "0x800457b0",
+        "RECTMENU_Show": "0x80046990",
+        "UI_Lerp2D_Linear": "0x8004ecd4",
+        "UI_DrawRaceClock": "0x8004edac",
+        "UI_RaceEnd_MenuProc": "0x80055c90"
+      },
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "s_rankString224",
+          "kind": "data",
+          "candidate_symbol": "s_rankString224",
+          "offset": "0x4",
+          "size": "0x4"
+        },
+        {
+          "name": "TT_EndEvent_DisplayTime",
+          "kind": "code",
+          "candidate_symbol": "TT_EndEvent_DisplayTime",
+          "offset": "0x8",
+          "size": "0x1bc"
+        },
+        {
+          "name": "TT_EndEvent_DrawHighScore",
+          "kind": "code",
+          "candidate_symbol": "TT_EndEvent_DrawHighScore",
+          "offset": "0x1c4",
+          "size": "0x508"
+        },
+        {
+          "name": "TT_EndEvent_DrawMenu",
+          "kind": "code",
+          "candidate_symbol": "TT_EndEvent_DrawMenu",
+          "offset": "0x6cc",
+          "size": "0x66c"
+        },
+        {
+          "name": "rowsWithSave",
+          "kind": "data",
+          "candidate_symbol": "rowsWithSave",
+          "offset": "0xd38",
+          "size": "0x24"
+        },
+        {
+          "name": "menu224",
+          "kind": "data",
+          "candidate_symbol": "menu224",
+          "offset": "0xd5c",
+          "size": "0x2c"
+        },
+        {
+          "name": "rowsNoSave",
+          "kind": "data",
+          "candidate_symbol": "rowsNoSave",
+          "offset": "0xd88",
+          "size": "0x1e"
+        },
+        {
+          "name": "menu224NoSave",
+          "kind": "data",
+          "candidate_symbol": "menu224NoSave",
+          "offset": "0xda8",
+          "size": "0x2c"
+        },
+        {
+          "name": "s_highScoreIconColor224",
+          "kind": "data",
+          "candidate_symbol": "s_highScoreIconColor224",
+          "offset": "0xdd4",
+          "size": "0x4"
+        }
+      ]
     }
   ],
   "artifacts": [

@@ -1126,8 +1126,8 @@ void CC_EndEvent_DrawMenu(void);
 void AA_EndEvent_DrawMenu(void);
 void RR_EndEvent_DrawMenu(void);
 void TT_EndEvent_DrawMenu(void);
-void TT_EndEvent_DisplayTime(int paramX, s16 paramY, u32 raceClockFlags);
-void TT_EndEvent_DrawHighScore(s16 startX, int startY, s16 scoreMode);
+void TT_EndEvent_DisplayTime(s32 paramX, s16 paramY, u32 raceClockFlags);
+void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode);
 void VB_EndEvent_DrawMenu(void);
 
 void MM_Cheat_MaxWumpa(void);
