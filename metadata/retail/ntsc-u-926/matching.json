@@ -57,8 +57,7 @@
       ],
       "small_data_limit": 8,
       "aspsx_version": "2.77",
-      "symbols": {
-        "sdata_static": "0x8008cf6c",
+      "address_aliases": {
         "cc_gameTracker": "0x8008d2ac",
         "cc_framesSinceRaceEnded": "0x8008d52c",
         "cc_hudCrystal": "0x8008d9bc",
@@ -69,18 +68,7 @@
         "cc_anyPlayerTap": "0x8008d950",
         "cc_advProgress": "0x8008fba4",
         "cc_addConfig0": "0x8008d100",
-        "cc_removeConfig0": "0x8008d104",
-        "DecalFont_DrawLine": "0x80022878",
-        "OtherFX_Play": "0x80028468",
-        "MainRaceTrack_RequestLoad": "0x8003cfc0",
-        "RECTMENU_ClearInput": "0x80046404",
-        "RECTMENU_Show": "0x80046990",
-        "UI_ConvertX_2": "0x8004caa8",
-        "UI_ConvertY_2": "0x8004cac8",
-        "UI_Lerp2D_Linear": "0x8004ecd4",
-        "UI_DrawLimitClock": "0x8004f894",
-        "UI_DrawNumCrystal": "0x8005111c",
-        "UI_RaceEnd_MenuProc": "0x80055c90"
+        "cc_removeConfig0": "0x8008d104"
       },
       "ranges": [
         {
@@ -94,13 +82,6 @@
           "kind": "data",
           "offset": "0x4",
           "size": "0xe"
-        },
-        {
-          "name": "CC_EndEvent_DrawMenu",
-          "kind": "code",
-          "candidate_symbol": "CC_EndEvent_DrawMenu",
-          "offset": "0x14",
-          "size": "0x4dc"
         },
         {
           "name": "rows221",
@@ -138,24 +119,6 @@
       ],
       "small_data_limit": 0,
       "aspsx_version": "2.77",
-      "symbols": {
-        "sdata_static": "0x8008cf6c",
-        "data": "0x800809a0",
-        "DecalFont_GetLineWidth": "0x800224d0",
-        "DecalFont_DrawLine": "0x80022878",
-        "OtherFX_Play": "0x80028468",
-        "MainRaceTrack_RequestLoad": "0x8003cfc0",
-        "RECTMENU_DrawInnerRect": "0x800457b0",
-        "RECTMENU_ClearInput": "0x80046404",
-        "RECTMENU_Show": "0x80046990",
-        "UI_ConvertX_2": "0x8004caa8",
-        "UI_ConvertY_2": "0x8004cac8",
-        "UI_DrawDriverIcon": "0x8004e8d8",
-        "UI_Lerp2D_Linear": "0x8004ecd4",
-        "UI_DrawPosSuffix": "0x8005045c",
-        "UI_DrawRaceClock": "0x8004edac",
-        "UI_RaceEnd_MenuProc": "0x80055c90"
-      },
       "ranges": [
         {
           "name": "overlay_id",
@@ -169,20 +132,6 @@
           "candidate_symbol": "s_driverRankString222",
           "offset": "0x4",
           "size": "0x4"
-        },
-        {
-          "name": "AA_EndEvent_DrawMenu",
-          "kind": "code",
-          "candidate_symbol": "AA_EndEvent_DrawMenu",
-          "offset": "0x8",
-          "size": "0xff4"
-        },
-        {
-          "name": "AA_EndEvent_DisplayTime",
-          "kind": "code",
-          "candidate_symbol": "AA_EndEvent_DisplayTime",
-          "offset": "0xffc",
-          "size": "0x440"
         },
         {
           "name": "rows222",
@@ -226,23 +175,6 @@
       ],
       "small_data_limit": 0,
       "aspsx_version": "2.77",
-      "symbols": {
-        "sdata_static": "0x8008cf6c",
-        "data": "0x800809a0",
-        "CTR_Box_DrawClearBox": "0x8002177c",
-        "DecalFont_DrawLine": "0x80022878",
-        "OtherFX_Play": "0x80028468",
-        "RECTMENU_DrawPolyGT4": "0x80044ef8",
-        "RECTMENU_DrawTime": "0x80044ff8",
-        "RECTMENU_DrawInnerRect": "0x800457b0",
-        "RECTMENU_ClearInput": "0x80046404",
-        "RECTMENU_Show": "0x80046990",
-        "UI_ConvertX_2": "0x8004caa8",
-        "UI_ConvertY_2": "0x8004cac8",
-        "UI_Lerp2D_Linear": "0x8004ecd4",
-        "UI_DrawRaceClock": "0x8004edac",
-        "sprintf": "0x80078348"
-      },
       "ranges": [
         {
           "name": "overlay_id",
@@ -255,27 +187,6 @@
           "kind": "data",
           "offset": "0x4",
           "size": "0x1c"
-        },
-        {
-          "name": "RR_EndEvent_UnlockAward",
-          "kind": "code",
-          "candidate_symbol": "RR_EndEvent_UnlockAward",
-          "offset": "0x20",
-          "size": "0x5b4"
-        },
-        {
-          "name": "RR_EndEvent_DrawHighScore",
-          "kind": "code",
-          "candidate_symbol": "RR_EndEvent_DrawHighScore",
-          "offset": "0x5d4",
-          "size": "0x508"
-        },
-        {
-          "name": "RR_EndEvent_DrawMenu",
-          "kind": "code",
-          "candidate_symbol": "RR_EndEvent_DrawMenu",
-          "offset": "0xadc",
-          "size": "0xadc"
         },
         {
           "name": "s_highScoreIconColor223",
@@ -305,21 +216,6 @@
       ],
       "small_data_limit": 0,
       "aspsx_version": "2.77",
-      "symbols": {
-        "sdata_static": "0x8008cf6c",
-        "data": "0x800809a0",
-        "CTR_Box_DrawClearBox": "0x8002177c",
-        "DecalFont_GetLineWidth": "0x800224d0",
-        "DecalFont_DrawLine": "0x80022878",
-        "GAMEPROG_CheckGhostsBeaten": "0x80026ae4",
-        "RECTMENU_DrawPolyGT4": "0x80044ef8",
-        "RECTMENU_DrawTime": "0x80044ff8",
-        "RECTMENU_DrawInnerRect": "0x800457b0",
-        "RECTMENU_Show": "0x80046990",
-        "UI_Lerp2D_Linear": "0x8004ecd4",
-        "UI_DrawRaceClock": "0x8004edac",
-        "UI_RaceEnd_MenuProc": "0x80055c90"
-      },
       "ranges": [
         {
           "name": "overlay_id",
@@ -333,27 +229,6 @@
           "candidate_symbol": "s_rankString224",
           "offset": "0x4",
           "size": "0x4"
-        },
-        {
-          "name": "TT_EndEvent_DisplayTime",
-          "kind": "code",
-          "candidate_symbol": "TT_EndEvent_DisplayTime",
-          "offset": "0x8",
-          "size": "0x1bc"
-        },
-        {
-          "name": "TT_EndEvent_DrawHighScore",
-          "kind": "code",
-          "candidate_symbol": "TT_EndEvent_DrawHighScore",
-          "offset": "0x1c4",
-          "size": "0x508"
-        },
-        {
-          "name": "TT_EndEvent_DrawMenu",
-          "kind": "code",
-          "candidate_symbol": "TT_EndEvent_DrawMenu",
-          "offset": "0x6cc",
-          "size": "0x66c"
         },
         {
           "name": "rowsWithSave",

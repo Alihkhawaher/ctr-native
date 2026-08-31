@@ -153,7 +153,10 @@ class ToolchainTests(unittest.TestCase):
             "tools/matching/overlays/221/include",
             build["include_directories"],
         )
-        self.assertIn("sdata_static", build["symbols"])
+        self.assertEqual(
+            build["address_aliases"]["cc_gameTracker"],
+            "0x8008d2ac",
+        )
 
         linker = (ctr_match.ROOT / build["linker_script"]).read_text()
         self.assertIn("__overlay_load_address", linker)
@@ -175,6 +178,7 @@ class ToolchainTests(unittest.TestCase):
             {
                 build["source"],
                 build["linker_script"],
+                str(ctr_match.SYMBOL_FILE.relative_to(ctr_match.ROOT)),
                 *build["forced_includes"],
             },
         )

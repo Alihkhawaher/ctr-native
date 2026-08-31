@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PIPELINE = Path(__file__).resolve()
 METADATA = ROOT / "metadata" / "retail" / "ntsc-u-926"
 DEFAULT_MANIFEST = METADATA / "matching.json"
+SYMBOL_FILE = METADATA / "symbols" / "syms926.txt"
 BUILD = ROOT / "build" / "matching" / "ntsc-u-926"
 CHUNK_SIZE = 1024 * 1024
 
@@ -502,6 +503,7 @@ def assemble_psx(
             sys.executable,
             str(toolchain.maspsx),
             f"--aspsx-version={aspsx_version}",
+            "--expand-div",
             "--run-assembler",
             f"--gnu-as-path={toolchain.binutils['as']}",
             "--dont-force-G0",
@@ -600,9 +602,9 @@ def range_comparison(
 
 def linked_symbols(
     objdump: Path, linked_object: Path, load_address: int
-) -> dict[str, dict[str, int]]:
+) -> dict[str, dict[str, Any]]:
     output = command_output([str(objdump), "-t", str(linked_object)])
-    symbols: dict[str, dict[str, int]] = {}
+    symbols: dict[str, dict[str, Any]] = {}
     for line in output.splitlines():
         parts = line.split()
         if (
@@ -615,6 +617,8 @@ def linked_symbols(
                 "address": address,
                 "offset": address - load_address,
                 "size": int(parts[-2], 16),
+                "section": parts[-3],
+                "kind": "code" if "F" in parts[1:-3] else "data",
             }
     return symbols
 
@@ -639,15 +643,90 @@ def dependency_inputs(path: Path) -> list[str]:
     return inputs
 
 
+def load_symbol_file(path: Path) -> dict[str, int]:
+    symbols: dict[str, int] = {}
+    for line_number, line in enumerate(path.read_text().splitlines(), 1):
+        value = line.split("//", 1)[0].strip()
+        if not value:
+            continue
+        fields = value.split()
+        if len(fields) > 2 and fields[1] == "------":
+            continue
+        if len(fields) != 2 or not re.fullmatch(r"[0-9a-fA-F]{8}", fields[0]):
+            raise MatchError(f"invalid symbol at {path}:{line_number}: {line}")
+        name = fields[1]
+        if name in symbols:
+            raise MatchError(f"duplicate symbol {name!r} in {path}")
+        symbols[name] = int(fields[0], 16)
+    return symbols
+
+
+def write_symbol_script(source: Path, destination: Path) -> None:
+    """Expose retail addresses only for names the artifact does not define."""
+    symbols = load_symbol_file(source)
+    destination.write_text(
+        "".join(
+            f"PROVIDE({name} = 0x{address:08x});\n"
+            for name, address in symbols.items()
+        )
+    )
+
+
+def artifact_ranges(
+    build: dict[str, Any],
+    load_address: int,
+    linked: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    ranges = list(build.get("ranges", []))
+    retail = load_symbol_file(SYMBOL_FILE)
+    reported = {
+        value.get("candidate_symbol", value["name"])
+        for value in ranges
+    }
+    for name, symbol in linked.items():
+        if (
+            name not in reported
+            and name in retail
+            and symbol["kind"] == "code"
+            and symbol["section"] == build["output_section"]
+            and symbol["size"] > 0
+        ):
+            ranges.append(
+                {
+                    "name": name,
+                    "kind": "code",
+                    "candidate_symbol": name,
+                    "offset": f"0x{retail[name] - load_address:x}",
+                    "size": f"0x{symbol['size']:x}",
+                }
+            )
+
+    return sorted(ranges, key=lambda value: parse_int(value["offset"]))
+
+
+def artifact_sources(build: dict[str, Any]) -> list[str]:
+    if sources := build.get("sources"):
+        return list(sources)
+    if source := build.get("source"):
+        return [source]
+
+    directory = ROOT / "game" / build["artifact"]
+    discovered = sorted(directory.glob("*.c"))
+    if not discovered:
+        raise MatchError(f"artifact {build['artifact']!r} has no sources")
+    return [str(source.relative_to(ROOT)) for source in discovered]
+
+
 def artifact_build_input_hashes(
-    build: dict[str, Any], dependency_file: Path | None = None
+    build: dict[str, Any], dependency_files: Iterable[Path] = ()
 ) -> dict[str, str]:
     inputs = [
-        build["source"],
+        *artifact_sources(build),
         build["linker_script"],
+        str(SYMBOL_FILE.relative_to(ROOT)),
         *build.get("forced_includes", []),
     ]
-    if dependency_file is not None:
+    for dependency_file in dependency_files:
         inputs.extend(dependency_inputs(dependency_file))
     inputs = list(dict.fromkeys(inputs))
     return {value: sha256_file(repository_path(value)) for value in inputs}
@@ -684,7 +763,7 @@ def build_artifact(
             f"{'; '.join(verification['errors'])}"
         )
 
-    source = repository_path(build["source"])
+    sources = [repository_path(path) for path in artifact_sources(build)]
     linker_script = repository_path(build["linker_script"])
     include_directories = [
         repository_path(directory) for directory in build["include_directories"]
@@ -694,29 +773,36 @@ def build_artifact(
     ]
     output = BUILD / "artifacts" / artifact["id"]
     output.mkdir(parents=True, exist_ok=True)
-    assembly = output / f"{artifact['id']}.s"
-    object_file = output / f"{artifact['id']}.o"
     linked_object = output / f"{artifact['id']}.elf"
     candidate_binary = output / f"{artifact['id']}.bin"
-    dependency_file = output / f"{artifact['id']}.d"
 
     aspsx_version = build.get("aspsx_version", toolchain.default_aspsx_version)
-    compile_c(
-        toolchain,
-        source,
-        assembly,
-        build["compiler_flags"],
-        include_directories,
-        forced_includes,
-        dependency_file,
-    )
-    assemble_psx(
-        toolchain,
-        assembly,
-        object_file,
-        aspsx_version,
-        build["small_data_limit"],
-    )
+    object_files: list[Path] = []
+    dependency_files: list[Path] = []
+    for source in sources:
+        source_output = output / "objects" / source.relative_to(ROOT)
+        source_output.parent.mkdir(parents=True, exist_ok=True)
+        assembly = source_output.with_suffix(".s")
+        object_file = source_output.with_suffix(".o")
+        dependency_file = source_output.with_suffix(".d")
+        compile_c(
+            toolchain,
+            source,
+            assembly,
+            build["compiler_flags"],
+            include_directories,
+            forced_includes,
+            dependency_file,
+        )
+        assemble_psx(
+            toolchain,
+            assembly,
+            object_file,
+            aspsx_version,
+            build["small_data_limit"],
+        )
+        object_files.append(object_file)
+        dependency_files.append(dependency_file)
 
     link_command = [
         str(toolchain.binutils["ld"]),
@@ -725,11 +811,16 @@ def build_artifact(
         "-o",
         str(linked_object),
         f"--defsym=__overlay_load_address={artifact['load_address']}",
-        f"--defsym=__overlay_id={build['overlay_id']}",
+        *build.get("linker_flags", []),
     ]
-    for symbol, address in build["symbols"].items():
+    if "overlay_id" in build:
+        link_command.append(f"--defsym=__overlay_id={build['overlay_id']}")
+    symbol_script = output / "retail-symbols.ld"
+    write_symbol_script(SYMBOL_FILE, symbol_script)
+    link_command.extend(("-T", str(symbol_script)))
+    for symbol, address in build.get("address_aliases", {}).items():
         link_command.append(f"--defsym={symbol}={address}")
-    link_command.append(str(object_file))
+    link_command.extend(str(object_file) for object_file in object_files)
     run_checked(link_command)
     extract_binary_section(
         toolchain,
@@ -776,12 +867,13 @@ def build_artifact(
 
     matching_bytes = sum(left == right for left, right in zip(expected, actual))
     first_mismatch = mismatch_offsets(expected, actual, limit=1)
+    ranges = artifact_ranges(build, load_address, symbols)
     result = {
         "schema_version": 1,
         "target": manifest["target"],
         "artifact": artifact["id"],
         "artifact_build_config_sha256": sha256_json(build),
-        "build_input_sha256": artifact_build_input_hashes(build, dependency_file),
+        "build_input_sha256": artifact_build_input_hashes(build, dependency_files),
         "pipeline_sha256": sha256_file(PIPELINE),
         "expected_size": len(expected),
         "candidate_size": len(actual),
@@ -795,7 +887,7 @@ def build_artifact(
             if first_mismatch
             else None
         ),
-        "ranges": range_comparison(expected, actual, build["ranges"], symbols),
+        "ranges": range_comparison(expected, actual, ranges, symbols),
         "compiler_version": toolchain.compiler_banner,
         "compiler_sha256": toolchain.compiler_hashes,
         "compiler_flags": build["compiler_flags"],
