@@ -679,7 +679,7 @@ struct GameTracker
 		int enabledWeapons;
 
 		// 1da4
-		char teamOfEachPlayer[4];
+		s8 teamOfEachPlayer[4];
 
 		// 1da8
 		int finishedRankOfEachTeam[4];
@@ -809,7 +809,7 @@ struct GameTracker
 
 	// 1edc
 	// Ends Demo Mode after watching AI drivers.
-	u32 demoCountdownTimer;
+	s32 demoCountdownTimer;
 
 	// 1ee0
 	int unk1ee0;
@@ -1390,7 +1390,8 @@ struct GameTracker
 	// 2582
 	//  determines if you see Oxide Intro,
 	//  or Demo Mode, from main menu inactivity
-	u16 boolSeenOxideIntro;
+	u8 boolSeenOxideIntro;
+	u8 pad_boolSeenOxideIntro;
 
 	// 2584
 };

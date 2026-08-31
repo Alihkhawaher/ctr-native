@@ -20,9 +20,6 @@ extern struct MetaDataCHAR tt_characterMetadata[16] asm("data+25572");
 
 // NOTE(aalhendi): These declarations preserve the retail callers' argument
 // layout without imposing it on the native renderer interfaces.
-extern void tt_drawPolyGT4(struct Icon *icon, s16 posX, s32 posY, struct PrimMem *primMem, u32 *ot, Color color0, Color color1, Color color2, Color color3,
-                           s8 transparency, s16 scale) asm("RECTMENU_DrawPolyGT4");
-extern void tt_drawClearBox(const RECT *rect, const Color *color, s32 transparency, u32 *ot, struct PrimMem *primMem) asm("CTR_Box_DrawClearBox");
 extern void tt_drawLineWideX(char *str, s32 posX, s16 posY, s16 fontType, s16 flags) asm("DecalFont_DrawLine");
 
 #define TT_GAME_TRACKER            tt_gameTracker[0]
@@ -35,8 +32,6 @@ extern void tt_drawLineWideX(char *str, s32 posX, s16 posY, s16 fontType, s16 fl
 #define TT_GHOST_TOO_BIG           tt_ghostTooBig[0]
 #define TT_MENU_HIGHLIGHT          tt_menuHighlight
 #define TT_CHARACTER_METADATA      tt_characterMetadata
-#define TT_DRAW_POLY_GT4           tt_drawPolyGT4
-#define TT_DRAW_CLEAR_BOX          tt_drawClearBox
 #define TT_DRAW_LINE_WIDE_X        tt_drawLineWideX
 
 #endif

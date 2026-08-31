@@ -1,7 +1,7 @@
 #include <common.h>
 
 
-s16 RefreshCard_CountGhostProfilesForLEV(u16 trackID)
+s16 RefreshCard_CountGhostProfilesForLEV(s16 trackID)
 {
 	int i;
 	int count = 0;

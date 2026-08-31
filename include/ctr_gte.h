@@ -5,6 +5,21 @@
 #include <psx/inline_c.h>
 #include <psx/libgte.h>
 
+static inline void CTR_GteLoadDelay(void)
+{
+#if !defined(CTR_NATIVE)
+	__asm__ volatile("nop\n\t"
+	                 "nop");
+#endif
+}
+
+static inline void CTR_GteRegisterReadDelay(void)
+{
+#if !defined(CTR_NATIVE)
+	__asm__ volatile("nop");
+#endif
+}
+
 static inline void CTR_GteStoreU32(void *dst, u32 value)
 {
 	u8 *bytes = (u8 *)dst;
@@ -52,8 +67,15 @@ static inline void CTR_GteLoadSV3WithPad(const SVECTOR *v0, const SVECTOR *v1, c
 
 static inline void CTR_GteLoadSVec3V0(const SVec3 *v)
 {
+#if defined(CTR_NATIVE)
 	MTC2(CTR_PackS16Pair(v->x, v->y), 0);
 	MTC2(CTR_PackS16Pair(v->z, 0), 1);
+#else
+	__asm__ volatile("lwc2 $0,0(%0)\n\t"
+	                 "lwc2 $1,4(%0)"
+	                 :
+	                 : "r"(v));
+#endif
 }
 
 static inline void CTR_GteLoadSVec3V1(const SVec3 *v)
@@ -142,9 +164,25 @@ static inline s32 CTR_GteReadMAC1(void)
 
 static inline void CTR_GteStoreMAC(s32 *out)
 {
+#if defined(CTR_NATIVE)
 	out[0] = (s32)MFC2(25);
 	out[1] = (s32)MFC2(26);
 	out[2] = (s32)MFC2(27);
+#else
+	register s32 value __asm__("$7");
+
+	value = (s32)MFC2(25);
+	__asm__ volatile("nop");
+	out[0] = value;
+
+	value = (s32)MFC2(26);
+	__asm__ volatile("nop");
+	out[1] = value;
+
+	value = (s32)MFC2(27);
+	__asm__ volatile("" : : "r"(value));
+	out[2] = value;
+#endif
 }
 
 static inline void CTR_GteStoreIR(s32 *out)

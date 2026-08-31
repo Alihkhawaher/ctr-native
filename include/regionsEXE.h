@@ -226,7 +226,8 @@ struct MetaDataLEV
 	// lng index of level,
 	// "Gem Stone Valley", "N Sanity Beach", etc,
 	// that is, if it exists for this LEV
-	int name_LNG;
+	s16 name_LNG;
+	s16 padding_0xa;
 
 	// 0xC
 	// this is the amount of time you need
@@ -2822,7 +2823,8 @@ struct sData
 	s16 battleSetupRowHighlighted;
 
 	// 8008d434
-	int battleSetupWeaponHighlighted;
+	s16 battleSetupWeaponHighlighted;
+	s16 padding_8008d436;
 
 	// 8008d438 UI color data
 	u32 battleSetup_Color_UI_1;
@@ -2861,7 +2863,7 @@ struct sData
 	int RaceFlag_CopyLoadStage;
 
 	// 8008d460
-	u32 DrawSolidBoxData[3];
+	Color DrawSolidBoxData[3];
 
 	char strcatData1_colon[4];
 
@@ -3332,7 +3334,8 @@ struct sData
 	s16 *ptrCseqSongStartOffset;
 
 	// 8008d7b8
-	int vol_Music;
+	u8 vol_Music;
+	u8 padding_afterVolMusic[3];
 
 	// 8008d7bc
 	int vol_Voice;
@@ -3606,7 +3609,8 @@ struct sData
 
 	// 8008d90c
 	// Never used to detect dead menu
-	int framesRemainingInMenu;
+	s16 framesRemainingInMenu;
+	s16 padding_8008d90e;
 
 	// 8008d910
 	int unk_8008d910;
@@ -3621,7 +3625,8 @@ struct sData
 	int advCharSelectIndex_prev;
 
 	// 8008d920
-	int uselessLapRowCopy;
+	u16 uselessLapRowCopy;
+	s16 padding_8008d922;
 
 	// 8008d924
 	// Becomes nullptr after ptrActiveMenu is set
@@ -3667,13 +3672,14 @@ struct sData
 	struct RectMenu *activeSubMenu;
 
 	// 8008d958
-	int boolReplayHumanGhost;
+	b16 boolReplayHumanGhost;
+	s16 padding_8008d95a;
 
 	// 8008d95c
 	int unk8008d95c;
 
 	// 8008d960
-	char teamOfEachPlayer[4];
+	s8 teamOfEachPlayer[4];
 
 	// 8008d964
 	int unk8008d964;

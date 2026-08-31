@@ -75,7 +75,7 @@ int MEMPACK_GetFreeBytes()
 }
 
 
-void *MEMPACK_AllocMem(int allocSize)
+void *MEMPACK_AllocMem(s32 allocSize, ...)
 {
 	struct Mempack *ptrMempack = sdata->PtrMempack;
 
@@ -97,7 +97,7 @@ void *MEMPACK_AllocMem(int allocSize)
 }
 
 
-void *MEMPACK_AllocHighMem(int allocSize)
+void *MEMPACK_AllocHighMem(s32 allocSize, ...)
 {
 	while (MEMPACK_GetFreeBytes() < allocSize)
 	{

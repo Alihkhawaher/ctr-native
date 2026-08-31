@@ -25,9 +25,6 @@ extern struct MetaDataCHAR rr_characterMetadata[16] asm("data+25572");
 
 // NOTE(aalhendi): These declarations preserve the retail callers' argument
 // layout without imposing it on the native renderer interfaces.
-extern void rr_drawPolyGT4(struct Icon *icon, s16 posX, s32 posY, struct PrimMem *primMem, u32 *ot, Color color0, Color color1, Color color2, Color color3,
-                           s8 transparency, s16 scale) asm("RECTMENU_DrawPolyGT4");
-extern void rr_drawClearBox(const RECT *rect, const Color *color, s32 transparency, u32 *ot, struct PrimMem *primMem) asm("CTR_Box_DrawClearBox");
 extern void rr_drawLineWideX(char *str, s32 posX, s16 posY, s16 fontType, s16 flags) asm("DecalFont_DrawLine");
 
 #define RR_GAME_TRACKER            rr_gameTracker
@@ -47,8 +44,6 @@ extern void rr_drawLineWideX(char *str, s32 posX, s16 posY, s16 fontType, s16 fl
 #define RR_RELIC_TIME_1MS          rr_relicTime1Ms
 #define RR_MENU_HIGHLIGHT          rr_menuHighlight
 #define RR_CHARACTER_METADATA      rr_characterMetadata
-#define RR_DRAW_POLY_GT4           rr_drawPolyGT4
-#define RR_DRAW_CLEAR_BOX          rr_drawClearBox
 #define RR_DRAW_LINE_WIDE_X        rr_drawLineWideX
 
 #endif

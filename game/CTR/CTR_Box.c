@@ -66,7 +66,7 @@ void CTR_Box_DrawWireBox(RECT *r, const Color *color, void *ot, struct PrimMem *
 	AddPrimitive(p, ot);
 }
 
-void CTR_Box_DrawClearBox(const RECT *r, const Color *color, int transparency, u32 *ot)
+void CTR_Box_DrawClearBox(const RECT *r, const Color *color, s32 transparency, u32 *ot, struct PrimMem *primMem)
 {
 	typedef struct TPage_PolyF4
 	{
@@ -74,12 +74,13 @@ void CTR_Box_DrawClearBox(const RECT *r, const Color *color, int transparency, u
 		PolyF4 p;
 	} TPage_PolyF4;
 
-	TPage_PolyF4 *p;
-	GetPrimMem(p);
-	if (p == nullptr)
+	TPage_PolyF4 *p = primMem->cursor;
+	if (p > (TPage_PolyF4 *)primMem->guardEnd)
 	{
 		return;
 	}
+	primMem->cursor = p + 1;
+	p->t.tag.bits.size = (sizeof(*p) - sizeof(p->t.tag)) / sizeof(u32);
 
 	p->t.texpage = (Texpage){.bits = {.code = 0xE1, .semiTransparency = transparency, .dither = 1, .y_VRAM_EXP = 1}};
 	p->p.tag.self = 0;
@@ -110,18 +111,19 @@ void CTR_Box_DrawClearBox(const RECT *r, const Color *color, int transparency, u
 	AddPrimitive(p, ot);
 }
 
-void CTR_Box_DrawSolidBox(RECT *r, Color color, u32 *ot)
+void CTR_Box_DrawSolidBox(RECT *r, const Color *color, u32 *ot, struct PrimMem *primMem)
 {
-	PolyF4 *p;
-	GetPrimMem(p);
-	if (p == nullptr)
+	PolyF4 *p = primMem->cursor;
+	if (p > (PolyF4 *)primMem->guardEnd)
 	{
 		return;
 	}
+	primMem->cursor = p + 1;
+	p->tag.bits.size = (sizeof(*p) - sizeof(p->tag)) / sizeof(u32);
 
 	const PrimCode primCode = {.kind.poly = {.renderCode = RenderCode_Polygon, .quad = 1}};
-	color.code = primCode;
-	p->colorCode = color;
+	p->colorCode = *color;
+	p->colorCode.code = primCode;
 
 	s16 topX = r->x;
 	s16 topY = r->y;

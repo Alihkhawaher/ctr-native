@@ -122,7 +122,7 @@ void AH_HintMenu_MenuProc(struct RectMenu *menu)
 		box.h = 0x11;
 
 		u32 *ot = gGT->backBuffer->otMem.uiOT;
-		CTR_Box_DrawClearBox(&box, &sdata->menuRowHighlight_Normal, TRANS_50_DECAL, ot);
+		CTR_Box_DrawClearBox(&box, &sdata->menuRowHighlight_Normal, TRANS_50_DECAL, ot, &gGT->backBuffer->primMem);
 
 		box.y = 0x3c;
 		box.x = -0xe;
@@ -130,7 +130,7 @@ void AH_HintMenu_MenuProc(struct RectMenu *menu)
 		box.h = 2;
 
 		ColorCode_SetPacked(&color, sdata->battleSetup_Color_UI_1);
-		RECTMENU_DrawOuterRect_Edge(&box, color, 0x20, ot);
+		RECTMENU_DrawOuterRect_Edge(&box, &color, 0x20, ot);
 
 		box.y = 0x28;
 		box.h = (s16)textHeight + 0x3b;
@@ -310,7 +310,7 @@ LAB_800b38cc:
 	box.h = 0x11;
 
 	u32 *ot = gGT->backBuffer->otMem.uiOT;
-	CTR_Box_DrawClearBox(&box, &sdata->menuRowHighlight_Normal, TRANS_50_DECAL, ot);
+	CTR_Box_DrawClearBox(&box, &sdata->menuRowHighlight_Normal, TRANS_50_DECAL, ot, &gGT->backBuffer->primMem);
 
 	box.y = 0x3c;
 	box.h = 2;
@@ -318,7 +318,7 @@ LAB_800b38cc:
 	box.w = 0x228;
 
 	ColorCode_SetPacked(&color, sdata->battleSetup_Color_UI_1);
-	RECTMENU_DrawOuterRect_Edge(&box, color, 0x20, ot);
+	RECTMENU_DrawOuterRect_Edge(&box, &color, 0x20, ot);
 
 	box.y = 0x28;
 	box.h = (s16)menuHeight + 0x2b;

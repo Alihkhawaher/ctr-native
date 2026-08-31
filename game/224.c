@@ -53,21 +53,9 @@ extern struct RectMenu menu224NoSave;
 #endif
 
 #ifndef TT_DRAW_POLY_GT4
-static inline void TT_DrawPolyGT4(struct Icon *icon, s16 posX, s16 posY, struct PrimMem *primMem, u32 *ot, Color color0, Color color1, Color color2,
-                                  Color color3, s8 transparency, s16 scale)
-{
-	RECTMENU_DrawPolyGT4(icon, posX, posY, primMem, ot, ColorCode_GetPacked(&color0), ColorCode_GetPacked(&color1), ColorCode_GetPacked(&color2),
-	                     ColorCode_GetPacked(&color3), transparency, scale);
-}
-
-static inline void TT_DrawClearBox(const RECT *rect, const Color *color, s32 transparency, u32 *ot, struct PrimMem *primMem)
-{
-	(void)primMem;
-	CTR_Box_DrawClearBox(rect, color, transparency, ot);
-}
-
-#define TT_DRAW_POLY_GT4  TT_DrawPolyGT4
-#define TT_DRAW_CLEAR_BOX TT_DrawClearBox
+#define TT_DRAW_POLY_GT4(icon, posX, posY, primMem, ot, color0, color1, color2, color3, transparency, scale) \
+	RECTMENU_DrawPolyGT4((icon), (s16)(posX), (s32)(posY), (primMem), (ot), (color0), (color1), (color2), (color3), (s8)(transparency), (s16)(scale))
+#define TT_DRAW_CLEAR_BOX CTR_Box_DrawClearBox
 #endif
 
 #if defined(CTR_NATIVE)

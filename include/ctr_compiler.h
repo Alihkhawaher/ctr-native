@@ -29,28 +29,53 @@
 #define CTR_TRAP() abort()
 #endif
 
-// NOTE(aalhendi): These constraints shape GCC 2.8.1 register allocation and
-// scheduling without embedding game functions in assembly. Native expansions
-// preserve only their C semantics.
+// NOTE(aalhendi): These constraints isolate GCC 2.8.1 register allocation and
+// scheduling requirements from shared game logic. Native expansions preserve
+// only their C semantics.
 #if defined(CTR_NATIVE)
 #define CTR_PSX_MATCH_SECTION(sectionName)
+#if defined(__GNUC__) || defined(__clang__)
+#define CTR_PSX_REGISTER(registerName) __attribute__((unused))
+#else
 #define CTR_PSX_REGISTER(registerName)
+#endif
 #define CTR_PSX_BIND_VALUE_CLOBBER(value, registerName) ((void)(value))
+#define CTR_PSX_DEPEND_VALUE(value, dependency)         ((void)(value), (void)(dependency))
+#define CTR_PSX_ORDER_VALUES(value, dependency)         ((void)(value), (void)(dependency))
+#define CTR_PSX_DEPEND_MEMORY(pointer, dependency)      ((void)(pointer), (void)(dependency))
 #define CTR_PSX_CLOBBER(registerName)                   ((void)0)
 #define CTR_PSX_KEEP_VALUE(value)                       ((void)(value))
+#define CTR_PSX_KEEP_VALUE_RELAXED(value)               ((void)(value))
+#define CTR_PSX_OBSERVE_VALUE(value)                    ((void)(value))
+#define CTR_PSX_ZERO_VALUE(value)                       ((value) = 0)
 #define CTR_PSX_MEMORY_BARRIER()                        ((void)0)
 #define CTR_PSX_FORGET_VALUE(value)                     ((void)(value))
 #define CTR_PSX_RELOAD(value)                           ((void)(value))
+#define CTR_PSX_CAPTURE_REGISTER(value, nativeValue)    ((value) = (nativeValue))
+#define CTR_PSX_COPY_VALUE(result, value)               ((result) = (value))
 #define CTR_PSX_LOAD_SYMBOL_PAGE(page, symbolExpression) \
 	do                                                   \
 	{                                                    \
-		(void)sizeof(page);                              \
+		(page) = 0;                                      \
+	} while (0)
+#define CTR_PSX_LOAD_SYMBOL_PAGE_AFTER(page, symbolExpression, dependency) \
+	do                                                                     \
+	{                                                                      \
+		(page) = 0;                                                        \
+		(void)(dependency);                                                \
 	} while (0)
 #define CTR_PSX_LOAD_WORD_FROM_PAGE(value, page, symbolExpression, nativeValue) \
 	do                                                                          \
 	{                                                                           \
 		(void)sizeof(page);                                                     \
 		(value) = (nativeValue);                                                \
+	} while (0)
+#define CTR_PSX_LOAD_WORD_FROM_PAGE_AFTER(value, page, symbolExpression, nativeValue, dependency) \
+	do                                                                                            \
+	{                                                                                             \
+		(void)sizeof(page);                                                                       \
+		(void)(dependency);                                                                       \
+		(value) = (nativeValue);                                                                  \
 	} while (0)
 #define CTR_PSX_PAGE_LVALUE(type, page, offset, nativeLvalue) (nativeLvalue)
 #define CTR_PSX_ADD_SYMBOL_LOW(result, page, symbolExpression, nativeValue) \
@@ -59,19 +84,40 @@
 		(void)sizeof(page);                                                 \
 		(result) = (nativeValue);                                           \
 	} while (0)
+#define CTR_PSX_ADD_SYMBOL_LOW_DISTINCT(result, page, symbolExpression, nativeValue, identity) \
+	CTR_PSX_ADD_SYMBOL_LOW(result, page, symbolExpression, nativeValue)
+#define CTR_PSX_ADD_SYMBOL_LOW_IN_PLACE(value, symbolExpression, nativeValue) \
+	do                                                                        \
+	{                                                                         \
+		(value) = (nativeValue);                                              \
+	} while (0)
 #else
 #define CTR_PSX_MATCH_SECTION(sectionName)                                      __attribute__((section(sectionName)))
 #define CTR_PSX_REGISTER(registerName)                                          __asm__(registerName)
 #define CTR_PSX_BIND_VALUE_CLOBBER(value, registerName)                         __asm__("" : "+r"(value) : : registerName)
+#define CTR_PSX_DEPEND_VALUE(value, dependency)                                 __asm__("" : "+r"(value) : "r"(dependency))
+#define CTR_PSX_ORDER_VALUES(value, dependency)                                 __asm__ volatile("" : : "r"(value), "r"(dependency))
+#define CTR_PSX_DEPEND_MEMORY(pointer, dependency)                              __asm__ volatile("" : "+m"(*(pointer)) : "r"(dependency))
 #define CTR_PSX_CLOBBER(registerName)                                           __asm__ volatile("" : : : registerName)
 #define CTR_PSX_KEEP_VALUE(value)                                               __asm__ volatile("" : "+r"(value))
+#define CTR_PSX_KEEP_VALUE_RELAXED(value)                                       __asm__("" : "+r"(value))
+#define CTR_PSX_OBSERVE_VALUE(value)                                            __asm__ volatile("" : : "r"(value))
+#define CTR_PSX_ZERO_VALUE(value)                                               __asm__("move %0,$0" : "=r"(value))
 #define CTR_PSX_MEMORY_BARRIER()                                                __asm__ volatile("" : : : "memory")
 #define CTR_PSX_FORGET_VALUE(value)                                             __asm__ volatile("" : "=r"(value) : "0"(value))
 #define CTR_PSX_RELOAD(value)                                                   __asm__("" : "+m"(value))
+#define CTR_PSX_CAPTURE_REGISTER(value, nativeValue)                            __asm__("" : "=r"(value))
+#define CTR_PSX_COPY_VALUE(result, value)                                       __asm__("move %0,%1" : "=r"(result) : "r"(value))
 #define CTR_PSX_LOAD_SYMBOL_PAGE(page, symbolExpression)                        __asm__("lui %0,%%hi(" symbolExpression ")" : "=r"(page))
+#define CTR_PSX_LOAD_SYMBOL_PAGE_AFTER(page, symbolExpression, dependency)      __asm__("lui %0,%%hi(" symbolExpression ")" : "=r"(page) : "r"(dependency))
 #define CTR_PSX_LOAD_WORD_FROM_PAGE(value, page, symbolExpression, nativeValue) __asm__("lw %0,%%lo(" symbolExpression ")(%1)" : "=r"(value) : "r"(page))
-#define CTR_PSX_PAGE_LVALUE(type, page, offset, nativeLvalue)                   (*(type *)((u32)(page) + (s32)(offset)))
-#define CTR_PSX_ADD_SYMBOL_LOW(result, page, symbolExpression, nativeValue)     __asm__("addiu %0,%1,%%lo(" symbolExpression ")" : "=r"(result) : "r"(page))
+#define CTR_PSX_LOAD_WORD_FROM_PAGE_AFTER(value, page, symbolExpression, nativeValue, dependency) \
+	__asm__("lw %0,%%lo(" symbolExpression ")(%1)" : "=r"(value) : "r"(page), "r"(dependency))
+#define CTR_PSX_PAGE_LVALUE(type, page, offset, nativeLvalue)               (*(type *)((u32)(page) + (s32)(offset)))
+#define CTR_PSX_ADD_SYMBOL_LOW(result, page, symbolExpression, nativeValue) __asm__("addiu %0,%1,%%lo(" symbolExpression ")" : "=r"(result) : "r"(page))
+#define CTR_PSX_ADD_SYMBOL_LOW_DISTINCT(result, page, symbolExpression, nativeValue, identity) \
+	__asm__("addiu %0,%1,%%lo(" symbolExpression ") # " identity : "=r"(result) : "r"(page))
+#define CTR_PSX_ADD_SYMBOL_LOW_IN_PLACE(value, symbolExpression, nativeValue) __asm__("addiu %0,%0,%%lo(" symbolExpression ")" : "+r"(value))
 #endif
 
 #endif

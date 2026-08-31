@@ -276,7 +276,7 @@ void VB_EndEvent_DrawMenu(void)
 
 			Color color;
 			ColorCode_SetPacked(&color, sdata->battleSetup_Color_UI_1);
-			RECTMENU_DrawOuterRect_HighLevel(&box, color, 0, gGT->backBuffer->otMem.uiOT);
+			RECTMENU_DrawOuterRect_HighLevel(&box, &color, 0, gGT->backBuffer->otMem.uiOT);
 
 			view->rect.x = pos.x;
 			view->rect.y = pos.y;
