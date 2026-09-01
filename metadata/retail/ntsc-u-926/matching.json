@@ -268,6 +268,102 @@
       ]
     },
     {
+      "artifact": "225",
+      "source": "game/225.c",
+      "include_directories": [
+        "include"
+      ],
+      "forced_includes": [
+        "tools/matching/overlays/225/retail_symbols.h"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 9,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "symbols": {
+        "sdata_static": "0x8008cf6c",
+        "data": "0x800809a0",
+        "DecalFont_DrawLine": "0x80022878",
+        "DecalHUD_DrawPolyFT4": "0x80022db0",
+        "RaceFlag_SetFullyOnScreen": "0x8004402c",
+        "RECTMENU_DrawOuterRect_HighLevel": "0x80045650",
+        "RECTMENU_Show": "0x80046990",
+        "UI_Lerp2D_Linear": "0x8004ecd4",
+        "UI_RaceEnd_MenuProc": "0x80055c90",
+        "memset": "0x800718bc",
+        "sprintf": "0x80078348"
+      },
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "format_strings",
+          "kind": "data",
+          "offset": "0x4",
+          "size": "0x18"
+        },
+        {
+          "name": "VB_EndEvent_DrawMenu",
+          "kind": "code",
+          "candidate_symbol": "VB_EndEvent_DrawMenu",
+          "offset": "0x1c",
+          "size": "0xa2c"
+        },
+        {
+          "name": "rowsVS",
+          "kind": "data",
+          "candidate_symbol": "rowsVS",
+          "offset": "0xa48",
+          "size": "0x1e"
+        },
+        {
+          "name": "menuVS",
+          "kind": "data",
+          "candidate_symbol": "menuVS",
+          "offset": "0xa68",
+          "size": "0x2c"
+        },
+        {
+          "name": "rowsBattle",
+          "kind": "data",
+          "candidate_symbol": "rowsBattle",
+          "offset": "0xa94",
+          "size": "0x24"
+        },
+        {
+          "name": "menuBattle",
+          "kind": "data",
+          "candidate_symbol": "menuBattle",
+          "offset": "0xab8",
+          "size": "0x2c"
+        },
+        {
+          "name": "s_vsStandingsYByPlayerCount",
+          "kind": "data",
+          "candidate_symbol": "s_vsStandingsYByPlayerCount",
+          "offset": "0xae4",
+          "size": "0x1e"
+        },
+        {
+          "name": "s_standingsSuffixStringIds225",
+          "kind": "data",
+          "candidate_symbol": "s_standingsSuffixStringIds225",
+          "offset": "0xb04",
+          "size": "0x8"
+        }
+      ]
+    },
+    {
       "artifact": "230",
       "include_directories": [
         "include"
