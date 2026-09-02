@@ -135,6 +135,32 @@ class ToolchainTests(unittest.TestCase):
         with self.assertRaises(ctr_match.MatchError):
             ctr_match.repository_path("../outside")
 
+    def test_assembler_tracks_included_sources(self) -> None:
+        toolchain = SimpleNamespace(binutils={"as": Path("mips-as")})
+
+        with mock.patch.object(ctr_match, "run_checked") as run_checked:
+            ctr_match.assemble_mips_source(
+                toolchain,
+                Path("renderer.s"),
+                Path("renderer.o"),
+                0,
+                [Path("game/RenderLevel/psx")],
+                Path("renderer.d"),
+            )
+
+        run_checked.assert_called_once_with(
+            [
+                "mips-as",
+                "-G0",
+                "-Igame/RenderLevel/psx",
+                "--MD",
+                "renderer.d",
+                "-o",
+                "renderer.o",
+                "renderer.s",
+            ]
+        )
+
     def test_manifest_has_production_overlay_221_build(self) -> None:
         manifest = ctr_match.load_json(ctr_match.DEFAULT_MANIFEST)
         build = ctr_match.artifact_build_by_id(manifest, "221")

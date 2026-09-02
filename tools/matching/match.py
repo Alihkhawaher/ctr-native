@@ -491,7 +491,7 @@ def compile_c(
     run_checked(command)
 
 
-def assemble_psx(
+def assemble_compiler_output(
     toolchain: Toolchain,
     assembly: Path,
     object_file: Path,
@@ -513,6 +513,25 @@ def assemble_psx(
         ],
         stdin_path=assembly,
     )
+
+
+def assemble_mips_source(
+    toolchain: Toolchain,
+    source: Path,
+    object_file: Path,
+    small_data_limit: int,
+    include_directories: Iterable[Path] = (),
+    dependency_file: Path | None = None,
+) -> None:
+    command = [
+        str(toolchain.binutils["as"]),
+        f"-G{small_data_limit}",
+    ]
+    command.extend(f"-I{path}" for path in include_directories)
+    if dependency_file is not None:
+        command.extend(["--MD", str(dependency_file)])
+    command.extend(["-o", str(object_file), str(source)])
+    run_checked(command)
 
 
 def extract_binary_section(
@@ -782,25 +801,40 @@ def build_artifact(
     for source in sources:
         source_output = output / "objects" / source.relative_to(ROOT)
         source_output.parent.mkdir(parents=True, exist_ok=True)
-        assembly = source_output.with_suffix(".s")
         object_file = source_output.with_suffix(".o")
         dependency_file = source_output.with_suffix(".d")
-        compile_c(
-            toolchain,
-            source,
-            assembly,
-            build["compiler_flags"],
-            include_directories,
-            forced_includes,
-            dependency_file,
-        )
-        assemble_psx(
-            toolchain,
-            assembly,
-            object_file,
-            aspsx_version,
-            build["small_data_limit"],
-        )
+        if source.suffix.lower() == ".c":
+            assembly = source_output.with_suffix(".s")
+            compile_c(
+                toolchain,
+                source,
+                assembly,
+                build["compiler_flags"],
+                include_directories,
+                forced_includes,
+                dependency_file,
+            )
+            assemble_compiler_output(
+                toolchain,
+                assembly,
+                object_file,
+                aspsx_version,
+                build["small_data_limit"],
+            )
+        elif source.suffix.lower() == ".s":
+            assemble_mips_source(
+                toolchain,
+                source,
+                object_file,
+                build["small_data_limit"],
+                include_directories,
+                dependency_file,
+            )
+        else:
+            raise MatchError(
+                "unsupported artifact source: "
+                f"{source.relative_to(ROOT)}"
+            )
         object_files.append(object_file)
         dependency_files.append(dependency_file)
 
@@ -953,7 +987,7 @@ def build_probe(
 
     flags = compiler_flags(probe, optimization)
     compile_c(toolchain, extracted_source, assembly, flags)
-    assemble_psx(
+    assemble_compiler_output(
         toolchain,
         assembly,
         object_file,

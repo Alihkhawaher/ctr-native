@@ -364,6 +364,182 @@
       ]
     },
     {
+      "artifact": "226",
+      "sources": [
+        "game/226/226_00_DrawLevelOvr1P_psx.s",
+        "game/226/R226.c"
+      ],
+      "include_directories": [
+        "include",
+        "game/RenderLevel/psx"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 11,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "symbols": {},
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "DrawLevelOvr1P",
+          "kind": "code",
+          "candidate_symbol": "DrawLevelOvr1P",
+          "offset": "0x4",
+          "size": "0xa750"
+        },
+        {
+          "name": "R226",
+          "kind": "data",
+          "candidate_symbol": "R226",
+          "offset": "0xa754",
+          "size": "0x564"
+        }
+      ]
+    },
+    {
+      "artifact": "227",
+      "sources": [
+        "game/227/227_00_DrawLevelOvr2P_psx.s",
+        "game/227/R227.c"
+      ],
+      "include_directories": [
+        "include",
+        "game/RenderLevel/psx"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 12,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "symbols": {},
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "DrawLevelOvr2P",
+          "kind": "code",
+          "candidate_symbol": "DrawLevelOvr2P",
+          "offset": "0x4",
+          "size": "0xa7d0"
+        },
+        {
+          "name": "R227",
+          "kind": "data",
+          "candidate_symbol": "R227",
+          "offset": "0xa7d4",
+          "size": "0x564"
+        }
+      ]
+    },
+    {
+      "artifact": "228",
+      "sources": [
+        "game/228/228_00_DrawLevelOvr3P_psx.s",
+        "game/228/R228.c"
+      ],
+      "include_directories": [
+        "include",
+        "game/RenderLevel/psx"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 13,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "symbols": {},
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "DrawLevelOvr3P",
+          "kind": "code",
+          "candidate_symbol": "DrawLevelOvr3P",
+          "offset": "0x4",
+          "size": "0x817c"
+        },
+        {
+          "name": "R228",
+          "kind": "data",
+          "candidate_symbol": "R228",
+          "offset": "0x8180",
+          "size": "0x420"
+        }
+      ]
+    },
+    {
+      "artifact": "229",
+      "sources": [
+        "game/229/229_00_DrawLevelOvr4P_psx.s",
+        "game/229/R229.c"
+      ],
+      "include_directories": [
+        "include",
+        "game/RenderLevel/psx"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 14,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "symbols": {},
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "DrawLevelOvr4P",
+          "kind": "code",
+          "candidate_symbol": "DrawLevelOvr4P",
+          "offset": "0x4",
+          "size": "0x8230"
+        },
+        {
+          "name": "R229",
+          "kind": "data",
+          "candidate_symbol": "R229",
+          "offset": "0x8234",
+          "size": "0x420"
+        }
+      ]
+    },
+    {
       "artifact": "230",
       "include_directories": [
         "include"
