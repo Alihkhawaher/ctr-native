@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "name": "vehicle",
+  "kind": "resident-exe",
+  "artifact": "exe",
+  "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+  "start_symbol": "VehAfterColl_GetSurface",
+  "end_symbol": "DrawSky_Full",
+  "symbol_prefix": "Veh",
+  "sources": {
+    "directory": "game/Vehicle",
+    "glob": "*.c"
+  },
+  "include_directories": [
+    "include"
+  ],
+  "forced_includes": [
+    "tools/matching/namespaces/vehicle/retail_symbols.h"
+  ],
+  "compiler_flags": [
+    "-O2",
+    "-G8",
+    "-msoft-float"
+  ],
+  "small_data_limit": 8,
+  "aspsx_version": "2.77",
+  "function_rodata_addresses": {
+    "VehPhysGeneral_SetHeldItem": "0x800119a0",
+    "VehPickState_NewState": "0x800119e0"
+  },
+  "link_symbols": {
+    "_gp": "0x8008cf6c",
+    "veh_maskThreadAlive": "0x8008d65c",
+    "veh_talkMaskDead": "0x8008da00",
+    "veh_botCrashNavRotArg": "0x8008d9ec",
+    "veh_physCrashForward": "0x8009ae28",
+    "veh_physCrashMatrix": "0x8009ae38"
+  }
+}

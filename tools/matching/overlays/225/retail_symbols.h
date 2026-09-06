@@ -31,7 +31,8 @@
 #define VB_MATCH_ROW_ALLOCATION_BEGIN(value) __asm__ volatile("" : "=g"(value))
 // NOTE(aalhendi): The shared C produces retail's row-preheader instructions,
 // but GCC schedules those independent instructions differently. Replace only
-// that preheader with retail's order; $L250 restores the skipped loop label.
+// that preheader with retail's order. $L245 is GCC's generated loop target and
+// must be updated if surrounding source or headers renumber local labels.
 #define VB_MATCH_ROW_SCHEDULE_BEGIN()        __asm__ volatile(".if 0")
 #define VB_MATCH_ROW_SCHEDULE_END()                                  \
 	__asm__ volatile(".endif\n\t"                                    \
@@ -46,7 +47,7 @@
 	                 "sw $9,144($sp)\n\t"                            \
 	                 "li $9,5\n\t"                                   \
 	                 "sw $9,148($sp)\n\t"                            \
-	                 "$L250:")
+	                 "$L245:")
 #define VB_MATCH_ROW_SETUP_ORDER(rowCount, configIndex) __asm__ volatile("" : "+g"(rowCount), "+g"(configIndex))
 #define VB_MATCH_ROW_ALLOCATION_END(value)              __asm__ volatile("" : : "g"(value))
 

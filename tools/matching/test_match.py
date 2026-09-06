@@ -19,6 +19,15 @@ ctr_match = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = ctr_match
 SPEC.loader.exec_module(ctr_match)
 
+NAMESPACE_MODULE_PATH = Path(__file__).with_name("namespace_match.py")
+NAMESPACE_SPEC = importlib.util.spec_from_file_location(
+    "ctr_namespace_match", NAMESPACE_MODULE_PATH
+)
+assert NAMESPACE_SPEC is not None and NAMESPACE_SPEC.loader is not None
+ctr_namespace_match = importlib.util.module_from_spec(NAMESPACE_SPEC)
+sys.modules[NAMESPACE_SPEC.name] = ctr_namespace_match
+NAMESPACE_SPEC.loader.exec_module(ctr_namespace_match)
+
 
 class ExtractFunctionTests(unittest.TestCase):
     def test_extracts_only_named_function(self) -> None:
@@ -207,6 +216,90 @@ class ToolchainTests(unittest.TestCase):
                 str(ctr_match.SYMBOL_FILE.relative_to(ctr_match.ROOT)),
                 *build["forced_includes"],
             },
+        )
+
+
+class ResidentNamespaceTests(unittest.TestCase):
+    def test_symbol_ranges_cover_the_interval_without_gaps(self) -> None:
+        config = {
+            "name": "sample",
+            "start_symbol": "Veh_First",
+            "end_symbol": "AfterVehicle",
+            "symbol_prefix": "Veh_",
+        }
+        symbols = [
+            ctr_namespace_match.Symbol("BeforeVehicle", 0x0FF0),
+            ctr_namespace_match.Symbol("Veh_First", 0x1000),
+            ctr_namespace_match.Symbol("Veh_Second", 0x1020),
+            ctr_namespace_match.Symbol("AfterVehicle", 0x1050),
+        ]
+
+        ranges = ctr_namespace_match.namespace_symbol_ranges(config, symbols)
+
+        self.assertEqual(
+            [(symbol.name, size) for symbol, size in ranges],
+            [("Veh_First", 0x20), ("Veh_Second", 0x30)],
+        )
+
+    def test_resident_assembly_closes_small_data_before_a_function(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            assembly = Path(directory) / "source.s"
+            assembly.write_text(
+                "\t.sdata\nvalue:\n\t.word\t1\n"
+                "\t.extern\tsdata_static+832, 4\n"
+                "\t.section .Veh_Test,\"ax\",@progbits\n"
+            )
+
+            ctr_namespace_match.normalize_compiler_directives(assembly)
+
+            self.assertEqual(
+                assembly.read_text(),
+                "\t.sdata\nvalue:\n\t.word\t1\n\t.text\n"
+                "\t.section .Veh_Test,\"ax\",@progbits\n",
+            )
+
+    def test_function_linker_script_keeps_reachable_helpers_nearby(self) -> None:
+        function = ctr_namespace_match.FunctionRange(
+            name="Veh_Test",
+            address=0x80050000,
+            size=0x40,
+            source="game/Vehicle/Test.c",
+        )
+
+        linker = ctr_namespace_match.function_linker_script(
+            function,
+            [".Veh_Test", ".Veh_Test_Helper", ".Unrelated"],
+        )
+
+        self.assertIn(".Veh_Test 0x80050000", linker)
+        self.assertEqual(linker.count("*(.Veh_Test)"), 1)
+        self.assertIn("*(.Veh_Test_Helper)", linker)
+        self.assertIn("*(.Unrelated)", linker)
+        self.assertLess(
+            linker.index(".Veh_Test 0x80050000"),
+            linker.index(".__function_closure"),
+        )
+
+    def test_vehicle_inventory_maps_every_retail_symbol_to_production(self) -> None:
+        config = ctr_namespace_match.load_namespace("vehicle")
+        symbols = ctr_namespace_match.parse_symbols(
+            ctr_match.repository_path(config["symbol_file"])
+        )
+
+        functions = ctr_namespace_match.discover_function_ranges(config, symbols)
+
+        self.assertEqual(len(functions), 129)
+        self.assertEqual(functions[0].name, "VehAfterColl_GetSurface")
+        self.assertEqual(functions[0].address, 0x80057C44)
+        self.assertEqual(functions[-1].name, "VehTurbo_ThTick")
+        self.assertEqual(
+            functions[-1].address + functions[-1].size,
+            0x80069BB0,
+        )
+        self.assertEqual(len({function.name for function in functions}), 129)
+        self.assertEqual(
+            len({function.source for function in functions}),
+            len(ctr_namespace_match.namespace_sources(config)),
         )
 
 

@@ -649,6 +649,69 @@ def normalized_objdump(command: list[str]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def compare_binary_files(
+    toolchain: Toolchain,
+    expected_path: Path,
+    candidate_path: Path,
+    load_address: int,
+    output: Path,
+    expected_label: str,
+    candidate_label: str,
+) -> dict[str, Any]:
+    expected = expected_path.read_bytes()
+    actual = candidate_path.read_bytes()
+    objdump_base = [
+        str(toolchain.binutils["objdump"]),
+        "-D",
+        "-b",
+        "binary",
+        "-m",
+        "mips:3000",
+        "-EL",
+        f"--adjust-vma=0x{load_address:08x}",
+    ]
+    expected_disassembly = normalized_objdump([*objdump_base, str(expected_path)])
+    candidate_disassembly = normalized_objdump(
+        [*objdump_base, str(candidate_path)]
+    )
+    expected_objdump = output / "retail.objdump"
+    candidate_objdump = output / "candidate.objdump"
+    diff_path = output / "objdump.diff"
+    expected_objdump.write_text(expected_disassembly)
+    candidate_objdump.write_text(candidate_disassembly)
+    diff_path.write_text(
+        "".join(
+            difflib.unified_diff(
+                expected_disassembly.splitlines(keepends=True),
+                candidate_disassembly.splitlines(keepends=True),
+                fromfile=expected_label,
+                tofile=candidate_label,
+            )
+        )
+    )
+
+    matching_bytes = sum(left == right for left, right in zip(expected, actual))
+    compared_size = max(len(expected), len(actual))
+    matching_words = sum(
+        actual[index : index + 4] == expected[index : index + 4]
+        for index in range(0, len(expected), 4)
+        if len(actual[index : index + 4]) == 4
+    )
+    return {
+        "expected_size": len(expected),
+        "candidate_size": len(actual),
+        "matching_bytes": matching_bytes,
+        "matching_words": matching_words,
+        "total_words": len(expected) // 4,
+        "matching_byte_percent": matching_bytes * 100 / compared_size if compared_size else 100.0,
+        "expected_sha256": sha256_bytes(expected),
+        "candidate_sha256": sha256_bytes(actual),
+        "first_mismatch_offsets": mismatch_offsets(expected, actual),
+        "objdump_diff": str(diff_path.relative_to(ROOT)),
+        "exact": actual == expected,
+    }
+
+
 def dependency_inputs(path: Path) -> list[str]:
     text = path.read_text().replace("\\\n", " ")
     try:
@@ -874,33 +937,16 @@ def build_artifact(
     symbols = linked_symbols(
         toolchain.binutils["objdump"], linked_object, load_address
     )
-    objdump_base = [
-        str(toolchain.binutils["objdump"]),
-        "-D",
-        "-b",
-        "binary",
-        "-m",
-        "mips:3000",
-        "-EL",
-        f"--adjust-vma=0x{load_address:08x}",
-    ]
-    expected_disassembly = normalized_objdump([*objdump_base, str(expected_path)])
-    candidate_disassembly = normalized_objdump([*objdump_base, str(candidate_binary)])
-    expected_objdump = output / "retail.objdump"
-    candidate_objdump = output / "candidate.objdump"
-    diff_path = output / "objdump.diff"
-    expected_objdump.write_text(expected_disassembly)
-    candidate_objdump.write_text(candidate_disassembly)
-    diff = difflib.unified_diff(
-        expected_disassembly.splitlines(keepends=True),
-        candidate_disassembly.splitlines(keepends=True),
-        fromfile=f"retail/{artifact['id']}",
-        tofile=f"candidate/{artifact['id']}",
+    comparison = compare_binary_files(
+        toolchain,
+        expected_path,
+        candidate_binary,
+        load_address,
+        output,
+        f"retail/{artifact['id']}",
+        f"candidate/{artifact['id']}",
     )
-    diff_path.write_text("".join(diff))
-
-    matching_bytes = sum(left == right for left, right in zip(expected, actual))
-    first_mismatch = mismatch_offsets(expected, actual, limit=1)
+    first_mismatch = comparison["first_mismatch_offsets"][:1]
     ranges = artifact_ranges(build, load_address, symbols)
     result = {
         "schema_version": 1,
@@ -909,12 +955,7 @@ def build_artifact(
         "artifact_build_config_sha256": sha256_json(build),
         "build_input_sha256": artifact_build_input_hashes(build, dependency_files),
         "pipeline_sha256": sha256_file(PIPELINE),
-        "expected_size": len(expected),
-        "candidate_size": len(actual),
-        "expected_sha256": sha256_bytes(expected),
-        "candidate_sha256": sha256_bytes(actual),
-        "matching_bytes": matching_bytes,
-        "matching_byte_percent": matching_bytes * 100 / len(expected),
+        **comparison,
         "first_mismatch_offset": first_mismatch[0] if first_mismatch else None,
         "first_mismatch_location": (
             mismatch_location(artifact, first_mismatch[0])
@@ -932,8 +973,6 @@ def build_artifact(
         "binutils_sha256": toolchain.binutils_hashes,
         "toolchain_config_sha256": toolchain.config_hash,
         "candidate": str(candidate_binary.relative_to(ROOT)),
-        "objdump_diff": str(diff_path.relative_to(ROOT)),
-        "exact": actual == expected,
     }
     (output / "result.json").write_text(json.dumps(result, indent=2) + "\n")
     return result

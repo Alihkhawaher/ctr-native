@@ -47,6 +47,7 @@
 #define CTR_PSX_KEEP_VALUE(value)                       ((void)(value))
 #define CTR_PSX_KEEP_VALUE_RELAXED(value)               ((void)(value))
 #define CTR_PSX_OBSERVE_VALUE(value)                    ((void)(value))
+#define CTR_PSX_OBSERVE_MEMORY(value)                   ((void)sizeof(value))
 #define CTR_PSX_ZERO_VALUE(value)                       ((value) = 0)
 #define CTR_PSX_MEMORY_BARRIER()                        ((void)0)
 #define CTR_PSX_FORGET_VALUE(value)                     ((void)(value))
@@ -77,6 +78,47 @@
 		(void)(dependency);                                                                       \
 		(value) = (nativeValue);                                                                  \
 	} while (0)
+#define CTR_PSX_ADD_POINTER_OFFSET(result, base, offset)                         ((result) = (void *)((char *)(base) + (offset)))
+#define CTR_PSX_ADD_POINTER_OFFSET_OFFSET_FIRST(result, base, offset)            ((result) = (void *)((char *)(base) + (offset)))
+#define CTR_PSX_ADD_POINTER_IMMEDIATE(result, base, byteOffset, nativeValue)     ((result) = (nativeValue))
+#define CTR_PSX_NEGATE_IN_PLACE(value)                                           ((value) = CTR_MipsNegLo(value))
+#define CTR_PSX_NEGATE(result, value)                                            ((result) = CTR_MipsNegLo(value))
+#define CTR_PSX_LOAD_IMMEDIATE(result, value)                                    ((result) = (value))
+#define CTR_PSX_LOAD_STACK_WORD(result, byteOffset, nativeValue)                 ((result) = (nativeValue))
+#define CTR_PSX_LOAD_WORD(result, nativeValue)                                   ((result) = (nativeValue))
+#define CTR_PSX_LOAD_WORD_DELAYED(result, nativeValue)                           ((result) = (nativeValue))
+#define CTR_PSX_LOAD_WORD_VOLATILE(result, nativeValue)                          ((result) = (nativeValue))
+#define CTR_PSX_LOAD_SIGNED_BYTE(result, base, byteOffset, nativeValue)          ((result) = (s8)(nativeValue))
+#define CTR_PSX_LOAD_SIGNED_HALF(result, base, byteOffset, nativeValue)          ((result) = (s16)(nativeValue))
+#define CTR_PSX_LOAD_SIGNED_HALF_VOLATILE(result, base, byteOffset, nativeValue) ((result) = (s16)(nativeValue))
+#define CTR_PSX_LOAD_SIGNED_HALF_AFTER(result, base, byteOffset, nativeValue, dependency) \
+	do                                                                                    \
+	{                                                                                     \
+		(result) = (s16)(nativeValue);                                                    \
+		(void)(dependency);                                                               \
+	} while (0)
+#define CTR_PSX_LOAD_UNSIGNED_BYTE(result, base, byteOffset, nativeValue) ((result) = (u8)(nativeValue))
+#define CTR_PSX_LOAD_UNSIGNED_HALF(result, base, byteOffset, nativeValue) ((result) = (u16)(nativeValue))
+#define CTR_PSX_SHIFT_LEFT_IN_PLACE(value, shift)                         ((value) = CTR_MipsSll((value), (shift)))
+#define CTR_PSX_SHIFT_RIGHT_ARITHMETIC(result, value, shift)              ((result) = CTR_MipsSra((value), (shift)))
+#define CTR_PSX_SHIFT_RIGHT_ARITHMETIC_IN_PLACE(value, shift)             ((value) = CTR_MipsSra((value), (shift)))
+#define CTR_PSX_STORE_HALF(lvalue, value)                                 ((lvalue) = (s16)(value))
+#define CTR_PSX_SUBTRACT(result, lhs, rhs)                                ((result) = CTR_MipsSubLo((lhs), (rhs)))
+#define CTR_PSX_STORE_COP2_WORD(address, cop2Register)                    CTR_WriteU32LE((address), (u32)MFC2_S(cop2Register))
+#define CTR_PSX_STORE_COP2_VEC3(address, xRegister, yRegister, zRegister) \
+	do                                                                    \
+	{                                                                     \
+		(address)[0] = (s32)MFC2_S(xRegister);                            \
+		(address)[1] = (s32)MFC2_S(yRegister);                            \
+		(address)[2] = (s32)MFC2_S(zRegister);                            \
+	} while (0)
+#define CTR_PSX_STORE_COP2_HALF_DEAD_SCRATCH(base, byteOffset, cop2Register, scratchRegister) \
+	do                                                                                        \
+	{                                                                                         \
+		*(s16 *)((u8 *)(base) + (byteOffset)) = (s16)MFC2_S(cop2Register);                    \
+	} while (0)
+#define CTR_PSX_GTE_PIPELINE_DELAY()                          ((void)0)
+#define CTR_PSX_GTE_READ_DELAY()                              ((void)0)
 #define CTR_PSX_PAGE_LVALUE(type, page, offset, nativeLvalue) (nativeLvalue)
 #define CTR_PSX_ADD_SYMBOL_LOW(result, page, symbolExpression, nativeValue) \
 	do                                                                      \
@@ -102,6 +144,7 @@
 #define CTR_PSX_KEEP_VALUE(value)                                               __asm__ volatile("" : "+r"(value))
 #define CTR_PSX_KEEP_VALUE_RELAXED(value)                                       __asm__("" : "+r"(value))
 #define CTR_PSX_OBSERVE_VALUE(value)                                            __asm__ volatile("" : : "r"(value))
+#define CTR_PSX_OBSERVE_MEMORY(value)                                           __asm__("" : : "m"(value))
 #define CTR_PSX_ZERO_VALUE(value)                                               __asm__("move %0,$0" : "=r"(value))
 #define CTR_PSX_MEMORY_BARRIER()                                                __asm__ volatile("" : : : "memory")
 #define CTR_PSX_FORGET_VALUE(value)                                             __asm__ volatile("" : "=r"(value) : "0"(value))
@@ -113,6 +156,48 @@
 #define CTR_PSX_LOAD_WORD_FROM_PAGE(value, page, symbolExpression, nativeValue) __asm__("lw %0,%%lo(" symbolExpression ")(%1)" : "=r"(value) : "r"(page))
 #define CTR_PSX_LOAD_WORD_FROM_PAGE_AFTER(value, page, symbolExpression, nativeValue, dependency) \
 	__asm__("lw %0,%%lo(" symbolExpression ")(%1)" : "=r"(value) : "r"(page), "r"(dependency))
+#define CTR_PSX_ADD_POINTER_OFFSET(result, base, offset)                     __asm__("addu %0,%1,%2" : "=r"(result) : "r"(base), "r"(offset))
+#define CTR_PSX_ADD_POINTER_OFFSET_OFFSET_FIRST(result, base, offset)        __asm__("addu %0,%2,%1" : "=r"(result) : "r"(base), "r"(offset))
+#define CTR_PSX_ADD_POINTER_IMMEDIATE(result, base, byteOffset, nativeValue) __asm__("addiu %0,%1,%2" : "=r"(result) : "r"(base), "I"(byteOffset))
+#define CTR_PSX_NEGATE_IN_PLACE(value)                                       __asm__("negu %0,%0" : "+r"(value))
+#define CTR_PSX_NEGATE(result, value)                                        __asm__("subu %0,$0,%1" : "=r"(result) : "r"(value))
+#define CTR_PSX_LOAD_IMMEDIATE(result, value)                                __asm__("li %0,%1" : "=r"(result) : "I"(value))
+#define CTR_PSX_LOAD_STACK_WORD(result, byteOffset, nativeValue)             __asm__ volatile("lw %0," #byteOffset "($sp)" : "=r"(result) : : "memory")
+#define CTR_PSX_LOAD_WORD(result, nativeValue)                               __asm__("lw %0,%1" : "=r"(result) : "m"(nativeValue))
+#define CTR_PSX_LOAD_WORD_DELAYED(result, nativeValue)                       __asm__ volatile("lw %0,%1\n\tnop" : "=r"(result) : "m"(nativeValue))
+#define CTR_PSX_LOAD_WORD_VOLATILE(result, nativeValue)                      __asm__ volatile("lw %0,%1" : "=r"(result) : "m"(nativeValue))
+#define CTR_PSX_LOAD_SIGNED_BYTE(result, base, byteOffset, nativeValue)      __asm__("lb %0,%2(%1)" : "=r"(result) : "r"(base), "I"(byteOffset), "m"(nativeValue))
+#define CTR_PSX_LOAD_SIGNED_HALF(result, base, byteOffset, nativeValue)      __asm__("lh %0,%2(%1)" : "=r"(result) : "r"(base), "I"(byteOffset), "m"(nativeValue))
+#define CTR_PSX_LOAD_SIGNED_HALF_VOLATILE(result, base, byteOffset, nativeValue) \
+	__asm__ volatile("lh %0,%2(%1)" : "=r"(result) : "r"(base), "I"(byteOffset) : "memory")
+#define CTR_PSX_LOAD_SIGNED_HALF_AFTER(result, base, byteOffset, nativeValue, dependency) \
+	__asm__("lh %0,%2(%1)" : "=r"(result) : "r"(base), "I"(byteOffset), "r"(dependency), "m"(nativeValue))
+#define CTR_PSX_LOAD_UNSIGNED_BYTE(result, base, byteOffset, nativeValue) __asm__("lbu %0,%2(%1)" : "=r"(result) : "r"(base), "I"(byteOffset), "m"(nativeValue))
+#define CTR_PSX_LOAD_UNSIGNED_HALF(result, base, byteOffset, nativeValue) __asm__("lhu %0,%2(%1)" : "=r"(result) : "r"(base), "I"(byteOffset), "m"(nativeValue))
+#define CTR_PSX_SHIFT_LEFT_IN_PLACE(value, shift)                         __asm__("sll %0,%0,%1" : "+r"(value) : "I"(shift))
+#define CTR_PSX_SHIFT_RIGHT_ARITHMETIC(result, value, shift)              __asm__("sra %0,%1,%2" : "=r"(result) : "r"(value), "I"(shift))
+#define CTR_PSX_SHIFT_RIGHT_ARITHMETIC_IN_PLACE(value, shift)             __asm__("sra %0,%0,%1" : "+r"(value) : "I"(shift))
+#define CTR_PSX_STORE_HALF(lvalue, value)                                 __asm__ volatile("sh %1,%0" : "=m"(lvalue) : "r"(value))
+#define CTR_PSX_SUBTRACT(result, lhs, rhs)                                __asm__("subu %0,%1,%2" : "=r"(result) : "r"(lhs), "r"(rhs))
+#define CTR_PSX_STORE_COP2_WORD(address, cop2Register)                    __asm__ volatile("swc2 $" #cop2Register ",0(%0)" : : "r"(address) : "memory")
+#define CTR_PSX_STORE_COP2_VEC3(address, xRegister, yRegister, zRegister) \
+	__asm__ volatile("swc2 $" #xRegister ",0(%0)\n\t"                     \
+	                 "swc2 $" #yRegister ",4(%0)\n\t"                     \
+	                 "swc2 $" #zRegister ",8(%0)"                         \
+	                 :                                                    \
+	                 : "r"(address)                                       \
+	                 : "memory")
+// NOTE(aalhendi): The scratch register is consumed entirely within this
+// sequence and must hold no C value across the call. Keeping it out of the
+// clobber list lets GCC 2.8 reuse the same dead register before the GTE read.
+#define CTR_PSX_STORE_COP2_HALF_DEAD_SCRATCH(base, byteOffset, cop2Register, scratchRegister) \
+	__asm__ volatile("mfc2 " scratchRegister ",$" #cop2Register "\n\tnop"                     \
+	                 "\n\tsh " scratchRegister ",%1(%0)"                                      \
+	                 :                                                                        \
+	                 : "r"(base), "I"(byteOffset)                                             \
+	                 : "memory")
+#define CTR_PSX_GTE_PIPELINE_DELAY()                                        __asm__ volatile("nop\n\tnop")
+#define CTR_PSX_GTE_READ_DELAY()                                            __asm__ volatile("nop")
 #define CTR_PSX_PAGE_LVALUE(type, page, offset, nativeLvalue)               (*(type *)((u32)(page) + (s32)(offset)))
 #define CTR_PSX_ADD_SYMBOL_LOW(result, page, symbolExpression, nativeValue) __asm__("addiu %0,%1,%%lo(" symbolExpression ")" : "=r"(result) : "r"(page))
 #define CTR_PSX_ADD_SYMBOL_LOW_DISTINCT(result, page, symbolExpression, nativeValue, identity) \

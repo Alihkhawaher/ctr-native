@@ -135,7 +135,7 @@ void GhostReplay_ThTick(struct Thread *t);
 void GhostTape_Destroy(void);
 void GhostTape_End(void);
 void GhostTape_Start(void);
-void GhostTape_WriteBoosts(int addReserve, u8 type, int speedCap);
+void GhostTape_WriteBoosts(int addReserve, u32 type, int speedCap);
 void GhostTape_WriteMoves(s16 raceFinished);
 
 // howl
@@ -702,7 +702,7 @@ void UI_Lerp2D_HUD(s16 *ptrPos, s16 startX, s16 startY, s16 endX, s16 endY, int 
 void UI_RaceEnd_MenuProc(struct RectMenu *);
 
 // VEH
-void VehBirth_TeleportSelf(struct Driver *d, u8 spawnFlag, int spawnPosY);
+void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY);
 void VehBirth_TeleportAll(struct GameTracker *gGT, u32 spawnFlags);
 struct Model *VehBirth_GetModelByName(char *searchName);
 void VehBirth_SetConsts(struct Driver *driver);
@@ -711,7 +711,7 @@ void VehBirth_TireSprites(struct Thread *t);
 void VehBirth_NonGhost(struct Thread *t, int index);
 struct Driver *VehBirth_Player(int index);
 
-struct Terrain *VehAfterColl_GetTerrain(u8 terrainType);
+struct Terrain *VehAfterColl_GetTerrain(u32 terrainType);
 u32 VehCalc_FastSqrt(u32 n, u32 shift);
 struct Particle *VehEmitter_Exhaust(struct Driver *driver, VECTOR *pos, VECTOR *vel);
 void VehEmitter_Sparks_Ground(struct Driver *driver, struct ParticleEmitter *emSet);
@@ -790,9 +790,9 @@ void VehStuckProc_Warp_AddDustPuff2(struct Driver *d, struct DriverWarpState *wa
 void VehStuckProc_Warp_PhysAngular(struct Thread *t, struct Driver *d);
 void VehStuckProc_Warp_Init(struct Thread *t, struct Driver *d);
 
-void VehPhysForce_ConvertSpeedToVec(struct Driver *driver);
+void VehPhysForce_ConvertSpeedToVec(struct Driver *driver, Vec3 *velocity);
 void VehPhysForce_AccelTerrainSlope(struct Driver *driver);
-void VehPhysForce_RotAxisAngle(MATRIX *m, s16 *normVec, s16 angle);
+void VehPhysForce_RotAxisAngle(MATRIX *m, s16 *normVec, s32 angle);
 void VehPhysForce_OnApplyForces(struct Thread *t, struct Driver *d);
 int VehPhysGeneral_GetBaseSpeed(struct Driver *driver);
 void VehPhysGeneral_SetHeldItem(struct Driver *driver);
@@ -1156,8 +1156,6 @@ void MM_Cheat_TurboCounter(void);
 void UI_Map_DrawMap_ExtraFunc(struct Icon *icon, POLY_FT4 *p, s16 posX, s16 empty, struct PrimMem *primMem, u32 *otMem, u32 transparency);
 
 void VehTalkMask_ThTick(struct Thread *t);
-void PhysLerpRot(struct Driver *driver, int targetRotW);
-void PhysTerrainSlope(struct Driver *driver);
 
 void Channel_DestroySelf(struct ChannelStats *stats);
 
@@ -1349,7 +1347,6 @@ int VehPhysCrash_BounceSelf(const SVec3 *normal, const Vec3 *origin, Vec3 *vel, 
 void VehPhysCrash_AI(struct Driver *bot, Vec3 *vel);
 int VehPhysCrash_Attack(struct Driver *driver1, struct Driver *driver2, b32 canPlayFeedback, b32 boolPlayBubblePop);
 void VehPhysCrash_AnyTwoCars(struct Thread *thread, struct DriverCollisionSearch *search, Vec3 *selfVel);
-void VehPhysForce_ConvertSpeedToVecOut(struct Driver *d, Vec3 *vel);
 void VehPhysForce_CollideDrivers(struct Thread *thread, struct Driver *driver);
 void VehPhysForce_TranslateMatrix(struct Thread *thread, struct Driver *driver);
 int VehPhysGeneral_JumpGetVelY(s16 *normalVec, Vec3 *speedXYZ);

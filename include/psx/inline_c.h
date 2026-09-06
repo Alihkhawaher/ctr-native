@@ -9,11 +9,11 @@
 
 #include <macros.h>
 
-/* Psy-X specific calls */
-
 #ifdef CTR_NATIVE
 
-/* sets cop2 data register value. LWC2 is the same kind*/
+/* Psy-X simulates the GTE through host calls. */
+
+/* sets cop2 data register value. LWC2 is the same kind */
 extern void MTC2(unsigned int value, int reg);
 extern void MTC2_S(int value, int reg);
 
@@ -307,16 +307,6 @@ extern int doCOP2(int op);
 		CTC2(CTR_ReadU32LE((char *)(r0) + 8), 10);  \
 		CTC2(CTR_ReadU32LE((char *)(r0) + 12), 11); \
 		CTC2(CTR_ReadU32LE((char *)(r0) + 16), 12); \
-	}
-
-// ctc2 16-20
-#define gte_SetColorMatrix(r0)                      \
-	{                                               \
-		CTC2(CTR_ReadU32LE((char *)(r0)), 16);      \
-		CTC2(CTR_ReadU32LE((char *)(r0) + 4), 17);  \
-		CTC2(CTR_ReadU32LE((char *)(r0) + 8), 18);  \
-		CTC2(CTR_ReadU32LE((char *)(r0) + 12), 19); \
-		CTC2(CTR_ReadU32LE((char *)(r0) + 16), 20); \
 	}
 
 // mtc2 9,10,11
