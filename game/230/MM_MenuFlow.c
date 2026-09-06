@@ -77,27 +77,27 @@ void MM_MenuProc_Main(struct RectMenu *menu)
 		    // main menu, "title" exists, and timer >= 230
 		    (MM_TITLE_MENU_STATE == TITLE_MENU_STATE_IN_MENU) && (MM_TITLE_OBJECT != NULL) && (TITLE_INTRO_TM_DRAW_MIN_FRAME < (s16)MM_TITLE_INTRO_FRAME))
 		{
-			DecalFont_DrawLineOT(MM_LANGUAGE_STRINGS[LNG_TM], MM_TITLE_TM_X, MM_TITLE_TM_Y, FONT_SMALL, ORANGE,
-			                     &MM_GAME_TRACKER->backBuffer->otMem.uiOT[MM_TITLE_TM_OT_INDEX]);
+			DecalFont_DrawLineOT(GAME_LANGUAGE_STRINGS[LNG_TM], MM_TITLE_TM_X, MM_TITLE_TM_Y, FONT_SMALL, ORANGE,
+			                     &GAME_TRACKER->backBuffer->otMem.uiOT[MM_TITLE_TM_OT_INDEX]);
 		}
 
 		if ((MM_MENU_MAIN.state & DRAW_NEXT_MENU_IN_HIERARCHY) == 0)
 		{
-			MM_GAME_TRACKER->numPlyrNextGame = 1;
+			GAME_TRACKER->numPlyrNextGame = 1;
 
 			// if button pressed, reset timer
-			if (MM_GAMEPADS->anyoneHeldCurr != 0)
+			if (GAMEPADS->anyoneHeldCurr != 0)
 			{
-				MM_GAME_TRACKER->demoCountdownTimer = TITLE_DEMO_IDLE_FRAMES;
+				GAME_TRACKER->demoCountdownTimer = TITLE_DEMO_IDLE_FRAMES;
 			}
 
 			// if no buttons pressed, check demo mode
 			else
 			{
-				MM_GAME_TRACKER->demoCountdownTimer--;
+				GAME_TRACKER->demoCountdownTimer--;
 
 				// If time runs out
-				if (MM_GAME_TRACKER->demoCountdownTimer < 1)
+				if (GAME_TRACKER->demoCountdownTimer < 1)
 				{
 					// Transition out of main menu
 					MM_TITLE_MENU_STATE = TITLE_MENU_STATE_EXITING;
@@ -149,17 +149,17 @@ void MM_MenuProc_Main(struct RectMenu *menu)
 		return;
 	}
 	// clear flags from game mode
-	MM_GAME_TRACKER->gameMode1 &= ~(BATTLE_MODE | ADVENTURE_MODE | TIME_TRIAL | ADVENTURE_ARENA | ARCADE_MODE | ADVENTURE_CUP);
+	GAME_TRACKER->gameMode1 &= ~(BATTLE_MODE | ADVENTURE_MODE | TIME_TRIAL | ADVENTURE_ARENA | ARCADE_MODE | ADVENTURE_CUP);
 
 	// clear more game mode flags
-	MM_GAME_TRACKER->gameMode2 &= ~(CUP_ANY_KIND);
+	GAME_TRACKER->gameMode2 &= ~(CUP_ANY_KIND);
 
 	mainMenu->state |= ONLY_DRAW_TITLE;
 
 	// Default to 3,
 	// this intentionally disables the 1-lap cheat
 	// in Time Trial and Adventure, DONT change it
-	MM_GAME_TRACKER->numLaps = MM_DEFAULT_LAP_COUNT;
+	GAME_TRACKER->numLaps = MM_DEFAULT_LAP_COUNT;
 
 	// get LNG index of row selected
 	choose = mainMenu->rows[mainMenu->rowSelected].stringIndex;
@@ -171,7 +171,7 @@ void MM_MenuProc_Main(struct RectMenu *menu)
 	{
 		struct GameTracker *adventureTracker;
 
-		adventureTracker = MM_GAME_TRACKER;
+		adventureTracker = GAME_TRACKER;
 
 		// Turn on Adventure Mode
 		adventureTracker->gameMode1 |= ADVENTURE_MODE;
@@ -191,7 +191,7 @@ void MM_MenuProc_Main(struct RectMenu *menu)
 
 	// Time Trial
 	case LNG_TIME_TRIAL:
-		timeTrialSetupTracker = (u32)MM_GAME_TRACKER;
+		timeTrialSetupTracker = (u32)GAME_TRACKER;
 		{
 			// Leave main menu hierarchy
 			MM_TITLE_MENU_STATE = TITLE_MENU_STATE_EXITING;
@@ -202,11 +202,11 @@ void MM_MenuProc_Main(struct RectMenu *menu)
 			// set game mode to Time Trial Mode
 			((struct GameTracker *)timeTrialSetupTracker)->numPlyrNextGame = 1;
 			((struct GameTracker *)timeTrialSetupTracker)->gameMode1 |= TIME_TRIAL;
-			MM_GAME_TRACKER->gameMode2 &= ~CHEAT_WUMPA;
-			MM_GAME_TRACKER->gameMode2 &= ~CHEAT_TURBO;
-			MM_GAME_TRACKER->gameMode2 &= ~CHEAT_MASK;
-			MM_GAME_TRACKER->gameMode2 &= ~CHEAT_ENGINE;
-			MM_GAME_TRACKER->gameMode2 &= ~CHEAT_BOMBS;
+			GAME_TRACKER->gameMode2 &= ~CHEAT_WUMPA;
+			GAME_TRACKER->gameMode2 &= ~CHEAT_TURBO;
+			GAME_TRACKER->gameMode2 &= ~CHEAT_MASK;
+			GAME_TRACKER->gameMode2 &= ~CHEAT_ENGINE;
+			GAME_TRACKER->gameMode2 &= ~CHEAT_BOMBS;
 
 			return;
 		}
@@ -215,13 +215,13 @@ void MM_MenuProc_Main(struct RectMenu *menu)
 	case LNG_ARCADE:
 	{
 		// DONT change, should only work in Arcade, and VS
-		if ((MM_GAME_TRACKER->gameMode2 & CHEAT_ONELAP) != 0)
+		if ((GAME_TRACKER->gameMode2 & CHEAT_ONELAP) != 0)
 		{
-			MM_GAME_TRACKER->numLaps = MM_ONE_LAP_CHEAT_COUNT;
+			GAME_TRACKER->numLaps = MM_ONE_LAP_CHEAT_COUNT;
 		}
 
 		// set game mode to Arcade Mode
-		MM_GAME_TRACKER->gameMode1 |= ARCADE_MODE;
+		GAME_TRACKER->gameMode1 |= ARCADE_MODE;
 
 		// set next menu
 		mainMenu->ptrNextBox_InHierarchy = &MM_MENU_RACE_TYPE;
@@ -233,9 +233,9 @@ void MM_MenuProc_Main(struct RectMenu *menu)
 	case LNG_VS:
 	{
 		// DONT change, should only work in Arcade, and VS
-		if ((MM_GAME_TRACKER->gameMode2 & CHEAT_ONELAP) != 0)
+		if ((GAME_TRACKER->gameMode2 & CHEAT_ONELAP) != 0)
 		{
-			MM_GAME_TRACKER->numLaps = MM_ONE_LAP_CHEAT_COUNT;
+			GAME_TRACKER->numLaps = MM_ONE_LAP_CHEAT_COUNT;
 		}
 
 		// next menu is choosing single+cup
@@ -250,7 +250,7 @@ void MM_MenuProc_Main(struct RectMenu *menu)
 		MM_CHARACTER_SELECT_TRANSITION_STATE = EXITING_MENU;
 
 		// set game mode to Battle Mode
-		MM_GAME_TRACKER->gameMode1 |= BATTLE_MODE;
+		GAME_TRACKER->gameMode1 |= BATTLE_MODE;
 
 		// set next menu to 2P,3P,4P
 		mainMenu->ptrNextBox_InHierarchy = &MM_MENU_PLAYERS_2P3P4P;
@@ -342,7 +342,7 @@ void MM_MenuProc_1p2p(struct RectMenu *menu)
 	}
 
 	// row 0 is 1P, row 1 is 2P
-	MM_GAME_TRACKER->numPlyrNextGame = menu->rowSelected + 1;
+	GAME_TRACKER->numPlyrNextGame = menu->rowSelected + 1;
 
 	// go to difficulty box
 	menu->ptrNextBox_InHierarchy = &MM_MENU_DIFFICULTY;
@@ -353,7 +353,7 @@ void MM_MenuProc_1p2p(struct RectMenu *menu)
 UNINITIALIZED:
 	previousMenuOwner->ptrPrevBox_InHierarchy->state &= ~(ONLY_DRAW_TITLE | DRAW_NEXT_MENU_IN_HIERARCHY);
 
-	MM_GAME_TRACKER->numPlyrNextGame = 1;
+	GAME_TRACKER->numPlyrNextGame = 1;
 
 	MM_CHARACTER_SELECT_TRANSITION_STATE = ENTERING_MENU;
 	return;
@@ -386,7 +386,7 @@ void MM_MenuProc_2p3p4p(struct RectMenu *menu)
 	}
 
 	// row 0 is 2P, row 1 is 3P, row 2 is 4P
-	MM_GAME_TRACKER->numPlyrNextGame = selectedMenu->rowSelected + 2;
+	GAME_TRACKER->numPlyrNextGame = selectedMenu->rowSelected + 2;
 
 	MM_TITLE_MENU_STATE = TITLE_MENU_STATE_EXITING;
 	MM_DESIRED_MENU_INDEX = MM_EXIT_ROUTE_CHARACTER_SELECT;
@@ -397,7 +397,7 @@ void MM_MenuProc_2p3p4p(struct RectMenu *menu)
 UNINITIALIZED:
 	menuOwner->ptrPrevBox_InHierarchy->state &= ~(ONLY_DRAW_TITLE | DRAW_NEXT_MENU_IN_HIERARCHY);
 
-	MM_GAME_TRACKER->numPlyrNextGame = 1;
+	GAME_TRACKER->numPlyrNextGame = 1;
 
 	MM_CHARACTER_SELECT_TRANSITION_STATE = ENTERING_MENU;
 	return;
@@ -427,8 +427,8 @@ void MM_ToggleRows_Difficulty(void)
 	difficultyMenu = &MM_MENU_DIFFICULTY;
 	difficultyIndex = 0;
 	firstUnlockBits = MM_CUP_DIFFICULTY_FIRST_UNLOCK_BIT;
-	progress = &MM_GAME_PROGRESS;
-	gGT = MM_GAME_TRACKER;
+	progress = &GAME_PROGRESS;
+	gGT = GAME_TRACKER;
 
 	// check 3 modes (easy, medium, hard)
 	for (/**/; difficultyIndex < MM_DIFFICULTY_COUNT; difficultyIndex++)
@@ -529,7 +529,7 @@ void MM_MenuProc_Difficulty(struct RectMenu *menu)
 	}
 
 	// set difficulty to value, from array of fixed difficulty values
-	MM_GAME_TRACKER->arcadeDifficulty = MM_CUP_DIFFICULTY_SPEED[row];
+	GAME_TRACKER->arcadeDifficulty = MM_CUP_DIFFICULTY_SPEED[row];
 
 	MM_TITLE_MENU_STATE = TITLE_MENU_STATE_EXITING;
 	MM_DESIRED_MENU_INDEX = MM_EXIT_ROUTE_CHARACTER_SELECT;
@@ -566,19 +566,19 @@ void MM_MenuProc_SingleCup(struct RectMenu *menu)
 	}
 
 	// disable Cup mode
-	MM_GAME_TRACKER->gameMode2 &= ~(CUP_ANY_KIND);
+	GAME_TRACKER->gameMode2 &= ~(CUP_ANY_KIND);
 
 	// if you choose cup mode
 	if (menu->rowSelected != 0)
 	{
 		// enable cup mode
-		MM_GAME_TRACKER->gameMode2 |= CUP_ANY_KIND;
+		GAME_TRACKER->gameMode2 |= CUP_ANY_KIND;
 	}
 
 	menu->state |= ONLY_DRAW_TITLE | DRAW_NEXT_MENU_IN_HIERARCHY;
 
 	// if mode is Arcade
-	if ((MM_GAME_TRACKER->gameMode1 & ARCADE_MODE) != 0)
+	if ((GAME_TRACKER->gameMode1 & ARCADE_MODE) != 0)
 	{
 		// set next menu to 1P+2P select
 		menu->ptrNextBox_InHierarchy = &MM_MENU_PLAYERS_1P2P;
@@ -699,7 +699,7 @@ void MM_JumpTo_Title_FirstTime(void)
 	MM_ACTIVE_MENU = mainMenu;
 
 	MM_TITLE_INTRO_FRAME = 0;
-	gGT = MM_GAME_TRACKER;
+	gGT = GAME_TRACKER;
 
 	// first time in main menu
 	// (play crash trophy anim)

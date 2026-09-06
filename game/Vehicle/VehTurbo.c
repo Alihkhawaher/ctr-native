@@ -81,7 +81,7 @@ void VehTurbo_ProcessBucket(struct Thread *turboThread)
 		return;
 	}
 
-	initialGameTracker = VEH_GAME_TRACKER;
+	initialGameTracker = GAME_TRACKER;
 	do
 	{
 		turbo = turboThread->object;
@@ -92,7 +92,7 @@ void VehTurbo_ProcessBucket(struct Thread *turboThread)
 		i = 0;
 		if (initialGameTracker->numPlyrCurrGame != 0)
 		{
-			loopGameTracker = VEH_GAME_TRACKER;
+			loopGameTracker = GAME_TRACKER;
 			primary = (u32)primaryBase;
 			driver = (u32)driverBase;
 			do
@@ -267,7 +267,7 @@ void VehTurbo_ThTick(struct Thread *turboThread)
 		VEH_TURBO_STORE_TRANSLATION(&turbo->inst->matrix.t[0]);
 
 		// decrease turbo visibility cooldown by elapsed milliseconds per frame, ~32
-		elapsedTime = turbo->fireVisibilityCooldown - VEH_GAME_TRACKER->elapsedTimeMS;
+		elapsedTime = turbo->fireVisibilityCooldown - GAME_TRACKER->elapsedTimeMS;
 		turbo->fireVisibilityCooldown = elapsedTime;
 
 		// don't allow negatives
@@ -290,7 +290,7 @@ void VehTurbo_ThTick(struct Thread *turboThread)
 		}
 
 		// set new model pointer, one of eight
-		instance->model = VEH_GAME_TRACKER->modelPtr[(int)turbo->fireAnimIndex + STATIC_TURBO_EFFECT];
+		instance->model = GAME_TRACKER->modelPtr[(int)turbo->fireAnimIndex + STATIC_TURBO_EFFECT];
 
 		// set new model pointer, one of eight
 
@@ -303,7 +303,7 @@ void VehTurbo_ThTick(struct Thread *turboThread)
 		// STATIC_TURBO_EFFECT6
 		// STATIC_TURBO_EFFECT7
 		turbo->inst->model =
-		    VEH_GAME_TRACKER->modelPtr[(((int)turbo->fireAnimIndex + TURBO_SECONDARY_MODEL_FRAME_OFFSET) & TURBO_ANIM_FRAME_MASK) + STATIC_TURBO_EFFECT];
+		    GAME_TRACKER->modelPtr[(((int)turbo->fireAnimIndex + TURBO_SECONDARY_MODEL_FRAME_OFFSET) & TURBO_ANIM_FRAME_MASK) + STATIC_TURBO_EFFECT];
 
 		turbo->fireAnimIndex++;
 

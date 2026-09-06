@@ -1,11 +1,10 @@
 #ifndef CTR_MATCHING_OVERLAY_230_RETAIL_SYMBOLS_H
 #define CTR_MATCHING_OVERLAY_230_RETAIL_SYMBOLS_H
 
-#define MM_GAME_TRACKER               mm_gameTracker
-#define MM_GAME_TRACKER_VOLATILE      mm_gameTrackerVolatile
+#include "../../retail_bindings.h"
+
 #define MM_GAME_TRACKER_PAGE_VALUE    0x80090000U
 #define MM_GAME_TRACKER_PAGE_UPPER_ASM "0x8009"
-#define MM_GAME_TRACKER_ASM_NAME      "sdata_static+832"
 #define MM_GAME_TRACKER_PAGE_OFFSET   -11604
 #define MM_GAME_TRACKER_PAGE_OFFSET_ASM "-11604"
 #define MM_OVERLAY_PAGE_VALUE 0x800b0000U
@@ -13,9 +12,6 @@
 #define MM_REQUEST_LEVEL              mm_mainRaceTrackRequestLoad
 #define MM_BIGFILE_HEADER             mm_bigfileHeader
 #define MM_GAME_UNLOCKS               mm_gameUnlocks
-#define MM_GAME_PROGRESS              mm_gameProgress
-#define MM_GAME_PROGRESS_ASM_NAME     "sdata_static+6012"
-#define MM_CHARACTER_IDS              mm_characterIDs
 #define MM_CHARACTER_IDS_BACKUP       mm_characterIDsBackup
 #define MM_DEFAULT_CHARACTER_ID_WORDS mm_defaultCharacterIDWords
 #define MM_TITLE_OBJECT               mm_titleObject
@@ -49,14 +45,12 @@
 #define MM_ARCADE_TRACKS_PAGE_OFFSET   0x53b0
 #define MM_DESIRED_MENU_INDEX          mm_desiredMenuIndex
 #define MM_TITLE_MENU_TRANSITION_FRAME mm_titleMenuTransitionFrame
-#define MM_ADV_PROGRESS                mm_advProgress
 #define MM_ADV_PROFILE_INDEX           mm_advProfileIndex
 #define MM_MAIN_MENU_STATE             mm_mainMenuState
 #define MM_DEMO_MODE_INDEX             mm_demoModeIndex
 #define MM_DESIRED_MENU                mm_desiredMenu
 #define MM_ACTIVE_MENU                 mm_activeMenu
 #define MM_MENU_FOUR_ADV_PROFILES      mm_menuFourAdvProfiles
-#define MM_GAMEPADS                    mm_gamepads
 #define MM_CHEATS                      mm_cheats
 #define MM_CHEAT_BUTTON_HISTORY        mm_cheatButtonHistory
 #define MM_COLOR_POINTERS              mm_colorPointers
@@ -66,8 +60,6 @@
 #define MM_FRAME_COUNTER_PAGE_OFFSET   -9872
 #define MM_TRIG_APPROX                 mm_trigApprox
 #define MM_ACTIVE_CHARACTER_SELECT_META mm_activeCharacterSelectMeta
-#define MM_CHARACTER_METADATA          mm_characterMetadata
-#define MM_CHARACTER_METADATA_ASM_NAME "data+25572"
 #define MM_CHARACTER_METADATA_PAGE_VALUE  0x80080000U
 #define MM_CHARACTER_METADATA_PAGE_OFFSET 0x6d84
 #define MM_CHARACTER_SELECT_DESIRED_IDS mm_characterSelectDesiredIDs
@@ -113,8 +105,6 @@
 #define MM_CUP_DIFFICULTY_STRING_INDEX mm_cupDifficultyStringIndex
 #define MM_CUP_DIFFICULTY_STRING_INDEX_ASM_NAME "D230+2128"
 #define MM_CUP_DIFFICULTY_SPEED        mm_cupDifficultySpeed
-#define MM_LANGUAGE_STRINGS            mm_languageStrings
-#define MM_LANGUAGE_STRINGS_ASM_NAME   "sdata_static+2316"
 #define MM_LANGUAGE_STRINGS_PAGE_OFFSET -0x2788
 #define MM_CHARACTER_SELECT_TRANSITION_STATE mm_characterSelectTransitionState
 #define MM_CHARACTER_SELECT_FLAGS mm_characterSelectFlags
@@ -313,15 +303,12 @@
 #define MM_ERROR_MESSAGE_POS_INDEX mm_errorMessagePosIndex
 #define MM_GHOST_TAPE_PLAYING mm_ghostTapePlaying
 #define MM_USELESS_LAP_ROW_COPY mm_uselessLapRowCopy
-#define MM_MENU_ROW_HIGHLIGHT_NORMAL mm_menuRowHighlightNormal
 #define MM_MENU_ROW_HIGHLIGHT_NORMAL_PAGE_OFFSET -0x26b4
 #define MM_DECALHUD_DRAW_POLY_GT4 mm_decalHudDrawPolyGT4
 #define MM_DECALHUD_ARROW_2D mm_decalHudArrow2D
 #define MM_DRAW_CLEAR_BOX CTR_Box_DrawClearBox
 #define MM_DRAW_SOLID_BOX_WITH_PRIM_MEM CTR_Box_DrawSolidBox
 #define MM_DRAW_LINE_WIDE_FLAGS mm_drawLineWideFlags
-
-#include <common.h>
 
 // NOTE(aalhendi): The canonical call grows MM_CupSelect_MenuProc by two
 // instructions. This matching-only aggregate reproduces GCC 2.8.1's retail
@@ -374,13 +361,9 @@ extern void mm_cupSelectDrawTrack(struct Icon *icon, s32 posX, s32 posY,
 // the shared game ABI.
 #define sdata (&sdata_static)
 
-extern struct GameProgress mm_gameProgress asm("sdata_static+6012");
 extern u32 mm_gameUnlocks[GAME_PROGRESS_UNLOCK_WORD_COUNT] asm("sdata_static+6016");
-extern struct GameTracker *mm_gameTracker asm("sdata_static+832");
-extern struct GameTracker *volatile mm_gameTrackerVolatile asm("sdata_static+832");
 extern void mm_mainRaceTrackRequestLoad(s32 levelID) asm("MainRaceTrack_RequestLoad");
 extern struct BigHeader *mm_bigfileHeader asm("sdata_static+304");
-extern s16 mm_characterIDs[8] asm("data+25828");
 extern s16 mm_characterIDsBackup[8] asm("sdata_static+55828");
 extern const u32 mm_defaultCharacterIDWords[2] asm("R230+36");
 extern struct Title *mm_titleObject asm("D230+5308");
@@ -410,21 +393,18 @@ extern struct TransitionMeta mm_titleTransitions[TITLE_TRANSITION_COUNT] asm("D2
 extern struct MainMenu_LevelRow mm_arcadeTracks[0x12] asm("D230+3788");
 extern s16 mm_desiredMenuIndex asm("D230+5372");
 extern s16 mm_titleMenuTransitionFrame asm("D230+5468");
-extern struct AdvProgress mm_advProgress asm("sdata_static+11320");
 extern s16 mm_advProfileIndex asm("sdata_static+2560");
 extern MainMenuState mm_mainMenuState asm("sdata_static+2576");
 extern s16 mm_demoModeIndex asm("sdata_static+2580");
 extern struct RectMenu *mm_desiredMenu asm("sdata_static+2488");
 extern struct RectMenu *mm_activeMenu asm("sdata_static+2460");
 extern struct RectMenu mm_menuFourAdvProfiles asm("data+20968");
-extern struct GamepadSystem *mm_gamepads asm("sdata_static+836");
 extern struct MainMenuCheatCode mm_cheats[MM_CHEAT_COUNT] asm("D230+1024");
 extern u32 mm_cheatButtonHistory[MM_CHEAT_BUTTON_HISTORY_COUNT] asm("D230+2080");
 extern u32 *mm_colorPointers[NUM_COLORS] asm("data+5072");
 extern u16 mm_frameCounter asm("sdata_static+2564");
 extern struct TrigTable mm_trigApprox[0x400] asm("data+15360");
 extern struct CharacterSelectMeta *mm_activeCharacterSelectMeta asm("D230+5428");
-extern struct MetaDataCHAR mm_characterMetadata[0x10] asm("data+25572");
 extern s16 mm_characterSelectDesiredIDs[4] asm("D230+5388");
 extern SVec2 *mm_activeCharacterSelectWindowPos asm("D230+5416");
 extern struct TransitionMeta *mm_characterSelectTransitionMeta asm("D230+5464");
@@ -590,7 +570,6 @@ extern b16 mm_replayHumanGhost asm("sdata_static+2540");
 extern s16 mm_errorMessagePosIndex asm("sdata_static+2336");
 extern struct GhostHeader *mm_ghostTapePlaying asm("sdata_static+2024");
 extern u16 mm_uselessLapRowCopy asm("sdata_static+2484");
-extern Color mm_menuRowHighlightNormal asm("sdata_static+2528");
 // NOTE(aalhendi): These retail call sites prepare full-width scalar arguments.
 // The callee consumes their low 16 bits; this alias prevents caller-side
 // truncation without changing DecalFont_DrawLine's canonical declaration.
@@ -610,7 +589,6 @@ extern struct MenuRow mm_rowsPlayers2P3P4P[MM_PLAYER_2P3P4P_SELECTABLE_ROWS + 1]
 extern s16 mm_cupDifficultyFirstUnlockBit[4] asm("D230+2120");
 extern s16 mm_cupDifficultyStringIndex[4] asm("D230+2128");
 extern s16 mm_cupDifficultySpeed[4] asm("D230+2136");
-extern char **mm_languageStrings asm("sdata_static+2316");
 extern s16 mm_characterSelectTransitionState asm("D230+5412");
 
 #endif

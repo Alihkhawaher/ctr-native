@@ -58,7 +58,7 @@ void VehFire_Audio(struct Driver *driver, int speed_cap)
 
 	volume = VEH_FIRE_AUDIO_VOLUME_HIGH;
 	distortion = VEH_FIRE_AUDIO_DISTORT_HIGH;
-	Voiceline_RequestPlay(VEH_FIRE_VOICELINE_HIGH_BOOST_ID, VEH_CHARACTER_IDS[audioDriver->driverID], VEH_FIRE_VOICELINE_PRIORITY);
+	Voiceline_RequestPlay(VEH_FIRE_VOICELINE_HIGH_BOOST_ID, GAME_CHARACTER_IDS[audioDriver->driverID], VEH_FIRE_VOICELINE_PRIORITY);
 	CTR_PSX_KEEP_VALUE(volume);
 	volumeFlags = volume << HOWL_SFX_VOLUME_SHIFT;
 	goto AudioFlags;
@@ -158,7 +158,7 @@ void VehFire_Increment(struct Driver *driverArg, int reservesArg, u32 typeArg, i
 	driver->actionsFlagSet = (driver->actionsFlagSet & ~ACTION_TURBO_INPUT_LATCH) | ACTION_NEW_BOOST;
 
 	// turbo thread bucket
-	turboThread = VEH_GAME_TRACKER->threadBuckets[TURBO].thread;
+	turboThread = GAME_TRACKER->threadBuckets[TURBO].thread;
 
 	// check all turbo threads
 	while (turboThread != 0)
@@ -260,7 +260,7 @@ void VehFire_Increment(struct Driver *driverArg, int reservesArg, u32 typeArg, i
 			turboInst1->thread->funcThDestroy = VehTurbo_ThDestroy;
 
 			// turbo #2
-			turboObj->inst = INSTANCE_Birth3D(VEH_GAME_TRACKER->modelPtr[STATIC_TURBO_EFFECT], // model
+			turboObj->inst = INSTANCE_Birth3D(GAME_TRACKER->modelPtr[STATIC_TURBO_EFFECT], // model
 			                                  VEH_TURBO2_NAME,                                 // name
 			                                  turboInst1->thread                               // parent thread
 			);
@@ -269,7 +269,7 @@ void VehFire_Increment(struct Driver *driverArg, int reservesArg, u32 typeArg, i
 			addFlags = DEPTH_FADE | DRAW_BILLBOARD;
 
 			// 1P flags
-			if (VEH_GAME_TRACKER->numPlyrCurrGame == 1)
+			if (GAME_TRACKER->numPlyrCurrGame == 1)
 			{
 				addFlags |= VISIBLE_DURING_GAMEPLAY;
 			}
@@ -377,7 +377,7 @@ void VehFire_Increment(struct Driver *driverArg, int reservesArg, u32 typeArg, i
 	if (driver->instSelf->thread->modelIndex == DYNAMIC_PLAYER)
 	{
 		// CameraDC flag
-		VEH_GAME_TRACKER->cameraDC[driver->driverID].flags |= VEH_FIRE_CAMERA_SHAKE_FLAG;
+		GAME_TRACKER->cameraDC[driver->driverID].flags |= VEH_FIRE_CAMERA_SHAKE_FLAG;
 
 		// gamepad vibration
 		GAMEPAD_ShockForce1(driver, VEH_FIRE_RUMBLE_CHANNEL, VEH_FIRE_RUMBLE_FORCE);

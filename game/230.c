@@ -1,9 +1,6 @@
-#ifndef MM_GAME_TRACKER
-#define MM_GAME_TRACKER                                   (sdata->gGT)
-#define MM_GAME_TRACKER_VOLATILE                          (sdata->gGT)
+#ifndef MM_GAME_TRACKER_PAGE_VALUE
 #define MM_GAME_TRACKER_PAGE_VALUE                        0U
 #define MM_GAME_TRACKER_PAGE_UPPER_ASM                    ""
-#define MM_GAME_TRACKER_ASM_NAME                          ""
 #define MM_GAME_TRACKER_PAGE_OFFSET                       0
 #define MM_GAME_TRACKER_PAGE_OFFSET_ASM                   ""
 #define MM_OVERLAY_PAGE_VALUE                             0U
@@ -11,9 +8,6 @@
 #define MM_REQUEST_LEVEL                                  MainRaceTrack_RequestLoad
 #define MM_BIGFILE_HEADER                                 (sdata_static.ptrBigfileCdPos_2)
 #define MM_GAME_UNLOCKS                                   (sdata->gameProgress.unlocks)
-#define MM_GAME_PROGRESS                                  (sdata->gameProgress)
-#define MM_GAME_PROGRESS_ASM_NAME                         ""
-#define MM_CHARACTER_IDS                                  (data.characterIDs)
 #define MM_CHARACTER_IDS_BACKUP                           (sdata->characterIDs_backup)
 #define MM_DEFAULT_CHARACTER_ID_WORDS                     (R230.packedDefaultCharacterIDWords)
 #define MM_TITLE_OBJECT                                   (D230.titleObj)
@@ -47,14 +41,12 @@
 #define MM_ARCADE_TRACKS_PAGE_OFFSET                      0
 #define MM_DESIRED_MENU_INDEX                             (D230.desiredMenuIndex)
 #define MM_TITLE_MENU_TRANSITION_FRAME                    (D230.titleMenuTransitionFrame)
-#define MM_ADV_PROGRESS                                   (sdata->advProgress)
 #define MM_ADV_PROFILE_INDEX                              (sdata->advProfileIndex)
 #define MM_MAIN_MENU_STATE                                (sdata->mainMenuState)
 #define MM_DEMO_MODE_INDEX                                (sdata->demoModeIndex)
 #define MM_DESIRED_MENU                                   (sdata->ptrDesiredMenu)
 #define MM_ACTIVE_MENU                                    (sdata_static.ptrActiveMenu)
 #define MM_MENU_FOUR_ADV_PROFILES                         (data.menuFourAdvProfiles)
-#define MM_GAMEPADS                                       (sdata->gGamepads)
 #define MM_CHEATS                                         (D230.cheats)
 #define MM_CHEAT_BUTTON_HISTORY                           (D230.cheatButtonHistory)
 #define MM_COLOR_POINTERS                                 (data.ptrColor)
@@ -64,8 +56,6 @@
 #define MM_FRAME_COUNTER_PAGE_OFFSET                      0
 #define MM_TRIG_APPROX                                    (data.trigApprox)
 #define MM_ACTIVE_CHARACTER_SELECT_META                   (D230.activeCharacterSelectMeta)
-#define MM_CHARACTER_METADATA                             (data.MetaDataCharacters)
-#define MM_CHARACTER_METADATA_ASM_NAME                    ""
 #define MM_CHARACTER_METADATA_PAGE_VALUE                  0U
 #define MM_CHARACTER_METADATA_PAGE_OFFSET                 0
 #define MM_CHARACTER_SELECT_DESIRED_IDS                   (D230.characterSelectPlayerState.desiredCharacterID)
@@ -111,8 +101,6 @@
 #define MM_CUP_DIFFICULTY_STRING_INDEX                    (D230.cupDifficulty.stringIndex)
 #define MM_CUP_DIFFICULTY_STRING_INDEX_ASM_NAME           ""
 #define MM_CUP_DIFFICULTY_SPEED                           (D230.cupDifficulty.speed)
-#define MM_LANGUAGE_STRINGS                               (sdata->lngStrings)
-#define MM_LANGUAGE_STRINGS_ASM_NAME                      ""
 #define MM_LANGUAGE_STRINGS_PAGE_OFFSET                   0
 #define MM_CHARACTER_SELECT_TRANSITION_STATE              (D230.characterSelectTransitionState)
 #define MM_CHARACTER_SELECT_FLAGS                         (sdata->characterSelectFlags)
@@ -313,7 +301,6 @@
 #define MM_ERROR_MESSAGE_POS_INDEX                       (sdata_static.errorMessagePosIndex)
 #define MM_GHOST_TAPE_PLAYING                            (sdata_static.ptrGhostTapePlaying)
 #define MM_USELESS_LAP_ROW_COPY                          (sdata_static.uselessLapRowCopy)
-#define MM_MENU_ROW_HIGHLIGHT_NORMAL                     (sdata_static.menuRowHighlight_Normal)
 #define MM_MENU_ROW_HIGHLIGHT_NORMAL_PAGE_OFFSET         0
 #define MM_DECALHUD_DRAW_POLY_GT4(icon, posX, posY, primMem, ot, color0, color1, color2, color3, transparency, scale)             \
 	DecalHUD_DrawPolyGT4((icon), (posX), (posY), (primMem), (ot), ColorCode_GetPacked(&(color0)), ColorCode_GetPacked(&(color1)), \

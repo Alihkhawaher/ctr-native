@@ -7,16 +7,8 @@
 // pipeline force-includes a private header that overrides only retail bindings
 // and call shapes that GCC 2.8.1 must see differently.
 
-#ifndef VEH_GAME_TRACKER
-#define VEH_GAME_TRACKER (sdata->gGT)
-#endif
-
 #ifndef VEH_LOAD_GAME_TRACKER
-#define VEH_LOAD_GAME_TRACKER(result) ((result) = VEH_GAME_TRACKER)
-#endif
-
-#ifndef VEH_CHARACTER_IDS
-#define VEH_CHARACTER_IDS (data.characterIDs)
+#define VEH_LOAD_GAME_TRACKER(result) ((result) = GAME_TRACKER)
 #endif
 
 #ifndef VEH_TUMBLE_INIT_PAGE
@@ -33,17 +25,10 @@
 	do                                          \
 	{                                           \
 		(void)sizeof(page);                     \
-		(result) = VEH_CHARACTER_IDS;           \
+		(result) = GAME_CHARACTER_IDS;          \
 	} while (0)
 #endif
 
-#ifndef VEH_CHARACTER_METADATA
-#define VEH_CHARACTER_METADATA (data.MetaDataCharacters)
-#endif
-
-#ifndef VEH_GAMEPADS
-#define VEH_GAMEPADS (sdata->gGamepads)
-#endif
 
 #ifndef VEH_XA_STATE
 #define VEH_XA_STATE (sdata->XA_State)
@@ -97,9 +82,6 @@
 #define VEH_ADV_RNG (sdata->advRng)
 #endif
 
-#ifndef VEH_ADV_PROGRESS
-#define VEH_ADV_PROGRESS (sdata->advProgress)
-#endif
 
 #ifndef VEH_KART_SPAWN_ORDER
 #define VEH_KART_SPAWN_ORDER (sdata->kartSpawnOrderArray)

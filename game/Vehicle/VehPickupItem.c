@@ -194,7 +194,7 @@ CTR_STATIC_ASSERT((u32)INVISIBILITY_CLEAR_DRAW_FLAGS == 0xfff8ffffu);
 
 b32 VehPickupItem_MaskBoolGoodGuy(struct Driver *d)
 {
-	s32 charID = VEH_CHARACTER_IDS[d->driverID];
+	s32 charID = GAME_CHARACTER_IDS[d->driverID];
 	b32 isGoodGuy = false;
 
 	// Crash, Coco, Pura, Polar, Penta
@@ -221,7 +221,7 @@ struct MaskHeadWeapon *VehPickupItem_MaskUseWeapon(struct Driver *driver, b32 bo
 	register char *beamName CTR_PSX_REGISTER("$5");
 	register struct Thread *beamThread CTR_PSX_REGISTER("$6");
 
-	if (!LOAD_IsOpen_RacingOrBattle() || ((VEH_GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) != 0))
+	if (!LOAD_IsOpen_RacingOrBattle() || ((GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) != 0))
 	{
 		return NULL;
 	}
@@ -301,7 +301,7 @@ struct MaskHeadWeapon *VehPickupItem_MaskUseWeapon(struct Driver *driver, b32 bo
 		if (((actionsFlagSet & ACTION_BOT) == 0) && (OtherFX_Play_Echo(STATIC_AKUAKU + MASK_SOUND_ID_OFFSET_FROM_MODEL, 1, (actionsFlagSet >> 16) & 1),
 		                                             (u32)(driver->kartState - KS_ENGINE_REVVING) > 1))
 		{
-			VEH_GAME_TRACKER->gameMode1 = (VEH_GAME_TRACKER->gameMode1 | AKU_SONG) & ~UKA_SONG;
+			GAME_TRACKER->gameMode1 = (GAME_TRACKER->gameMode1 | AKU_SONG) & ~UKA_SONG;
 		}
 
 #ifdef CTR_NATIVE
@@ -311,7 +311,7 @@ struct MaskHeadWeapon *VehPickupItem_MaskUseWeapon(struct Driver *driver, b32 bo
 #endif
 		maskThread = instance->thread;
 		beamThread = maskThread;
-		modelPtr = VEH_GAME_TRACKER->modelPtr[STATIC_AKUBEAM];
+		modelPtr = GAME_TRACKER->modelPtr[STATIC_AKUBEAM];
 	}
 	else
 	{
@@ -322,7 +322,7 @@ struct MaskHeadWeapon *VehPickupItem_MaskUseWeapon(struct Driver *driver, b32 bo
 		if (((actionsFlagSet & ACTION_BOT) == 0) && (OtherFX_Play_Echo(STATIC_UKAUKA + MASK_SOUND_ID_OFFSET_FROM_MODEL, 1, (actionsFlagSet >> 16) & 1),
 		                                             (u32)(driver->kartState - KS_ENGINE_REVVING) > 1))
 		{
-			VEH_GAME_TRACKER->gameMode1 = (VEH_GAME_TRACKER->gameMode1 | UKA_SONG) & ~AKU_SONG;
+			GAME_TRACKER->gameMode1 = (GAME_TRACKER->gameMode1 | UKA_SONG) & ~AKU_SONG;
 		}
 
 #ifdef CTR_NATIVE
@@ -332,7 +332,7 @@ struct MaskHeadWeapon *VehPickupItem_MaskUseWeapon(struct Driver *driver, b32 bo
 #endif
 		maskThread = instance->thread;
 		beamThread = maskThread;
-		modelPtr = VEH_GAME_TRACKER->modelPtr[STATIC_UKABEAM];
+		modelPtr = GAME_TRACKER->modelPtr[STATIC_UKABEAM];
 	}
 
 	maskObj = (struct MaskHeadWeapon *)maskThread->object;
@@ -388,7 +388,7 @@ struct Driver *VehPickupItem_MissileGetTargetDriver(struct Driver *driver)
 
 	if (driver->instSelf->thread->modelIndex == DYNAMIC_PLAYER)
 	{
-		struct PushBuffer *pushBuffer = &VEH_GAME_TRACKER->pushBuffer[driver->driverID];
+		struct PushBuffer *pushBuffer = &GAME_TRACKER->pushBuffer[driver->driverID];
 
 		VehGteSetRotMatrix(&pushBuffer->matrix_ViewProj);
 		VehPickupItem_GteSetTransMatrix(&pushBuffer->matrix_ViewProj);
@@ -414,7 +414,7 @@ struct Driver *VehPickupItem_MissileGetTargetDriver(struct Driver *driver)
 	screenPositionPtr = &projection.screenPosition;
 	do
 	{
-		struct Driver *candidate = VEH_GAME_TRACKER->drivers[i];
+		struct Driver *candidate = GAME_TRACKER->drivers[i];
 		s32 dx;
 		s32 dz;
 		s32 distance;
@@ -434,7 +434,7 @@ struct Driver *VehPickupItem_MissileGetTargetDriver(struct Driver *driver)
 			continue;
 		}
 
-		if (((VEH_GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0) && (candidate->BattleHUD.teamID == driver->BattleHUD.teamID))
+		if (((GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0) && (candidate->BattleHUD.teamID == driver->BattleHUD.teamID))
 		{
 			continue;
 		}
@@ -494,7 +494,7 @@ struct Driver *VehPickupItem_MissileGetTargetDriver(struct Driver *driver)
 		{
 			continue;
 		}
-		if (screenX >= VEH_GAME_TRACKER->pushBuffer[driver->driverID].rect.w - MISSILE_TARGET_SCREEN_RIGHT_MARGIN)
+		if (screenX >= GAME_TRACKER->pushBuffer[driver->driverID].rect.w - MISSILE_TARGET_SCREEN_RIGHT_MARGIN)
 		{
 			continue;
 		}
@@ -504,7 +504,7 @@ struct Driver *VehPickupItem_MissileGetTargetDriver(struct Driver *driver)
 		{
 			continue;
 		}
-		if (screenY >= VEH_GAME_TRACKER->pushBuffer[driver->driverID].rect.h - MISSILE_TARGET_SCREEN_BOTTOM_MARGIN)
+		if (screenY >= GAME_TRACKER->pushBuffer[driver->driverID].rect.h - MISSILE_TARGET_SCREEN_BOTTOM_MARGIN)
 		{
 			continue;
 		}
@@ -653,14 +653,14 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		register MATRIX *weaponMatrix CTR_PSX_REGISTER("$20");
 		int closest;
 
-		if ((s32)VEH_GAME_TRACKER->numMissiles >= ACTIVE_MISSILE_LIMIT)
+		if ((s32)GAME_TRACKER->numMissiles >= ACTIVE_MISSILE_LIMIT)
 		{
 			return;
 		}
 
 		closest = MISSILE_TARGET_DISTANCE_SENTINEL;
 		d->numTimesMissileLaunched++;
-		VEH_GAME_TRACKER->numMissiles++;
+		GAME_TRACKER->numMissiles++;
 
 		GAMEPAD_ShockFreq(d, WEAPON_GAMEPAD_RUMBLE_FRAMES, 0);
 		GAMEPAD_ShockForce1(d, WEAPON_GAMEPAD_RUMBLE_FRAMES, WEAPON_GAMEPAD_RUMBLE_FORCE);
@@ -669,13 +669,13 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		if (victim == 0)
 		{
 			CTR_PSX_FORGET_VALUE(victim);
-			if ((VEH_GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
+			if ((GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
 			{
 				int i;
 
 				for (i = 0; i < MISSILE_TARGET_DRIVER_COUNT; i++)
 				{
-					struct Driver *candidate = VEH_GAME_TRACKER->drivers[i];
+					struct Driver *candidate = GAME_TRACKER->drivers[i];
 #ifdef CTR_NATIVE
 					int distX;
 					int distZ;
@@ -740,9 +740,9 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 			{
 				int rank = d->driverRank;
 
-				if ((rank != 0) && ((VEH_GAME_TRACKER->elapsedEventTime & MISSILE_RACE_FALLBACK_EVENT_MASK) != 0))
+				if ((rank != 0) && ((GAME_TRACKER->elapsedEventTime & MISSILE_RACE_FALLBACK_EVENT_MASK) != 0))
 				{
-					victim = VEH_GAME_TRACKER->driversInRaceOrder[rank - 1];
+					victim = GAME_TRACKER->driversInRaceOrder[rank - 1];
 				}
 			}
 		}
@@ -793,7 +793,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 			PlaySound3D(SOUND_BOMB_LAUNCH, weaponInst);
 			if ((d->actionsFlagSet & ACTION_BOT) == 0)
 			{
-				Voiceline_RequestPlay(VOICELINE_BOMB_LAUNCH, VEH_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
+				Voiceline_RequestPlay(VOICELINE_BOMB_LAUNCH, GAME_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
 			}
 		}
 		else
@@ -815,7 +815,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 			PlaySound3D(SOUND_MISSILE_LAUNCH, weaponInst);
 			if ((d->actionsFlagSet & ACTION_BOT) == 0)
 			{
-				Voiceline_RequestPlay(VOICELINE_MISSILE_LAUNCH, VEH_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
+				Voiceline_RequestPlay(VOICELINE_MISSILE_LAUNCH, GAME_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
 			}
 		}
 
@@ -833,7 +833,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 				tw->flags |= TRACKER_FLAG_POWERED_UP;
 			}
 
-			gamepad = &VEH_GAMEPADS->gamepad[d->driverID];
+			gamepad = &GAMEPADS->gamepad[d->driverID];
 			if (((gamepad->buttonsHeldCurrFrame & BTN_DOWN) != 0) || ((flags & SHOOT_NOW_BACKWARD) != 0))
 			{
 				tw->flags |= TRACKER_FLAG_BOMB_BACKWARD;
@@ -872,15 +872,15 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 
 		if ((d->actionsFlagSet & ACTION_BOT) == 0)
 		{
-			Voiceline_RequestPlay(VOICELINE_CLOCK, VEH_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
+			Voiceline_RequestPlay(VOICELINE_CLOCK, GAME_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
 		}
 
 		for (i = 0; i < CLOCK_DRIVER_COUNT; i++)
 		{
 			struct Driver *victim;
 
-			VEH_GAME_TRACKER->drivers[i]->clockFlash = CLOCK_FLASH_FRAMES;
-			victim = VEH_GAME_TRACKER->drivers[i];
+			GAME_TRACKER->drivers[i]->clockFlash = CLOCK_FLASH_FRAMES;
+			victim = GAME_TRACKER->drivers[i];
 			if (victim == 0)
 			{
 				continue;
@@ -891,11 +891,11 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 				{
 					if (d->numWumpas >= DRIVER_WUMPA_JUICED_COUNT)
 					{
-						VEH_GAME_TRACKER->drivers[i]->clockReceive = CLOCK_HURT_DURATION_JUICED;
+						GAME_TRACKER->drivers[i]->clockReceive = CLOCK_HURT_DURATION_JUICED;
 					}
 					else
 					{
-						VEH_GAME_TRACKER->drivers[i]->clockReceive = CLOCK_HURT_DURATION_NORMAL;
+						GAME_TRACKER->drivers[i]->clockReceive = CLOCK_HURT_DURATION_NORMAL;
 					}
 				}
 			}
@@ -930,11 +930,11 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		shieldObj = weaponInst->thread->object;
 		if (d->numWumpas >= DRIVER_WUMPA_JUICED_COUNT)
 		{
-			shieldObj->instColor = INSTANCE_Birth3D(VEH_GAME_TRACKER->modelPtr[DYNAMIC_SHIELD], VEH_PICKUP_SHIELD_NAME, weaponInst->thread);
+			shieldObj->instColor = INSTANCE_Birth3D(GAME_TRACKER->modelPtr[DYNAMIC_SHIELD], VEH_PICKUP_SHIELD_NAME, weaponInst->thread);
 		}
 		else
 		{
-			shieldObj->instColor = INSTANCE_Birth3D(VEH_GAME_TRACKER->modelPtr[DYNAMIC_SHIELD_GREEN], VEH_PICKUP_SHIELD_NAME, weaponInst->thread);
+			shieldObj->instColor = INSTANCE_Birth3D(GAME_TRACKER->modelPtr[DYNAMIC_SHIELD_GREEN], VEH_PICKUP_SHIELD_NAME, weaponInst->thread);
 		}
 
 		scale = SHIELD_SCALE;
@@ -942,7 +942,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		shieldObj->instColor->scale.y = scale;
 		shieldObj->instColor->scale.z = scale;
 
-		shieldObj->instHighlight = INSTANCE_Birth3D(VEH_GAME_TRACKER->modelPtr[DYNAMIC_HIGHLIGHT], VEH_PICKUP_HIGHLIGHT_NAME, weaponInst->thread);
+		shieldObj->instHighlight = INSTANCE_Birth3D(GAME_TRACKER->modelPtr[DYNAMIC_HIGHLIGHT], VEH_PICKUP_HIGHLIGHT_NAME, weaponInst->thread);
 
 		shieldObj->instHighlight->scale.x = scale;
 		shieldObj->instHighlight->scale.y = scale;
@@ -1003,7 +1003,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		// if human and not AI (AIs can not use Warpball)
 		if ((d->actionsFlagSet & ACTION_BOT) == 0)
 		{
-			Voiceline_RequestPlay(VOICELINE_WARPBALL, VEH_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
+			Voiceline_RequestPlay(VOICELINE_WARPBALL, GAME_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
 		}
 
 		tw = weaponInst->thread->object;
@@ -1013,13 +1013,13 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		victim = 0;
 		if (d->driverRank != 0)
 		{
-			victim = VEH_GAME_TRACKER->driversInRaceOrder[d->driverRank - 1];
+			victim = GAME_TRACKER->driversInRaceOrder[d->driverRank - 1];
 		}
 		tw->driverTarget = victim;
 
 		RB_Warpball_SeekDriver(tw, d->checkpoint.currentIndex, d);
 
-		checkpoints = VEH_GAME_TRACKER->level1->ptr_restart_points;
+		checkpoints = GAME_TRACKER->level1->ptr_restart_points;
 		tw->nodeNextIndex = tw->nodeCurrIndex;
 		tw->ptrNodeCurr = &checkpoints[tw->nodeCurrIndex];
 		tw->flags = 0;
@@ -1075,7 +1075,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		tw->dir.y = d->angle;
 		tw->instParent = d->instSelf;
 
-		p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[WARPBALL_PARTICLE_ICON_GROUP], &data.emSet_Warpball[0]);
+		p = Particle_Init(0, GAME_TRACKER->iconGroup[WARPBALL_PARTICLE_ICON_GROUP], &data.emSet_Warpball[0]);
 
 		tw->ptrParticle = p;
 
@@ -1138,7 +1138,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 
 		if ((d->actionsFlagSet & ACTION_BOT) == 0)
 		{
-			Voiceline_RequestPlay(VOICELINE_MINE_DROP, VEH_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
+			Voiceline_RequestPlay(VOICELINE_MINE_DROP, GAME_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
 		}
 
 		mw = weaponInst->thread->object;
@@ -1166,7 +1166,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 			register struct GameTracker *gameTracker CTR_PSX_REGISTER("$3");
 			register s32 probeBottomZ CTR_PSX_REGISTER("$4");
 
-			gameTracker = VEH_GAME_TRACKER;
+			gameTracker = GAME_TRACKER;
 			CTR_PSX_KEEP_VALUE(gameTracker);
 			probeBottomZ = (u16)weaponInst->matrix.t[2];
 			CTR_PSX_KEEP_VALUE(probeBottomZ);
@@ -1179,7 +1179,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 				sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_HIGH_LOD;
 			}
 		}
-		sps->ptr_mesh_info = VEH_GAME_TRACKER->level1->ptr_mesh_info;
+		sps->ptr_mesh_info = GAME_TRACKER->level1->ptr_mesh_info;
 		COLL_SearchBSP_CallbackQUADBLK(&shootScratch.mineProbeTop, &mineProbeBottom, sps, MINE_COLL_CALLBACK_FLAGS);
 
 		if ((u16)sps->boolDidTouchHitbox != 0)
@@ -1323,12 +1323,12 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 
 		if ((d->actionsFlagSet & ACTION_BOT) == 0)
 		{
-			Voiceline_RequestPlay(VOICELINE_MINE_DROP, VEH_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
+			Voiceline_RequestPlay(VOICELINE_MINE_DROP, GAME_CHARACTER_IDS[d->driverID], VOICELINE_WEAPON_PRIORITY);
 		}
 
 		RB_MinePool_Add(mw);
 
-		gamepad = &VEH_GAMEPADS->gamepad[d->driverID];
+		gamepad = &GAMEPADS->gamepad[d->driverID];
 		potionFlags = flags;
 		if ((gamepad->buttonsHeldCurrFrame & BTN_UP) != 0)
 		{
@@ -1357,7 +1357,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 			register struct GameTracker *gameTracker CTR_PSX_REGISTER("$3");
 			register s32 probeBottomZ CTR_PSX_REGISTER("$4");
 
-			gameTracker = VEH_GAME_TRACKER;
+			gameTracker = GAME_TRACKER;
 			CTR_PSX_KEEP_VALUE(gameTracker);
 			probeBottomZ = (u16)weaponInst->matrix.t[2];
 			CTR_PSX_KEEP_VALUE(probeBottomZ);
@@ -1370,7 +1370,7 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 				sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_TEST_INSTANCES | COLL_SEARCH_HIGH_LOD;
 			}
 		}
-		sps->ptr_mesh_info = VEH_GAME_TRACKER->level1->ptr_mesh_info;
+		sps->ptr_mesh_info = GAME_TRACKER->level1->ptr_mesh_info;
 		COLL_SearchBSP_CallbackQUADBLK(&beakerProbeTop, &beakerProbeBottom, sps, MINE_COLL_CALLBACK_FLAGS);
 
 		if ((u16)sps->boolDidTouchHitbox != 0)

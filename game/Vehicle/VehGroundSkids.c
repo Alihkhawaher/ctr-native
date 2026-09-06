@@ -110,7 +110,7 @@ void VehGroundSkids_Subset1(u32 *currXY, u32 *prevXY, int depth, struct VehGroun
 	}
 	poly[6] = tpage;
 	CTR_PSX_MEMORY_BARRIER();
-	uvGameTracker = VEH_GAME_TRACKER;
+	uvGameTracker = GAME_TRACKER;
 	CtrGpu_WritePackedUV((u8 *)&poly[9], CTR_ReadU16LE(&uvGameTracker->ptrIcons[VEH_GROUND_SKIDS_ICON_TIREMARK]->texLayout.u2));
 	packetAddress = CtrGpu_PrimToOTLink24(poly);
 	CtrGpu_WritePackedUV((u8 *)&poly[12], CTR_ReadU16LE(&uvGameTracker->ptrIcons[VEH_GROUND_SKIDS_ICON_TIREMARK]->texLayout.u3));

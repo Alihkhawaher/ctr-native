@@ -49,7 +49,7 @@ void VehLap_UpdateProgress(struct Driver *driver)
 			checkpointIndex = quad->checkpointIndex;
 		}
 	}
-	level = VEH_GAME_TRACKER->level1;
+	level = GAME_TRACKER->level1;
 	if (((u32)(level->cnt_restart_points - 1) >= VEH_LAP_INVALID_CHECKPOINT) || (checkpointIndex < 0))
 	{
 		return;
@@ -113,7 +113,7 @@ void VehLap_UpdateProgress(struct Driver *driver)
 	projection = MFC2_S(25);
 	wrongWayTest = MFC2_S(26);
 	progress = ((u32)progressNode->distToFinish << VEH_LAP_TRACK_DISTANCE_SCALE_SHIFT) + (projection >> VEH_LAP_PROJECTED_DISTANCE_SHIFT);
-	gameTracker = VEH_GAME_TRACKER;
+	gameTracker = GAME_TRACKER;
 	CTR_PSX_KEEP_VALUE(gameTracker);
 
 	driver->distanceToFinish_curr = progress;

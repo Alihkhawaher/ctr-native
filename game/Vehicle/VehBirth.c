@@ -38,7 +38,7 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 	struct ScratchpadStruct *sps;
 	register struct GameTracker *initialTracker CTR_PSX_REGISTER("$4");
 
-	initialTracker = VEH_GAME_TRACKER;
+	initialTracker = GAME_TRACKER;
 	doorInst = NULL;
 	if (initialTracker->level1 == NULL)
 	{
@@ -64,7 +64,7 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 
 	if ((spawnFlag & VEH_BIRTH_SPAWN_USE_LEVEL_POSITION) != 0)
 	{
-		if ((VEH_GAME_TRACKER->podiumRewardID == STATIC_KEY) && (VEH_GAME_TRACKER->currAdvProfile.numKeys == 1))
+		if ((GAME_TRACKER->podiumRewardID == STATIC_KEY) && (GAME_TRACKER->currAdvProfile.numKeys == 1))
 		{
 			register int numInstances CTR_PSX_REGISTER("$3");
 			register int instIndex CTR_PSX_REGISTER("$6");
@@ -76,8 +76,8 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 
 			// NOTE(aalhendi): Retail compares the fixed-width door name as four
 			// words; the may-alias type keeps those loads valid in native C.
-			numInstances = (int)VEH_GAME_TRACKER->level1->numInstances;
-			doorInst = VEH_GAME_TRACKER->level1->ptrInstDefs;
+			numInstances = (int)GAME_TRACKER->level1->numInstances;
+			doorInst = GAME_TRACKER->level1->ptrInstDefs;
 			if (numInstances > 0)
 			{
 				instIndex = 0;
@@ -105,7 +105,7 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 
 			VehBirth_DoorLoopDone:
 			{
-				register int foundDoor CTR_PSX_REGISTER("$2") = instIndex < (int)VEH_GAME_TRACKER->level1->numInstances;
+				register int foundDoor CTR_PSX_REGISTER("$2") = instIndex < (int)GAME_TRACKER->level1->numInstances;
 
 				if (foundDoor)
 				{
@@ -121,7 +121,7 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 			}
 		VehBirth_DoorFound:;
 		}
-		else if (VEH_GAME_TRACKER->podiumRewardID == STATIC_TROPHY)
+		else if (GAME_TRACKER->podiumRewardID == STATIC_TROPHY)
 		{
 			register int rewardIndex CTR_PSX_REGISTER("$6");
 			u32 *rewards;
@@ -130,9 +130,9 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 
 			spawnOutsideBoss = 1;
 			rewardIndex = 0;
-			rewards = VEH_ADV_PROGRESS.rewards;
+			rewards = GAME_ADV_PROGRESS.rewards;
 			trackIDs = data.advHubTrackIDs;
-			trackOffset = (VEH_GAME_TRACKER->levelID - N_SANITY_BEACH) * 8;
+			trackOffset = (GAME_TRACKER->levelID - N_SANITY_BEACH) * 8;
 			do
 			{
 				int reward = *(s16 *)((size_t)trackOffset + (size_t)trackIDs) + ADV_REWARD_FIRST_TROPHY;
@@ -150,14 +150,14 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 			{
 				register int hasAllTrophies CTR_PSX_REGISTER("$2") = spawnOutsideBoss;
 
-				if (hasAllTrophies && CHECK_ADV_BIT(VEH_ADV_PROGRESS.rewards, VEH_GAME_TRACKER->levelID - N_SANITY_BEACH + ADV_REWARD_FIRST_BOSS_KEY))
+				if (hasAllTrophies && CHECK_ADV_BIT(GAME_ADV_PROGRESS.rewards, GAME_TRACKER->levelID - N_SANITY_BEACH + ADV_REWARD_FIRST_BOSS_KEY))
 				{
 					spawnOutsideBoss = 0;
 				}
 			}
 		}
 
-		if ((VEH_GAME_TRACKER->gameMode2 & SPAWN_AT_BOSS) != 0)
+		if ((GAME_TRACKER->gameMode2 & SPAWN_AT_BOSS) != 0)
 		{
 			spawnOutsideBoss = 1;
 		}
@@ -166,7 +166,7 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 		{
 			int trig;
 
-			VEH_GAME_TRACKER->gameMode2 |= VEH_FREEZE_DOOR;
+			GAME_TRACKER->gameMode2 |= VEH_FREEZE_DOOR;
 			trig = MATH_Cos(doorInst->rot.y);
 			posBottom.x = doorInst->pos.x + (trig * VEH_BIRTH_DOOR_FORWARD_OFFSET >> FRACTIONAL_BITS) +
 			              (MATH_Cos(doorInst->rot.y + ANG_HALF_PI) * VEH_BIRTH_DOOR_SIDE_OFFSET >> FRACTIONAL_BITS);
@@ -181,24 +181,24 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 
 			if (shouldSpawnOutside)
 			{
-				posBottom.x = VEH_GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[1].pos.x;
-				posBottom.y = VEH_GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[1].pos.y + VEH_BIRTH_DRIVER_BOTTOM_Y_OFFSET;
-				posBottom.z = VEH_GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[1].pos.z;
+				posBottom.x = GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[1].pos.x;
+				posBottom.y = GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[1].pos.y + VEH_BIRTH_DRIVER_BOTTOM_Y_OFFSET;
+				posBottom.z = GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[1].pos.z;
 				goto VehBirth_PositionReady;
 			}
 
-			if ((VEH_GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) != 0)
+			if ((GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) != 0)
 			{
-				if (VEH_GAME_TRACKER->podiumRewardID != NOFUNC)
+				if (GAME_TRACKER->podiumRewardID != NOFUNC)
 				{
-					posBottom.x = VEH_GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[0].pos.x;
-					posBottom.y = VEH_GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[0].pos.y + VEH_BIRTH_DRIVER_BOTTOM_Y_OFFSET;
-					posBottom.z = VEH_GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[0].pos.z;
+					posBottom.x = GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[0].pos.x;
+					posBottom.y = GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[0].pos.y + VEH_BIRTH_DRIVER_BOTTOM_Y_OFFSET;
+					posBottom.z = GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[0].pos.z;
 					goto VehBirth_PositionReady;
 				}
 
 				{
-					int prevLEV = VEH_GAME_TRACKER->prevLEV;
+					int prevLEV = GAME_TRACKER->prevLEV;
 
 					// NOTE(aalhendi): Keep these as separate tests. GCC 2.8 emits the
 					// same branch ladder and delay-slot constants as retail.
@@ -240,7 +240,7 @@ void VehBirth_TeleportSelf(struct Driver *d, u32 spawnFlag, int spawnPosY)
 
 			spawnOrder = (u8 *)VEH_KART_SPAWN_ORDER;
 			driverID = driver->driverID;
-			tracker = VEH_GAME_TRACKER;
+			tracker = GAME_TRACKER;
 			spawnIndex = spawnOrder[driverID];
 			CTR_PSX_KEEP_VALUE(spawnIndex);
 
@@ -331,7 +331,7 @@ VehBirth_PositionReady:
 		if (doorInst != NULL)
 		{
 			driver->rotCurr.y = ANG_MODULO_TWO_PI(doorInst->rot.y + ANG_PI);
-			VEH_GAME_TRACKER->gameMode2 &= ~GAME_MODE2_SPAWN_CLEAR_MASK;
+			GAME_TRACKER->gameMode2 &= ~GAME_MODE2_SPAWN_CLEAR_MASK;
 		}
 		else
 		{
@@ -343,7 +343,7 @@ VehBirth_PositionReady:
 				register u32 rotY CTR_PSX_REGISTER("$5");
 				register u32 updatedRotY CTR_PSX_REGISTER("$2");
 
-				bossTracker = VEH_GAME_TRACKER;
+				bossTracker = GAME_TRACKER;
 				updatedRotY = (u16)bossTracker->level1->ptrSpawnType2_PosRot[1].coords.posRot[1].rot.y;
 				updatedRotY += ANG_HALF_PI;
 				rotY = ANG_MODULO_TWO_PI(updatedRotY);
@@ -374,19 +374,19 @@ VehBirth_PositionReady:
 				}
 
 			VehBirth_BossRotationReady:
-				VEH_GAME_TRACKER->gameMode2 &= ~GAME_MODE2_SPAWN_CLEAR_MASK;
+				GAME_TRACKER->gameMode2 &= ~GAME_MODE2_SPAWN_CLEAR_MASK;
 				goto VehBirth_RotationReady;
 			}
 
-			if ((VEH_GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) != 0)
+			if ((GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) != 0)
 			{
-				if (VEH_GAME_TRACKER->podiumRewardID != NOFUNC)
+				if (GAME_TRACKER->podiumRewardID != NOFUNC)
 				{
-					driver->rotCurr.y = ANG_MODULO_TWO_PI(VEH_GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[0].rot.y);
+					driver->rotCurr.y = ANG_MODULO_TWO_PI(GAME_TRACKER->level1->ptrSpawnType2_PosRot[1].coords.posRot[0].rot.y);
 					goto VehBirth_RotationReady;
 				}
 
-				if ((VEH_GAME_TRACKER->prevLEV != MAIN_MENU_LEVEL) && (VEH_GAME_TRACKER->prevLEV != -1) && (warppadRot != NULL))
+				if ((GAME_TRACKER->prevLEV != MAIN_MENU_LEVEL) && (GAME_TRACKER->prevLEV != -1) && (warppadRot != NULL))
 				{
 					driver->rotCurr.x = warppadRot[0];
 					driver->rotCurr.y = warppadRot[1];
@@ -399,9 +399,9 @@ VehBirth_PositionReady:
 			{
 				u8 spawnIndex = VEH_KART_SPAWN_ORDER[driver->driverID];
 
-				driver->rotCurr.x = VEH_GAME_TRACKER->level1->DriverSpawn[spawnIndex].rot.x;
-				driver->rotCurr.y = VEH_GAME_TRACKER->level1->DriverSpawn[spawnIndex].rot.y;
-				driver->rotCurr.z = VEH_GAME_TRACKER->level1->DriverSpawn[spawnIndex].rot.z;
+				driver->rotCurr.x = GAME_TRACKER->level1->DriverSpawn[spawnIndex].rot.x;
+				driver->rotCurr.y = GAME_TRACKER->level1->DriverSpawn[spawnIndex].rot.y;
+				driver->rotCurr.z = GAME_TRACKER->level1->DriverSpawn[spawnIndex].rot.z;
 				driver->rotCurr.y = ANG_MODULO_TWO_PI(driver->rotCurr.y + ANG_HALF_PI);
 			}
 		}
@@ -473,12 +473,12 @@ VehBirth_RotationReady:
 			funcCursor -= sizeof(DriverFunc);
 		} while (funcIndex >= 0);
 
-		CAM_StartOfRace(&VEH_GAME_TRACKER->cameraDC[driver->driverID]);
+		CAM_StartOfRace(&GAME_TRACKER->cameraDC[driver->driverID]);
 
-		driver->instSelf->thread->funcThTick = ((VEH_GAME_TRACKER->gameMode1 & (GAME_CUTSCENE | MAIN_MENU)) == 0) ? NULL : VehBirth_NullThread;
+		driver->instSelf->thread->funcThTick = ((GAME_TRACKER->gameMode1 & (GAME_CUTSCENE | MAIN_MENU)) == 0) ? NULL : VehBirth_NullThread;
 
 		// set OnInit function
-		if ((VEH_GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) != 0)
+		if ((GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) != 0)
 		{
 			driver->funcPtrs[DRIVER_FUNC_INIT] = VehPhysProc_Driving_Init;
 		}
@@ -495,7 +495,7 @@ VehBirth_RotationReady:
 
 	driver->actionsFlagSet &= ~(ACTION_RACE_FINISHED | ACTION_BOT);
 
-	if ((VEH_GAME_TRACKER->gameMode2 & CHEAT_WUMPA) != 0)
+	if ((GAME_TRACKER->gameMode2 & CHEAT_WUMPA) != 0)
 	{
 		driver->numWumpas = VEH_BIRTH_CHEAT_WUMPA_COUNT;
 	}
@@ -504,30 +504,30 @@ VehBirth_RotationReady:
 	driver->numHeldItems = 0;
 	driver->PickupLetterHUD.numCollected = 0;
 
-	if ((VEH_GAME_TRACKER->gameMode2 & CHEAT_MASK) != 0)
+	if ((GAME_TRACKER->gameMode2 & CHEAT_MASK) != 0)
 	{
 		driver->heldItemID = VEH_BIRTH_CHEAT_ITEM_MASK;
 		driver->numHeldItems = VEH_BIRTH_CHEAT_ITEM_COUNT;
 	}
-	else if ((VEH_GAME_TRACKER->gameMode2 & CHEAT_TURBO) != 0)
+	else if ((GAME_TRACKER->gameMode2 & CHEAT_TURBO) != 0)
 	{
 		driver->heldItemID = VEH_BIRTH_CHEAT_ITEM_TURBO;
 		driver->numHeldItems = VEH_BIRTH_CHEAT_ITEM_COUNT;
 	}
-	else if ((VEH_GAME_TRACKER->gameMode2 & CHEAT_BOMBS) != 0)
+	else if ((GAME_TRACKER->gameMode2 & CHEAT_BOMBS) != 0)
 	{
 		driver->heldItemID = VEH_BIRTH_CHEAT_ITEM_BOMB;
 		driver->numHeldItems = VEH_BIRTH_CHEAT_ITEM_COUNT;
 	}
 
-	driver->BattleHUD.numLives = VEH_GAME_TRACKER->battleSetup.lifeLimit;
+	driver->BattleHUD.numLives = GAME_TRACKER->battleSetup.lifeLimit;
 
 	if (
 	    // If Permanent Invisibility Cheat is Enabled
-	    ((VEH_GAME_TRACKER->gameMode2 & CHEAT_INVISIBLE) != 0) &&
+	    ((GAME_TRACKER->gameMode2 & CHEAT_INVISIBLE) != 0) &&
 
 	    // only make players invisible, not AIs
-	    (driver->driverID < VEH_GAME_TRACKER->numPlyrCurrGame))
+	    (driver->driverID < GAME_TRACKER->numPlyrCurrGame))
 	{
 		driver->instSelf->flags &= ~(DRAW_TRANSPARENT | GHOST_DRAW_TRANSPARENT);
 
@@ -536,7 +536,7 @@ VehBirth_RotationReady:
 		driver->invisibleTimer = VEH_BIRTH_CHEAT_DURATION;
 	}
 
-	if ((VEH_GAME_TRACKER->gameMode2 & CHEAT_ENGINE) != 0)
+	if ((GAME_TRACKER->gameMode2 & CHEAT_ENGINE) != 0)
 	{
 		driver->superEngineTimer = VEH_BIRTH_CHEAT_DURATION;
 	}
@@ -551,9 +551,9 @@ void VehBirth_TeleportAll(struct GameTracker *gGT, u32 spawnFlags)
 	// NOTE(aalhendi): Retail ignores this parameter and reloads gGT from globals.
 	(void)gGT;
 
-	for (i = 0; i < (int)len(VEH_GAME_TRACKER->drivers); i++)
+	for (i = 0; i < (int)len(GAME_TRACKER->drivers); i++)
 	{
-		d = VEH_GAME_TRACKER->drivers[i];
+		d = GAME_TRACKER->drivers[i];
 
 		if (d == NULL)
 		{
@@ -648,8 +648,8 @@ void VehBirth_SetConsts(struct Driver *driver)
 	register s16 *characterIDs;
 
 	i = 0;
-	characterMetadata = VEH_CHARACTER_METADATA;
-	characterIDs = VEH_CHARACTER_IDS;
+	characterMetadata = GAME_CHARACTER_METADATA;
+	characterIDs = GAME_CHARACTER_IDS;
 	VEH_LOAD_META_PHYS_BASE(metaPhysBase, metaPhysPage);
 	metaPhys = metaPhysBase;
 	metaPhysByteOffset = i;
@@ -694,7 +694,7 @@ void VehBirth_SetConsts(struct Driver *driver)
 
 void VehBirth_EngineAudio_AllPlayers(void)
 {
-	struct GameTracker *gGT = VEH_GAME_TRACKER;
+	struct GameTracker *gGT = GAME_TRACKER;
 	struct Thread *th;
 	struct Driver *d;
 	register u32 driverID CTR_PSX_REGISTER("$3");
@@ -704,7 +704,7 @@ void VehBirth_EngineAudio_AllPlayers(void)
 	{
 		d = th->object;
 		driverID = d->driverID;
-		engine = VEH_CHARACTER_METADATA[VEH_CHARACTER_IDS[driverID]].engineID;
+		engine = GAME_CHARACTER_METADATA[GAME_CHARACTER_IDS[driverID]].engineID;
 		CTR_PSX_MEMORY_BARRIER();
 		engine = (engine * 4) + driverID;
 
@@ -720,7 +720,7 @@ void VehBirth_NullThread(struct Thread *t)
 void VehBirth_TireSprites(struct Thread *t)
 {
 	struct Driver *d = t->object;
-	struct IconGroup *tireAnim = VEH_GAME_TRACKER->iconGroup[0];
+	struct IconGroup *tireAnim = GAME_TRACKER->iconGroup[0];
 	struct GameTracker *battleGameTracker;
 	int battleTeamID;
 	int battleLifeLimit;
@@ -733,7 +733,7 @@ void VehBirth_TireSprites(struct Thread *t)
 
 	if (
 	    // if character ID is oxide
-	    (VEH_CHARACTER_IDS[driverID] == NITROS_OXIDE) && (VEH_GAME_TRACKER->levelID != MAIN_MENU_LEVEL))
+	    (GAME_CHARACTER_IDS[driverID] == NITROS_OXIDE) && (GAME_TRACKER->levelID != MAIN_MENU_LEVEL))
 	{
 		d->wheelSize = 0;
 	}
@@ -751,7 +751,7 @@ void VehBirth_TireSprites(struct Thread *t)
 
 	d->terrainMeta1 = VehAfterColl_GetTerrain(TERRAIN_NONE);
 
-	battleGameTracker = VEH_GAME_TRACKER;
+	battleGameTracker = GAME_TRACKER;
 	battleTeamID = d->driverID;
 	battleLifeLimit = battleGameTracker->battleLifeLimit;
 	d->BattleHUD.teamID = battleTeamID;
@@ -790,18 +790,18 @@ void VehBirth_NonGhost(struct Thread *t, int index)
 	t->driverCollisionReserved_0x40 = 0;
 
 	d = t->object;
-	characterMetadata = VEH_CHARACTER_METADATA;
+	characterMetadata = GAME_CHARACTER_METADATA;
 
-	if ((VEH_GAME_TRACKER->gameMode1 & MAIN_MENU) != 0)
+	if ((GAME_TRACKER->gameMode1 & MAIN_MENU) != 0)
 	{
-		id = VEH_CHARACTER_IDS[0];
+		id = GAME_CHARACTER_IDS[0];
 	}
 	else
 	{
 		register s16 *characterIDs CTR_PSX_REGISTER("$2");
 		register s16 *characterID CTR_PSX_REGISTER("$3");
 
-		characterIDs = VEH_CHARACTER_IDS;
+		characterIDs = GAME_CHARACTER_IDS;
 		characterID = &characterIDs[playerIndex];
 		id = *characterID;
 	}
@@ -814,7 +814,7 @@ void VehBirth_NonGhost(struct Thread *t, int index)
 	t->inst = inst;
 
 	// Wake
-	m = VEH_GAME_TRACKER->modelPtr[STATIC_WAKE];
+	m = GAME_TRACKER->modelPtr[STATIC_WAKE];
 	if (m != 0)
 	{
 		wakeInst = INSTANCE_Birth3D(m, m->name, 0);
@@ -827,7 +827,7 @@ void VehBirth_NonGhost(struct Thread *t, int index)
 	}
 
 	inst = t->inst;
-	if (playerIndex < VEH_GAME_TRACKER->numPlyrCurrGame)
+	if (playerIndex < GAME_TRACKER->numPlyrCurrGame)
 	{
 		inst->flags |= OWNER_PUSHBUFFER_GATE;
 	}
@@ -844,7 +844,7 @@ void VehBirth_NonGhost(struct Thread *t, int index)
 	VehBirth_SetConsts(d);
 
 	// if you are in cutscene or in main menu
-	if ((VEH_GAME_TRACKER->gameMode1 & GAME_MODE_MENU_OR_CUTSCENE_MASK) != 0)
+	if ((GAME_TRACKER->gameMode1 & GAME_MODE_MENU_OR_CUTSCENE_MASK) != 0)
 	{
 		// dont update, make invisible
 		t->funcThTick = VehBirth_NullThread;
@@ -864,7 +864,7 @@ struct Driver *VehBirth_Player(int index)
 
 	VehBirth_NonGhost(t, index);
 
-	teamID = (s8)VEH_GAME_TRACKER->battleSetup.teamOfEachPlayer[index];
+	teamID = (s8)GAME_TRACKER->battleSetup.teamOfEachPlayer[index];
 	d->funcPtrs[DRIVER_FUNC_INIT] = VehPhysProc_Driving_Init;
 	d->BattleHUD.teamID = teamID;
 

@@ -82,7 +82,7 @@ static inline void VehStuckProc_MaskGrab_SearchBsp(struct Driver *d, struct Scra
 	sps->Input1.pos.z = (s16)CTR_MipsSra(d->posCurr.z, FRACTIONAL_BITS_8);
 
 	sps->Union.QuadBlockColl.searchFlags = 0;
-	if (VEH_GAME_TRACKER->numPlyrCurrGame < 3)
+	if (GAME_TRACKER->numPlyrCurrGame < 3)
 	{
 		sps->Union.QuadBlockColl.searchFlags = COLL_SEARCH_HIGH_LOD;
 	}
@@ -187,7 +187,7 @@ void VehStuckProc_MaskGrab_FindDestPos(struct Driver *d, struct QuadBlock *quad)
 	register int restartCount CTR_PSX_REGISTER("$2");
 	int searchDirection CTR_PSX_REGISTER("$19");
 
-	gGT = VEH_GAME_TRACKER;
+	gGT = GAME_TRACKER;
 	CTR_PSX_KEEP_VALUE(gGT);
 	CTR_PSX_KEEP_VALUE(driver);
 	initialLevel = gGT->level1;
@@ -242,7 +242,7 @@ void VehStuckProc_MaskGrab_FindDestPos(struct Driver *d, struct QuadBlock *quad)
 		CTR_PSX_KEEP_VALUE(respawn);
 		if (searchDirection != 0)
 		{
-			register struct GameTracker *loopTracker CTR_PSX_REGISTER("$3") = VEH_GAME_TRACKER;
+			register struct GameTracker *loopTracker CTR_PSX_REGISTER("$3") = GAME_TRACKER;
 			register struct Level *loopLevel CTR_PSX_REGISTER("$3");
 			register struct CheckpointNode *restartPoints CTR_PSX_REGISTER("$3");
 			register u32 restartIndex CTR_PSX_REGISTER("$4") = respawn->nextIndex_backward;
@@ -264,7 +264,7 @@ void VehStuckProc_MaskGrab_FindDestPos(struct Driver *d, struct QuadBlock *quad)
 		}
 		else
 		{
-			register struct GameTracker *loopTracker CTR_PSX_REGISTER("$3") = VEH_GAME_TRACKER;
+			register struct GameTracker *loopTracker CTR_PSX_REGISTER("$3") = GAME_TRACKER;
 			register struct Level *loopLevel CTR_PSX_REGISTER("$3");
 			register struct CheckpointNode *restartPoints CTR_PSX_REGISTER("$3");
 			register u32 restartIndex CTR_PSX_REGISTER("$4") = respawn->nextIndex_forward;
@@ -300,7 +300,7 @@ void VehStuckProc_MaskGrab_FindDestPos(struct Driver *d, struct QuadBlock *quad)
 			goto searchRespawn;
 		}
 
-		playerThread = VEH_GAME_TRACKER->threadBuckets[PLAYER].thread;
+		playerThread = GAME_TRACKER->threadBuckets[PLAYER].thread;
 		while (playerThread != NULL)
 		{
 			register struct Driver *other CTR_PSX_REGISTER("$5") = playerThread->object;
@@ -359,7 +359,7 @@ fallback:
 {
 	register struct GameTracker *fallbackTracker CTR_PSX_REGISTER("$5");
 
-	fallbackTracker = VEH_GAME_TRACKER;
+	fallbackTracker = GAME_TRACKER;
 	CTR_PSX_KEEP_VALUE(fallbackTracker);
 	driver->posCurr.x = CTR_MipsSll(CTR_MipsAddLo(fallbackTracker->level1->ptr_mesh_info->ptrVertexArray[(s16)sourceQuad->index[0]].pos.x,
 	                                              fallbackTracker->level1->ptr_mesh_info->ptrVertexArray[(s16)sourceQuad->index[3]].pos.x),
@@ -374,7 +374,7 @@ fallback:
 }
 
 finish:
-	VEH_GAME_TRACKER->cameraDC[driver->driverID].flags |= 1;
+	GAME_TRACKER->cameraDC[driver->driverID].flags |= 1;
 }
 
 
@@ -386,7 +386,7 @@ void VehStuckProc_MaskGrab_Particles(struct Driver *d)
 	for (i = 10; i != 0; i--)
 	{
 		// Create instance in particle pool
-		p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[0], &data.emSet_Maskgrab[0]);
+		p = Particle_Init(0, GAME_TRACKER->iconGroup[0], &data.emSet_Maskgrab[0]);
 
 		if (p == NULL)
 		{
@@ -405,7 +405,7 @@ void VehStuckProc_MaskGrab_Update(struct Thread *t, struct Driver *d)
 {
 	struct MaskHeadWeapon *mask;
 
-	d->NoInputTimer = (s16)CTR_MipsSubLo((u16)d->NoInputTimer, (u16)VEH_GAME_TRACKER->elapsedTimeMS);
+	d->NoInputTimer = (s16)CTR_MipsSubLo((u16)d->NoInputTimer, (u16)GAME_TRACKER->elapsedTimeMS);
 
 	if (d->NoInputTimer < 0)
 	{
@@ -433,7 +433,7 @@ void VehStuckProc_MaskGrab_Update(struct Thread *t, struct Driver *d)
 
 
 	// CameraDC flag
-	VEH_GAME_TRACKER->cameraDC[d->driverID].flags |= CAMERA_FLAG_DIRECTION_CHANGED;
+	GAME_TRACKER->cameraDC[d->driverID].flags |= CAMERA_FLAG_DIRECTION_CHANGED;
 
 
 	VehStuckProc_MaskGrab_FindDestPos(d, d->lastValid);
@@ -585,7 +585,7 @@ void VehStuckProc_MaskGrab_Animate(struct Thread *t, struct Driver *d)
 		register size_t work CTR_PSX_REGISTER("$2");
 		register s32 elapsedTime CTR_PSX_REGISTER("$3");
 
-		work = (size_t)VEH_GAME_TRACKER;
+		work = (size_t)GAME_TRACKER;
 		elapsedTime = ((struct GameTracker *)work)->elapsedTimeMS;
 		work = (u32)d->posCurr.y;
 		d->speed = 0;
@@ -596,7 +596,7 @@ void VehStuckProc_MaskGrab_Animate(struct Thread *t, struct Driver *d)
 	}
 	else
 	{
-		d->KartStates.MaskGrab.maskObj->pos.y = (s16)CTR_MipsSubLo((u16)d->KartStates.MaskGrab.maskObj->pos.y, (u16)VEH_GAME_TRACKER->elapsedTimeMS);
+		d->KartStates.MaskGrab.maskObj->pos.y = (s16)CTR_MipsSubLo((u16)d->KartStates.MaskGrab.maskObj->pos.y, (u16)GAME_TRACKER->elapsedTimeMS);
 	}
 
 	d->KartStates.MaskGrab.maskObj->pos.z = (s16)CTR_MipsSra(d->posCurr.z, FRACTIONAL_BITS_8);
@@ -645,7 +645,7 @@ void VehStuckProc_MaskGrab_Init(struct Thread *t, struct Driver *d)
 
 	d->actionsFlagSet &= ~(ACTION_AIRBORNE | ACTION_HIGH_JUMP);
 
-	if (LOAD_IsOpen_RacingOrBattle() && ((VEH_GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) == 0))
+	if (LOAD_IsOpen_RacingOrBattle() && ((GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) == 0))
 	{
 		RB_Player_ModifyWumpa(d, -2);
 	}
@@ -654,7 +654,7 @@ void VehStuckProc_MaskGrab_Init(struct Thread *t, struct Driver *d)
 	{
 		d->numTimesMaskGrab++;
 
-		if ((d->posCurr.y < -VEH_STUCK_MASK_GRAB_FALL_HEIGHT_THRESHOLD) && ((VEH_GAME_TRACKER->level1->configFlags & 2) != 0))
+		if ((d->posCurr.y < -VEH_STUCK_MASK_GRAB_FALL_HEIGHT_THRESHOLD) && ((GAME_TRACKER->level1->configFlags & 2) != 0))
 		{
 			d->KartStates.MaskGrab.AngleAxis_NormalVec.x = d->AxisAngle2_normalVec.x;
 			d->KartStates.MaskGrab.AngleAxis_NormalVec.y = d->AxisAngle2_normalVec.y;
@@ -662,7 +662,7 @@ void VehStuckProc_MaskGrab_Init(struct Thread *t, struct Driver *d)
 
 			for (i = 10; i != 0; i--)
 			{
-				struct Particle *p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[9], &data.emSet_Falling[0]);
+				struct Particle *p = Particle_Init(0, GAME_TRACKER->iconGroup[9], &data.emSet_Falling[0]);
 				if (p == NULL)
 				{
 					continue;
@@ -723,7 +723,7 @@ void VehStuckProc_PlantEaten_Update(struct Thread *t, struct Driver *d)
 {
 	struct Instance *inst = t->inst;
 
-	d->NoInputTimer = (s16)CTR_MipsSubLo((u16)d->NoInputTimer, (u16)VEH_GAME_TRACKER->elapsedTimeMS);
+	d->NoInputTimer = (s16)CTR_MipsSubLo((u16)d->NoInputTimer, (u16)GAME_TRACKER->elapsedTimeMS);
 
 	if (d->NoInputTimer < 0)
 	{
@@ -768,7 +768,7 @@ void VehStuckProc_PlantEaten_PhysLinear(struct Thread *t, struct Driver *d)
 	// drop jump-button, gas+brake, and reversing engine bits.
 	d->actionsFlagSet = (actionsFlagSet & actionsClearMask) | ACTION_ACCEL_PREVENTION;
 
-	d->timeSpentEaten = CTR_MipsAddLo(d->timeSpentEaten, VEH_GAME_TRACKER->elapsedTimeMS);
+	d->timeSpentEaten = CTR_MipsAddLo(d->timeSpentEaten, GAME_TRACKER->elapsedTimeMS);
 }
 
 
@@ -831,7 +831,7 @@ void VehStuckProc_PlantEaten_Animate(struct Thread *t, struct Driver *d)
 
 		RotTrans(&plantVector, &camVec, gteFlags);
 
-		VEH_GAME_TRACKER->pushBuffer[driver->driverID].pos.x = camVec.vx;
+		GAME_TRACKER->pushBuffer[driver->driverID].pos.x = camVec.vx;
 		{
 			register u32 driverID CTR_PSX_REGISTER("$3") = driver->driverID;
 			u8 *driverGameTracker;
@@ -839,18 +839,18 @@ void VehStuckProc_PlantEaten_Animate(struct Thread *t, struct Driver *d)
 			// NOTE(aalhendi): Keep the driver stride separate from the field
 			// offset so GCC preserves retail's base-first pointer addition.
 			CTR_PSX_KEEP_VALUE(driverID);
-			driverGameTracker = (u8 *)VEH_GAME_TRACKER + (driverID * sizeof(struct PushBuffer));
+			driverGameTracker = (u8 *)GAME_TRACKER + (driverID * sizeof(struct PushBuffer));
 			*(s16 *)(driverGameTracker + offsetof(struct GameTracker, pushBuffer) + offsetof(struct PushBuffer, pos.y)) =
 			    CTR_MipsAddLo((u16)inst->matrix.t[1], VEH_STUCK_PLANT_CAMERA_Y_OFFSET);
 		}
-		VEH_GAME_TRACKER->pushBuffer[driver->driverID].pos.z = camVec.vz;
+		GAME_TRACKER->pushBuffer[driver->driverID].pos.z = camVec.vz;
 
 		camX = camVec.vx - inst->matrix.t[0];
-		camY = VEH_GAME_TRACKER->pushBuffer[driver->driverID].pos.y;
+		camY = GAME_TRACKER->pushBuffer[driver->driverID].pos.y;
 		camZ = camVec.vz - inst->matrix.t[2];
 		camY = camY - inst->matrix.t[1];
 
-		VEH_GAME_TRACKER->pushBuffer[driver->driverID].rot.y = (s16)ratan2(camX, camZ);
+		GAME_TRACKER->pushBuffer[driver->driverID].rot.y = (s16)ratan2(camX, camZ);
 
 		// get distance between car and camera
 		dist = SquareRoot0_stub(CTR_MipsAddLo(CTR_MipsMulLo(camX, camX), CTR_MipsMulLo(camZ, camZ)));
@@ -859,7 +859,7 @@ void VehStuckProc_PlantEaten_Animate(struct Thread *t, struct Driver *d)
 		// Y plus 192, so their low-byte delta is the desired camera offset.
 		cameraYOffset = camY;
 		cameraPitch = ratan2(cameraYOffset, dist);
-		gameTracker = VEH_GAME_TRACKER;
+		gameTracker = GAME_TRACKER;
 		gameTracker->pushBuffer[driver->driverID].rot.x = VEH_STUCK_PLANT_CAMERA_PITCH_BASE - cameraPitch;
 
 		gameTracker->pushBuffer[driver->driverID].rot.z = 0;
@@ -898,7 +898,7 @@ void VehStuckProc_PlantEaten_Init(struct Thread *t, struct Driver *d)
 		d->thCloud = NULL;
 	}
 
-	if (LOAD_IsOpen_RacingOrBattle() && ((VEH_GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) == 0))
+	if (LOAD_IsOpen_RacingOrBattle() && ((GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) == 0))
 	{
 		RB_Player_ModifyWumpa(d, -2);
 	}
@@ -952,7 +952,7 @@ void VehStuckProc_RevEngine_Update(struct Thread *t, struct Driver *d)
 		}
 	}
 	// If this is the start of a race, wait for the traffic lights.
-	else if (0 < VEH_GAME_TRACKER->trafficLightsTimer)
+	else if (0 < GAME_TRACKER->trafficLightsTimer)
 	{
 		return;
 	}
@@ -996,7 +996,7 @@ void VehStuckProc_RevEngine_PhysLinear(struct Thread *t, struct Driver *d)
 	s32 cooldownTimer;
 
 	cooldownTimer = (u16)d->KartStates.RevEngine.releaseCooldownTimerMS;
-	cooldownTimer = CTR_MipsSubLo(cooldownTimer, (u16)VEH_GAME_TRACKER->elapsedTimeMS);
+	cooldownTimer = CTR_MipsSubLo(cooldownTimer, (u16)GAME_TRACKER->elapsedTimeMS);
 	d->KartStates.RevEngine.releaseCooldownTimerMS = (s16)cooldownTimer;
 	cooldownTimer = CTR_MipsSll(cooldownTimer, 16);
 	if (cooldownTimer < 0)
@@ -1005,7 +1005,7 @@ void VehStuckProc_RevEngine_PhysLinear(struct Thread *t, struct Driver *d)
 	}
 
 	cooldownTimer = (u16)d->KartStates.RevEngine.emptyCooldownTimerMS;
-	cooldownTimer = CTR_MipsSubLo(cooldownTimer, (u16)VEH_GAME_TRACKER->elapsedTimeMS);
+	cooldownTimer = CTR_MipsSubLo(cooldownTimer, (u16)GAME_TRACKER->elapsedTimeMS);
 	d->KartStates.RevEngine.emptyCooldownTimerMS = (s16)cooldownTimer;
 	cooldownTimer = CTR_MipsSll(cooldownTimer, 16);
 	if (cooldownTimer < 0)
@@ -1020,8 +1020,8 @@ void VehStuckProc_RevEngine_PhysLinear(struct Thread *t, struct Driver *d)
 		return;
 	}
 
-	VEH_GAME_TRACKER->cameraDC[d->driverID].flags |= CAMERA_FLAG_MASK_GRAB;
-	VEH_GAME_TRACKER->cameraDC[d->driverID].maskGrabHeightOffset = VEH_STUCK_REV_CAMERA_HEIGHT_OFFSET;
+	GAME_TRACKER->cameraDC[d->driverID].flags |= CAMERA_FLAG_MASK_GRAB;
+	GAME_TRACKER->cameraDC[d->driverID].maskGrabHeightOffset = VEH_STUCK_REV_CAMERA_HEIGHT_OFFSET;
 
 	d->posCurr.y = CTR_MipsSubLo(d->posCurr.y, VEH_STUCK_REV_MASK_DESCENT_STEP);
 
@@ -1317,7 +1317,7 @@ void VehStuckProc_RevEngine_Init(struct Thread *t, struct Driver *d)
 		d->actionsFlagSet &= ~ACTION_TOUCH_GROUND;
 
 		// CameraDC flag
-		VEH_GAME_TRACKER->cameraDC[d->driverID].flags |= CAMERA_FLAG_DIRECTION_CHANGED;
+		GAME_TRACKER->cameraDC[d->driverID].flags |= CAMERA_FLAG_DIRECTION_CHANGED;
 	}
 
 	d->boolFirstFrameSinceRevEngine = true;
@@ -1361,7 +1361,7 @@ void VehStuckProc_Tumble_Update(struct Thread *thread, struct Driver *driver)
 
 void VehStuckProc_Tumble_PhysLinear(struct Thread *thread, struct Driver *driver)
 {
-	driver->NoInputTimer = (s16)CTR_MipsSubLo((u16)driver->NoInputTimer, (u16)VEH_GAME_TRACKER->elapsedTimeMS);
+	driver->NoInputTimer = (s16)CTR_MipsSubLo((u16)driver->NoInputTimer, (u16)GAME_TRACKER->elapsedTimeMS);
 
 	if (driver->NoInputTimer < 0)
 	{
@@ -1463,7 +1463,7 @@ void VehStuckProc_Tumble_Init(struct Thread *thread, struct Driver *driver)
 	driver->kartState = KS_BLASTED;
 	driver->turbo_MeterRoomLeft = 0;
 
-	if (LOAD_IsOpen_RacingOrBattle() && ((VEH_GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) == 0))
+	if (LOAD_IsOpen_RacingOrBattle() && ((GAME_TRACKER->gameMode1 & ADVENTURE_ARENA) == 0))
 	{
 		RB_Player_ModifyWumpa(driver, -VEH_TUMBLE_WUMPA_PENALTY);
 	}
@@ -1603,7 +1603,7 @@ void VehStuckProc_Warp_MoveDustPuff(s16 *points, int span, int radius, s16 *jitt
 
 void VehStuckProc_Warp_AddDustPuff1(struct ScratchpadStruct *sps)
 {
-	struct GameTracker *gGT = VEH_GAME_TRACKER;
+	struct GameTracker *gGT = GAME_TRACKER;
 	struct Particle *p;
 
 	// if even frame don't spawn
@@ -2029,7 +2029,7 @@ void VehStuckProc_Warp_AddDustPuff2(struct Driver *d, struct DriverWarpState *wa
 	int ring;
 	int repeatRing;
 
-	gGT = VEH_GAME_TRACKER;
+	gGT = GAME_TRACKER;
 	{
 		register u32 driverID CTR_PSX_REGISTER("$3") = d->driverID;
 		register size_t pushBufferOffset CTR_PSX_REGISTER("$2");
@@ -2142,7 +2142,7 @@ void VehStuckProc_Warp_AddDustPuff2(struct Driver *d, struct DriverWarpState *wa
 		}
 	} while (repeatRing != 0);
 
-	VEH_GAME_TRACKER->backBuffer->primMem.cursor = (u32 *)prim;
+	GAME_TRACKER->backBuffer->primMem.cursor = (u32 *)prim;
 }
 
 
@@ -2260,7 +2260,7 @@ void VehStuckProc_Warp_Init(struct Thread *th, struct Driver *d)
 	OtherFX_Stop1((int)d->driverAudioPtrs[0]);
 	d->driverAudioPtrs[0] = 0;
 
-	engine = VEH_CHARACTER_METADATA[VEH_CHARACTER_IDS[d->driverID]].engineID;
+	engine = GAME_CHARACTER_METADATA[GAME_CHARACTER_IDS[d->driverID]].engineID;
 
 	EngineAudio_Stop((u16)((engine * VEH_WARP_ENGINE_AUDIO_STRIDE) + d->driverID));
 
@@ -2274,7 +2274,7 @@ void VehStuckProc_Warp_Init(struct Thread *th, struct Driver *d)
 	inst->vertSplit = (s16)CTR_MipsSra(d->quadBlockHeight, VEH_WARP_POSITION_SHIFT);
 
 	// CameraDC, freecam mode
-	VEH_GAME_TRACKER->cameraDC[d->driverID].cameraMode = CAMERA_MODE_FREECAM;
+	GAME_TRACKER->cameraDC[d->driverID].cameraMode = CAMERA_MODE_FREECAM;
 
 	d->funcPtrs[DRIVER_FUNC_AUDIO] = VehPhysProc_Driving_Audio;
 	d->funcPtrs[DRIVER_FUNC_PHYS_ANGULAR] = VehStuckProc_Warp_PhysAngular;

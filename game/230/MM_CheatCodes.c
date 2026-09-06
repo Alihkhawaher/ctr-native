@@ -8,55 +8,55 @@ void MM_Cheat_MaxWumpa(void)
 
 void MM_Cheat_UnlockRoo(void)
 {
-	MM_GAME_PROGRESS.unlocks[0] |= UNLOCK_ROO;
+	GAME_PROGRESS.unlocks[0] |= UNLOCK_ROO;
 	OtherFX_Play(MM_CHEAT_SUCCESS_SFX, 1);
 }
 
 void MM_Cheat_UnlockPapu(void)
 {
-	MM_GAME_PROGRESS.unlocks[0] |= UNLOCK_PAPU;
+	GAME_PROGRESS.unlocks[0] |= UNLOCK_PAPU;
 	OtherFX_Play(MM_CHEAT_SUCCESS_SFX, 1);
 }
 
 void MM_Cheat_UnlockJoe(void)
 {
-	MM_GAME_PROGRESS.unlocks[0] |= UNLOCK_JOE;
+	GAME_PROGRESS.unlocks[0] |= UNLOCK_JOE;
 	OtherFX_Play(MM_CHEAT_SUCCESS_SFX, 1);
 }
 
 void MM_Cheat_UnlockPinstripe(void)
 {
-	MM_GAME_PROGRESS.unlocks[0] |= UNLOCK_PINSTRIPE;
+	GAME_PROGRESS.unlocks[0] |= UNLOCK_PINSTRIPE;
 	OtherFX_Play(MM_CHEAT_SUCCESS_SFX, 1);
 }
 
 void MM_Cheat_UnlockFakeCrash(void)
 {
-	MM_GAME_PROGRESS.unlocks[0] |= UNLOCK_FAKE_CRASH;
+	GAME_PROGRESS.unlocks[0] |= UNLOCK_FAKE_CRASH;
 	OtherFX_Play(MM_CHEAT_SUCCESS_SFX, 1);
 }
 
 void MM_Cheat_UnlockPenta(void)
 {
-	MM_GAME_PROGRESS.unlocks[0] |= UNLOCK_PENTA;
+	GAME_PROGRESS.unlocks[0] |= UNLOCK_PENTA;
 	OtherFX_Play(MM_CHEAT_SUCCESS_SFX, 1);
 }
 
 void MM_Cheat_UnlockTropy(void)
 {
-	MM_GAME_PROGRESS.unlocks[0] |= UNLOCK_TROPY;
+	GAME_PROGRESS.unlocks[0] |= UNLOCK_TROPY;
 	OtherFX_Play(MM_CHEAT_SUCCESS_SFX, 1);
 }
 
 void MM_Cheat_UnlockScrapbook(void)
 {
-	UNLOCK_ADV_BIT(MM_GAME_PROGRESS.unlocks, GAME_UNLOCK_BIT_SCRAPBOOK);
+	UNLOCK_ADV_BIT(GAME_PROGRESS.unlocks, GAME_UNLOCK_BIT_SCRAPBOOK);
 	OtherFX_Play(MM_CHEAT_SUCCESS_SFX, 1);
 }
 
 void MM_Cheat_UnlockTracks(void)
 {
-	MM_GAME_PROGRESS.unlocks[0] |= GAME_UNLOCK_TRACKS_MASK;
+	GAME_PROGRESS.unlocks[0] |= GAME_UNLOCK_TRACKS_MASK;
 	OtherFX_Play(MM_CHEAT_SUCCESS_SFX, 1);
 }
 
@@ -138,13 +138,13 @@ void MM_ParseCheatCodes(void)
 	b32 cheatMatches;
 
 	// if not holding L1 and R1
-	if (((MM_GAMEPADS->gamepad[0].buttonsHeldCurrFrame & (BTN_L1 | BTN_R1)) ^ (BTN_L1 | BTN_R1)) != 0)
+	if (((GAMEPADS->gamepad[0].buttonsHeldCurrFrame & (BTN_L1 | BTN_R1)) ^ (BTN_L1 | BTN_R1)) != 0)
 	{
 		// skip function
 		return;
 	}
 
-	if (MM_GAMEPADS->gamepad[0].buttonsTapped == 0)
+	if (GAMEPADS->gamepad[0].buttonsTapped == 0)
 	{
 		return;
 	}
@@ -159,7 +159,7 @@ void MM_ParseCheatCodes(void)
 	}
 
 	buttonHistory = MM_CHEAT_BUTTON_HISTORY;
-	gpad = &MM_GAMEPADS->gamepad[0];
+	gpad = &GAMEPADS->gamepad[0];
 	cheats = MM_CHEATS;
 
 	// add to input

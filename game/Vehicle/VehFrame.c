@@ -88,7 +88,7 @@ u32 VehFrameInst_GetNumAnimFrames(struct Instance *inst, int animIndex)
 
 static inline void VehFrameProc_Driving_SpawnBurnSmoke(struct Driver *d)
 {
-	struct Particle *p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[VEH_FRAME_BURN_SMOKE_ICON_GROUP], &data.emSet_BurnSmoke[0]);
+	struct Particle *p = Particle_Init(0, GAME_TRACKER->iconGroup[VEH_FRAME_BURN_SMOKE_ICON_GROUP], &data.emSet_BurnSmoke[0]);
 
 	if (p != NULL)
 	{
@@ -197,7 +197,7 @@ void VehFrameProc_Driving(struct Thread *t, struct Driver *d)
 			return;
 		}
 
-		characterID = VEH_CHARACTER_IDS[d->driverID];
+		characterID = GAME_CHARACTER_IDS[d->driverID];
 		if (characterID == PENTA_PENGUIN)
 		{
 			characterID = COCO_BANDICOOT;

@@ -1,7 +1,7 @@
 #ifndef CTR_MATCHING_NAMESPACE_VEHICLE_RETAIL_SYMBOLS_H
 #define CTR_MATCHING_NAMESPACE_VEHICLE_RETAIL_SYMBOLS_H
 
-#include <common.h>
+#include "../../retail_bindings.h"
 
 // NOTE(aalhendi): Share address expressions between C bindings and scheduled assembly.
 #define VEH_BAKED_GTE_MATH_ASM_NAME      "data+30036"
@@ -10,16 +10,11 @@
 
 // NOTE(aalhendi): Retail Vehicle code addresses the game-tracker pointer as
 // an individual symbol even though the native layout groups it in sData.
-extern struct GameTracker *veh_gameTracker asm("sdata_static+832");
-extern struct GamepadSystem *veh_gamepads asm("sdata_static+836");
-extern struct MetaDataCHAR veh_characterMetadata[16] asm("data+25572");
-extern s16 veh_characterIDs[16] asm("data+25828");
 extern DriverModelExtraSlot veh_driverModelExtras[LOAD_DRIVER_MODEL_EXTRA_COUNT] asm("data+12400");
 extern struct MetaPhys veh_metaPhys[65] asm("data+32876");
 extern CtrPackedU32 veh_bakedGteMathWords[BAKED_GTE_MATRIX_COUNT * 2] asm(VEH_BAKED_GTE_MATH_ASM_NAME);
 extern CtrPackedU32 veh_trigApprox[0x400] asm(VEH_TRIG_APPROX_ASM_NAME);
 extern struct RngDeadCoedState veh_advRng asm("sdata_static+1788");
-extern struct AdvProgress veh_advProgress asm("sdata_static+11320");
 extern u8 veh_kartSpawnOrder[8] asm("sdata_static+1840");
 extern char veh_itemSetRace1[0x14] asm("data+37324");
 extern char veh_itemSetRace2[0x34] asm("data+37344");
@@ -58,21 +53,16 @@ extern void veh_emitterJogCon1() asm("GAMEPAD_JogCon1");
 extern void veh_emitterJogCon2() asm("GAMEPAD_JogCon2");
 
 // NOTE(aalhendi): Bind shared data views to their retail resident symbols.
-#define VEH_GAME_TRACKER                                                               veh_gameTracker
-#define VEH_GAMEPADS                                                                   veh_gamepads
-#define VEH_CHARACTER_METADATA                                                         veh_characterMetadata
-#define VEH_CHARACTER_IDS                                                              veh_characterIDs
 #define VEH_TUMBLE_INIT_PAGE                                                           0x80070000
 #define VEH_TUMBLE_INIT_FROM_PAGE(page)                                                ((DriverFunc)((u32)(page) - 32092))
-#define VEH_LOAD_CHARACTER_IDS_PAGE(page)                                              CTR_PSX_LOAD_SYMBOL_PAGE((page), "data+25828")
-#define VEH_ADD_CHARACTER_IDS_LOW(result, page)                                        CTR_PSX_ADD_SYMBOL_LOW((result), (page), "data+25828", VEH_CHARACTER_IDS)
+#define VEH_LOAD_CHARACTER_IDS_PAGE(page)                                              CTR_PSX_LOAD_SYMBOL_PAGE((page), RETAIL_CHARACTER_IDS_ASM_NAME)
+#define VEH_ADD_CHARACTER_IDS_LOW(result, page) CTR_PSX_ADD_SYMBOL_LOW((result), (page), RETAIL_CHARACTER_IDS_ASM_NAME, GAME_CHARACTER_IDS)
 #define VEH_DRIVER_MODEL_EXTRAS                                                        veh_driverModelExtras
 #define VEH_META_PHYS                                                                  veh_metaPhys
 #define VEH_BAKED_GTE_PHYS_ENTRY(index)                                                ((void *)(u32)veh_bakedGteMathWords[(index) * 2])
 #define VEH_BAKED_GTE_NUM_ENTRIES(index)                                               ((int)veh_bakedGteMathWords[((index) * 2) + 1])
 #define VEH_TRIG_APPROX(index)                                                         veh_trigApprox[(index)]
 #define VEH_ADV_RNG                                                                    veh_advRng
-#define VEH_ADV_PROGRESS                                                               veh_advProgress
 #define VEH_KART_SPAWN_ORDER                                                           veh_kartSpawnOrder
 #define VEH_ITEM_SET_RACE1                                                             veh_itemSetRace1
 #define VEH_ITEM_SET_RACE2                                                             veh_itemSetRace2
@@ -126,11 +116,11 @@ extern void veh_emitterJogCon2() asm("GAMEPAD_JogCon2");
 		CTR_PSX_LOAD_SYMBOL_PAGE((page), "data+32876");                        \
 		CTR_PSX_ADD_SYMBOL_LOW((result), (page), "data+32876", VEH_META_PHYS); \
 	} while (0)
-#define VEH_LOAD_GAME_TRACKER(result)                                                          \
-	do                                                                                         \
-	{                                                                                          \
-		CTR_PSX_LOAD_SYMBOL_PAGE((result), "sdata_static+832");                                \
-		CTR_PSX_LOAD_WORD_FROM_PAGE((result), (result), "sdata_static+832", VEH_GAME_TRACKER); \
+#define VEH_LOAD_GAME_TRACKER(result)                                                                \
+	do                                                                                               \
+	{                                                                                                \
+		CTR_PSX_LOAD_SYMBOL_PAGE((result), RETAIL_GAME_TRACKER_ASM_NAME);                            \
+		CTR_PSX_LOAD_WORD_FROM_PAGE((result), (result), RETAIL_GAME_TRACKER_ASM_NAME, GAME_TRACKER); \
 	} while (0)
 
 #endif

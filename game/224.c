@@ -39,17 +39,9 @@ global_variable Color s_highScoreIconColor224;
 extern struct RectMenu menu224;
 extern struct RectMenu menu224NoSave;
 
-#ifndef TT_GAME_TRACKER
-#define TT_GAME_TRACKER            (sdata->gGT)
-#define TT_LANGUAGE_STRINGS        (sdata->lngStrings)
-#define TT_FRAMES_SINCE_RACE_ENDED (sdata->framesSinceRaceEnded)
+#ifndef TT_FLAGS
 #define TT_FLAGS                   (sdata->flags_timeTrialEndOfRace)
-#define TT_GAME_PROGRESS           (sdata->gameProgress)
-#define TT_MENU_READY              (sdata->menuReadyToPass)
-#define TT_ANY_PLAYER_TAP          (sdata->AnyPlayerTap)
 #define TT_GHOST_TOO_BIG           (sdata->boolGhostTooBigToSave)
-#define TT_MENU_HIGHLIGHT          (sdata->menuRowHighlight_Normal)
-#define TT_CHARACTER_METADATA      (data.MetaDataCharacters)
 #endif
 
 #ifndef TT_DRAW_POLY_GT4
@@ -74,29 +66,29 @@ void TT_EndEvent_DisplayTime(s32 paramX, s16 paramY, u32 raceClockFlags)
 
 	register struct Driver *d CTR_PSX_REGISTER("$22");
 
-	d = TT_GAME_TRACKER->drivers[0];
+	d = GAME_TRACKER->drivers[0];
 
-	textWidth = DecalFont_GetLineWidth(TT_LANGUAGE_STRINGS[LNG_TOTAL], FONT_BIG);
+	textWidth = DecalFont_GetLineWidth(GAME_LANGUAGE_STRINGS[LNG_TOTAL], FONT_BIG);
 	startX = (s16)(paramX - (0x88 - textWidth) / 2);
-	textWidth = DecalFont_GetLineWidth(TT_LANGUAGE_STRINGS[LNG_TOTAL], FONT_BIG);
+	textWidth = DecalFont_GetLineWidth(GAME_LANGUAGE_STRINGS[LNG_TOTAL], FONT_BIG);
 	endX = (s16)(paramX - (0x88 - textWidth) / 2);
 
 	// === Naughty Dog Bug ===
 	// Start and End is the same
-	UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), startX, paramY, endX, paramY, TT_FRAMES_SINCE_RACE_ENDED, TT_LERP_FRAMES);
+	UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), startX, paramY, endX, paramY, GAME_FRAMES_SINCE_RACE_ENDED, TT_LERP_FRAMES);
 
-	DecalFont_DrawLine(TT_LANGUAGE_STRINGS[LNG_YOUR_TIME], paramX, ((u32)pos.y - 0x4c), FONT_BIG, (JUSTIFY_CENTER | ORANGE));
+	DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_YOUR_TIME], paramX, ((u32)pos.y - 0x4c), FONT_BIG, (JUSTIFY_CENTER | ORANGE));
 
 	UI_DrawRaceClock(pos.x, pos.y, raceClockFlags, d);
 
-	rectangle.x = (pos.x - DecalFont_GetLineWidth(TT_LANGUAGE_STRINGS[LNG_TOTAL], FONT_BIG)) - 6;
+	rectangle.x = (pos.x - DecalFont_GetLineWidth(GAME_LANGUAGE_STRINGS[LNG_TOTAL], FONT_BIG)) - 6;
 	rectangle.y = pos.y - 0x50;
 
-	rectangle.w = DecalFont_GetLineWidth(TT_LANGUAGE_STRINGS[LNG_TOTAL], FONT_BIG) + 0x94;
+	rectangle.w = DecalFont_GetLineWidth(GAME_LANGUAGE_STRINGS[LNG_TOTAL], FONT_BIG) + 0x94;
 	rectangle.h = 99;
 
 	// Draw 2D Menu rectangle background
-	RECTMENU_DrawInnerRect(&rectangle, 4, TT_GAME_TRACKER->backBuffer->otMem.uiOT);
+	RECTMENU_DrawInnerRect(&rectangle, 4, GAME_TRACKER->backBuffer->otMem.uiOT);
 
 	return;
 }
@@ -139,7 +131,7 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 		timeboxYBase = iconYBaseSource;
 		startYCopy = (s16)startY;
 		rowOffsetY = 0;
-		driver = TT_GAME_TRACKER->drivers[0];
+		driver = GAME_TRACKER->drivers[0];
 		timeboxXSource = (s16)(startX - 0x1f);
 		// NOTE(aalhendi): Removing this otherwise dead retail temporary changes
 		// GCC 2.8.1's register allocation.
@@ -148,14 +140,14 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 		scoreModeCopy = scoreMode;
 
 		// 12 entries per track, 6 for Time Trial and 6 for Relic Race
-		scoreEntries = &TT_GAME_PROGRESS.highScoreTracks[TT_GAME_TRACKER->levelID].scoreEntry[TT_HIGH_SCORE_ENTRIES_PER_MODE * scoreModeCopy];
+		scoreEntries = &GAME_PROGRESS.highScoreTracks[GAME_TRACKER->levelID].scoreEntry[TT_HIGH_SCORE_ENTRIES_PER_MODE * scoreModeCopy];
 
 		// NOTE(aalhendi): Retail passes identical start and end points.
-		UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), startX, startYCopy, startX, startYCopy, TT_FRAMES_SINCE_RACE_ENDED, TT_LERP_FRAMES);
+		UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), startX, startYCopy, startX, startYCopy, GAME_FRAMES_SINCE_RACE_ENDED, TT_LERP_FRAMES);
 
 		rowIndex = 0;
 		scoreEntryOffset = sizeof(struct HighScoreEntry) * TT_HIGH_SCORE_FIRST_VISIBLE_ENTRY;
-		DecalFont_DrawLine(TT_LANGUAGE_STRINGS[LNG_BEST_TIMES], pos.x, pos.y, FONT_BIG, JUSTIFY_CENTER | ORANGE);
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_BEST_TIMES], pos.x, pos.y, FONT_BIG, JUSTIFY_CENTER | ORANGE);
 
 		iconYBase = (s16)iconYBaseSource;
 		timeboxX = timeboxXSource;
@@ -171,13 +163,13 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 		flashMask = TT_HIGH_SCORE_FLASH_TIMER_BIT << 1;
 
 		// If this loop index is a new high score
-		if ((s8)TT_GAME_TRACKER->newHighScoreIndex == rowIndex)
+		if ((s8)GAME_TRACKER->newHighScoreIndex == rowIndex)
 		{
 			// make name color flash every odd frame
-			nameColor = (TT_GAME_TRACKER->timer & TT_HIGH_SCORE_FLASH_TIMER_BIT) ? WHITE : scoreEntry->characterID + TT_HIGH_SCORE_DRIVER_COLOR_OFFSET;
+			nameColor = (GAME_TRACKER->timer & TT_HIGH_SCORE_FLASH_TIMER_BIT) ? WHITE : scoreEntry->characterID + TT_HIGH_SCORE_DRIVER_COLOR_OFFSET;
 
 			// flash color of time
-			timeColorSource = (TT_GAME_TRACKER->timer << 1) & flashMask;
+			timeColorSource = (GAME_TRACKER->timer << 1) & flashMask;
 			timeColor = timeColorSource;
 		}
 		else
@@ -196,8 +188,8 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 		DecalFont_DrawLine(rankString, iconX + 0x20, currentY - 1, FONT_SMALL, WHITE);
 
 		// Draw Character Icon
-		TT_DRAW_POLY_GT4(TT_GAME_TRACKER->ptrIcons[TT_CHARACTER_METADATA[(s16)scoreEntry->characterID].iconID], iconX, iconYBase + (s16)rowOffsetYCopy,
-		                 &TT_GAME_TRACKER->backBuffer->primMem, TT_GAME_TRACKER->pushBuffer_UI.ptrOT,
+		TT_DRAW_POLY_GT4(GAME_TRACKER->ptrIcons[GAME_CHARACTER_METADATA[(s16)scoreEntry->characterID].iconID], iconX, iconYBase + (s16)rowOffsetYCopy,
+		                 &GAME_TRACKER->backBuffer->primMem, GAME_TRACKER->pushBuffer_UI.ptrOT,
 		                 // color of each corner
 		                 s_highScoreIconColor224, s_highScoreIconColor224, s_highScoreIconColor224, s_highScoreIconColor224, TT_HIGH_SCORE_ICON_TRANSPARENCY,
 		                 TT_HIGH_SCORE_ICON_SCALE);
@@ -209,7 +201,7 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 		TT_DRAW_LINE_WIDE_X(RECTMENU_DrawTime(scoreEntry->time), timeboxX, currentY + 0x11, FONT_SMALL, timeColor);
 
 		// If this loop index is a new high score
-		if ((s8)TT_GAME_TRACKER->newHighScoreIndex == rowIndex)
+		if ((s8)GAME_TRACKER->newHighScoreIndex == rowIndex)
 		{
 			box.x = iconX - 4;
 			highlightY = rowOffsetYCopy - 1;
@@ -218,7 +210,7 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 			box.h = 0x1a;
 
 			// Draw a rectangle to highlight your time on the "Best Times" list
-			TT_DRAW_CLEAR_BOX(&box, &TT_MENU_HIGHLIGHT, TRANS_50_DECAL, TT_GAME_TRACKER->pushBuffer_UI.ptrOT, &TT_GAME_TRACKER->backBuffer->primMem);
+			TT_DRAW_CLEAR_BOX(&box, &GAME_MENU_HIGHLIGHT, TRANS_50_DECAL, GAME_TRACKER->pushBuffer_UI.ptrOT, &GAME_TRACKER->backBuffer->primMem);
 		}
 	}
 
@@ -228,12 +220,12 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 		timeColor = JUSTIFY_CENTER | ORANGE;
 
 		// If you got a new best lap
-		if (((TT_GAME_TRACKER->gameModeEnd & NEW_BEST_LAP) != 0) && ((TT_GAME_TRACKER->timer & TT_HIGH_SCORE_FLASH_TIMER_BIT) != 0))
+		if (((GAME_TRACKER->gameModeEnd & NEW_BEST_LAP) != 0) && ((GAME_TRACKER->timer & TT_HIGH_SCORE_FLASH_TIMER_BIT) != 0))
 		{
 			timeColor = JUSTIFY_CENTER | WHITE;
 		}
 
-		DecalFont_DrawLine(TT_LANGUAGE_STRINGS[LNG_BEST_LAP], startX, timeboxYBase + 0x84, FONT_BIG, JUSTIFY_CENTER | ORANGE);
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_BEST_LAP], startX, timeboxYBase + 0x84, FONT_BIG, JUSTIFY_CENTER | ORANGE);
 
 		// make a string for best lap
 		timeString = RECTMENU_DrawTime(scoreEntries[0].time);
@@ -241,7 +233,7 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 	}
 	else
 	{
-		DecalFont_DrawLine(TT_LANGUAGE_STRINGS[LNG_YOUR_TIME], startX, timeboxYBase + 0x84, FONT_BIG, JUSTIFY_CENTER | ORANGE);
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_YOUR_TIME], startX, timeboxYBase + 0x84, FONT_BIG, JUSTIFY_CENTER | ORANGE);
 
 		// make a string for your current track time
 		timeString = RECTMENU_DrawTime(driver->timeElapsedInRace);
@@ -257,7 +249,7 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 	box.h = 0xb4;
 
 	// Draw 2D Menu rectangle background
-	RECTMENU_DrawInnerRect(&box, 4, TT_GAME_TRACKER->backBuffer->otMem.uiOT);
+	RECTMENU_DrawInnerRect(&box, 4, GAME_TRACKER->backBuffer->otMem.uiOT);
 }
 
 
@@ -271,8 +263,8 @@ void TT_EndEvent_DrawMenu(void)
 	SVec2 pos;
 
 	TT_FLAGS |= TT_CLOCK_DISPLAY_FLAG;
-	gGT = TT_GAME_TRACKER;
-	highScoreTracks = TT_GAME_PROGRESS.highScoreTracks;
+	gGT = GAME_TRACKER;
+	highScoreTracks = GAME_PROGRESS.highScoreTracks;
 
 	// If you just beat N Tropy && N Tropy was beaten on all tracks
 	if (((gGT->gameModeEnd & NTROPY_JUST_BEAT) != 0) && (s16)GAMEPROG_CheckGhostsBeaten(1))
@@ -281,28 +273,28 @@ void TT_EndEvent_DrawMenu(void)
 		gameProgress->unlocks[0] |= UNLOCK_TROPY;
 	}
 
-	if (TT_FRAMES_SINCE_RACE_ENDED < TT_RESULT_MAX_FRAMES)
+	if (GAME_FRAMES_SINCE_RACE_ENDED < TT_RESULT_MAX_FRAMES)
 	{
-		TT_FRAMES_SINCE_RACE_ENDED++;
+		GAME_FRAMES_SINCE_RACE_ENDED++;
 	}
-	else if ((TT_GAME_TRACKER->gameModeEnd & NEW_HIGH_SCORE) == 0)
+	else if ((GAME_TRACKER->gameModeEnd & NEW_HIGH_SCORE) == 0)
 	{
-		if ((TT_FRAMES_SINCE_RACE_ENDED < TT_HIGH_SCORE_EXIT_DONE_FRAME) && ((TT_MENU_READY & TT_MENU_READY_HIGH_SCORE_EXIT) != 0))
+		if ((GAME_FRAMES_SINCE_RACE_ENDED < TT_HIGH_SCORE_EXIT_DONE_FRAME) && ((GAME_MENU_READY & TT_MENU_READY_HIGH_SCORE_EXIT) != 0))
 		{
-			TT_FRAMES_SINCE_RACE_ENDED++;
+			GAME_FRAMES_SINCE_RACE_ENDED++;
 		}
-		else if (TT_FRAMES_SINCE_RACE_ENDED < TT_HIGH_SCORE_EXIT_START_FRAME)
+		else if (GAME_FRAMES_SINCE_RACE_ENDED < TT_HIGH_SCORE_EXIT_START_FRAME)
 		{
-			TT_FRAMES_SINCE_RACE_ENDED++;
+			GAME_FRAMES_SINCE_RACE_ENDED++;
 		}
 	}
 
-	elapsedFrames = TT_FRAMES_SINCE_RACE_ENDED;
+	elapsedFrames = GAME_FRAMES_SINCE_RACE_ENDED;
 
 	if (elapsedFrames > TT_RESULT_MAX_FRAMES)
 	{
-		gameModeEnd = TT_GAME_TRACKER->gameModeEnd | DRAW_HIGH_SCORES;
-		TT_GAME_TRACKER->gameModeEnd = gameModeEnd;
+		gameModeEnd = GAME_TRACKER->gameModeEnd | DRAW_HIGH_SCORES;
+		GAME_TRACKER->gameModeEnd = gameModeEnd;
 		goto draw_high_scores;
 	}
 
@@ -311,20 +303,20 @@ void TT_EndEvent_DrawMenu(void)
 		goto draw_race_clock;
 	}
 
-	elapsedFrames = TT_FRAMES_SINCE_RACE_ENDED;
+	elapsedFrames = GAME_FRAMES_SINCE_RACE_ENDED;
 	if (elapsedFrames >= TT_NEW_HIGH_SCORE_START_FRAME + 1)
 	{
 		UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), 0x264, 122, 0x100, 122, elapsedFrames - TT_NEW_HIGH_SCORE_START_FRAME, TT_LERP_FRAMES);
 
-		if ((s8)TT_GAME_TRACKER->newHighScoreIndex >= 0)
+		if ((s8)GAME_TRACKER->newHighScoreIndex >= 0)
 		{
 			char **bannerLanguageStrings;
 
 			// NOTE(aalhendi): This local preserves retail's branch-delay
 			// scheduling around the banner guard.
-			bannerLanguageStrings = TT_LANGUAGE_STRINGS;
+			bannerLanguageStrings = GAME_LANGUAGE_STRINGS;
 			DecalFont_DrawLine(bannerLanguageStrings[LNG_NEW_HIGH_SCORE], pos.x, pos.y, FONT_BIG,
-			                   (TT_GAME_TRACKER->timer & 1) ? (JUSTIFY_CENTER | ORANGE) : (JUSTIFY_CENTER | WHITE));
+			                   (GAME_TRACKER->timer & 1) ? (JUSTIFY_CENTER | ORANGE) : (JUSTIFY_CENTER | WHITE));
 			TT_FLAGS |= TT_TOTAL_TIME_FLASH_FLAG;
 		}
 	}
@@ -334,26 +326,26 @@ void TT_EndEvent_DrawMenu(void)
 
 		// NOTE(aalhendi): Retail carries each banner's frame snapshot through
 		// its lerp setup; keeping the lifetimes local reproduces that schedule.
-		messageFrames = TT_FRAMES_SINCE_RACE_ENDED;
+		messageFrames = GAME_FRAMES_SINCE_RACE_ENDED;
 		if (messageFrames >= TT_NEW_BEST_LAP_START_FRAME + 1)
 		{
 			UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), -0x64, 142, 0x100, 142, messageFrames - TT_NEW_BEST_LAP_START_FRAME, TT_LERP_FRAMES);
 
-			if ((TT_GAME_TRACKER->gameModeEnd & NEW_BEST_LAP) != 0)
+			if ((GAME_TRACKER->gameModeEnd & NEW_BEST_LAP) != 0)
 			{
-				DecalFont_DrawLine(TT_LANGUAGE_STRINGS[LNG_NEW_BEST_LAP], pos.x, pos.y, FONT_BIG,
-				                   (TT_GAME_TRACKER->timer & 1) ? (JUSTIFY_CENTER | ORANGE) : (JUSTIFY_CENTER | WHITE));
+				DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_NEW_BEST_LAP], pos.x, pos.y, FONT_BIG,
+				                   (GAME_TRACKER->timer & 1) ? (JUSTIFY_CENTER | ORANGE) : (JUSTIFY_CENTER | WHITE));
 
-				if (TT_GAME_TRACKER->lapIndexNewBest == 0)
+				if (GAME_TRACKER->lapIndexNewBest == 0)
 				{
 					TT_FLAGS |= 1 << TT_BEST_LAP_FLASH_FLAG_FIRST;
 				}
-				else if (TT_GAME_TRACKER->lapIndexNewBest == 1)
+				else if (GAME_TRACKER->lapIndexNewBest == 1)
 				{
 					TT_FLAGS |= 1 << (TT_BEST_LAP_FLASH_FLAG_FIRST + 1);
 				}
 
-				if (TT_GAME_TRACKER->lapIndexNewBest == 2)
+				if (GAME_TRACKER->lapIndexNewBest == 2)
 				{
 					TT_FLAGS |= 1 << (TT_BEST_LAP_FLASH_FLAG_FIRST + 2);
 				}
@@ -364,37 +356,37 @@ void TT_EndEvent_DrawMenu(void)
 	{
 		s32 messageFrames;
 
-		messageFrames = TT_FRAMES_SINCE_RACE_ENDED;
+		messageFrames = GAME_FRAMES_SINCE_RACE_ENDED;
 		if (messageFrames >= TT_NTROPY_MESSAGE_START_FRAME + 1)
 		{
 			UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), 0x264, 162, 0x100, 162, messageFrames - TT_NTROPY_MESSAGE_START_FRAME, TT_LERP_FRAMES);
 
-			if ((TT_GAME_TRACKER->gameModeEnd & NTROPY_JUST_OPENED) != 0)
+			if ((GAME_TRACKER->gameModeEnd & NTROPY_JUST_OPENED) != 0)
 			{
-				DecalFont_DrawLine(TT_LANGUAGE_STRINGS[LNG_N_TROPY_OPENED], pos.x, pos.y, FONT_BIG,
-				                   (TT_GAME_TRACKER->timer & 1) ? (JUSTIFY_CENTER | ORANGE) : (JUSTIFY_CENTER | WHITE));
+				DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_N_TROPY_OPENED], pos.x, pos.y, FONT_BIG,
+				                   (GAME_TRACKER->timer & 1) ? (JUSTIFY_CENTER | ORANGE) : (JUSTIFY_CENTER | WHITE));
 			}
 			else
 			{
-				if ((TT_GAME_TRACKER->gameModeEnd & NTROPY_JUST_BEAT) == 0)
+				if ((GAME_TRACKER->gameModeEnd & NTROPY_JUST_BEAT) == 0)
 				{
 					goto draw_result_time;
 				}
 
-				DecalFont_DrawLine(TT_LANGUAGE_STRINGS[LNG_N_TROPY_BEATEN], pos.x, pos.y, FONT_BIG,
-				                   (TT_GAME_TRACKER->timer & 1) ? (JUSTIFY_CENTER | ORANGE) : (JUSTIFY_CENTER | WHITE));
+				DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_N_TROPY_BEATEN], pos.x, pos.y, FONT_BIG,
+				                   (GAME_TRACKER->timer & 1) ? (JUSTIFY_CENTER | ORANGE) : (JUSTIFY_CENTER | WHITE));
 			}
 		}
 	}
 
 draw_result_time:
-	UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), -0x64, 90, 0x100, 90, TT_FRAMES_SINCE_RACE_ENDED - TT_RACE_CLOCK_HOLD_FRAMES, TT_LERP_FRAMES);
+	UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), -0x64, 90, 0x100, 90, GAME_FRAMES_SINCE_RACE_ENDED - TT_RACE_CLOCK_HOLD_FRAMES, TT_LERP_FRAMES);
 	TT_EndEvent_DisplayTime(pos.x, pos.y, TT_FLAGS);
-	DecalFont_DrawLine(TT_LANGUAGE_STRINGS[LNG_PRESS_TO_CONTINUE], 0x100, 0xbe, FONT_BIG, JUSTIFY_CENTER | ORANGE);
+	DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_PRESS_TO_CONTINUE], 0x100, 0xbe, FONT_BIG, JUSTIFY_CENTER | ORANGE);
 
-	if ((TT_ANY_PLAYER_TAP & TT_CONFIRM_BUTTON_MASK) != 0)
+	if ((GAME_ANY_PLAYER_TAP & TT_CONFIRM_BUTTON_MASK) != 0)
 	{
-		TT_FRAMES_SINCE_RACE_ENDED = TT_HIGH_SCORE_MENU_START_FRAME;
+		GAME_FRAMES_SINCE_RACE_ENDED = TT_HIGH_SCORE_MENU_START_FRAME;
 	}
 
 	goto show_menu;
@@ -409,7 +401,7 @@ draw_race_clock:
 		UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), 0x14, 8, 0x14, 8, elapsedFrames, TT_LERP_FRAMES);
 	}
 
-	UI_DrawRaceClock(pos.x, pos.y, UI_RACE_CLOCK_SHOW_CURRENT_TIME, TT_GAME_TRACKER->drivers[0]);
+	UI_DrawRaceClock(pos.x, pos.y, UI_RACE_CLOCK_SHOW_CURRENT_TIME, GAME_TRACKER->drivers[0]);
 	goto show_menu;
 
 draw_high_scores:
@@ -429,7 +421,7 @@ draw_high_scores:
 		{
 			s32 highScoreElapsedFrames;
 
-			highScoreElapsedFrames = TT_FRAMES_SINCE_RACE_ENDED;
+			highScoreElapsedFrames = GAME_FRAMES_SINCE_RACE_ENDED;
 			if (highScoreElapsedFrames >= TT_HIGH_SCORE_EXIT_START_FRAME + 1)
 			{
 				UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), 0x180, 0x82, 0x296, 0x82, highScoreElapsedFrames - TT_HIGH_SCORE_EXIT_START_FRAME, TT_LERP_FRAMES);
@@ -441,19 +433,19 @@ draw_high_scores:
 		}
 
 		TT_EndEvent_DisplayTime(pos.x, pos.y, TT_FLAGS);
-		DecalFont_DrawLine(TT_LANGUAGE_STRINGS[LNG_PRESS_TO_CONTINUE], 0x100, 0xbe, FONT_BIG, JUSTIFY_CENTER | ORANGE);
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_PRESS_TO_CONTINUE], 0x100, 0xbe, FONT_BIG, JUSTIFY_CENTER | ORANGE);
 
-		if (((TT_ANY_PLAYER_TAP & TT_CONFIRM_BUTTON_MASK) != 0) && (TT_FRAMES_SINCE_RACE_ENDED < TT_HIGH_SCORE_EXIT_START_FRAME + 1))
+		if (((GAME_ANY_PLAYER_TAP & TT_CONFIRM_BUTTON_MASK) != 0) && (GAME_FRAMES_SINCE_RACE_ENDED < TT_HIGH_SCORE_EXIT_START_FRAME + 1))
 		{
-			TT_FRAMES_SINCE_RACE_ENDED = TT_HIGH_SCORE_EXIT_START_FRAME;
-			TT_MENU_READY |= TT_MENU_READY_HIGH_SCORE_EXIT;
+			GAME_FRAMES_SINCE_RACE_ENDED = TT_HIGH_SCORE_EXIT_START_FRAME;
+			GAME_MENU_READY |= TT_MENU_READY_HIGH_SCORE_EXIT;
 		}
 	}
 
 show_menu:
-	if (((TT_MENU_READY & TT_MENU_READY_SHOW_MENU) == 0) && (TT_FRAMES_SINCE_RACE_ENDED >= TT_FINAL_MENU_START_FRAME))
+	if (((GAME_MENU_READY & TT_MENU_READY_SHOW_MENU) == 0) && (GAME_FRAMES_SINCE_RACE_ENDED >= TT_FINAL_MENU_START_FRAME))
 	{
-		TT_MENU_READY = (TT_MENU_READY | TT_MENU_READY_SHOW_MENU) & ~TT_MENU_READY_HIGH_SCORE_EXIT;
+		GAME_MENU_READY = (GAME_MENU_READY | TT_MENU_READY_SHOW_MENU) & ~TT_MENU_READY_HIGH_SCORE_EXIT;
 		TT_FLAGS = 0;
 
 		if (TT_GHOST_TOO_BIG == 0)

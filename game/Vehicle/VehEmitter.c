@@ -149,7 +149,7 @@ struct Particle *VehEmitter_Exhaust(struct Driver *d, VECTOR *exhaustPos, VECTOR
 	}
 
 	emSet = &data.emSet_Exhaust_High[0];
-	numPlyr = VEH_GAME_TRACKER->numPlyrCurrGame;
+	numPlyr = GAME_TRACKER->numPlyrCurrGame;
 	if (numPlyr >= 3)
 	{
 		CTR_PSX_FORGET_VALUE(emSet);
@@ -179,7 +179,7 @@ struct Particle *VehEmitter_Exhaust(struct Driver *d, VECTOR *exhaustPos, VECTOR
 		emSet = &data.emSet_Exhaust_Water[0];
 	}
 
-	p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[exhaustType], emSet);
+	p = Particle_Init(0, GAME_TRACKER->iconGroup[exhaustType], emSet);
 
 	if (p == NULL)
 	{
@@ -279,7 +279,7 @@ void VehEmitter_Sparks_Ground(struct Driver *d, struct ParticleEmitter *emSet)
 	count = VEH_EMITTER_GROUND_SPARK_COUNT;
 	do
 	{
-		struct Particle *p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[0], emSet);
+		struct Particle *p = Particle_Init(0, GAME_TRACKER->iconGroup[0], emSet);
 
 		if (p != NULL)
 		{
@@ -288,7 +288,7 @@ void VehEmitter_Sparks_Ground(struct Driver *d, struct ParticleEmitter *emSet)
 			register s32 productX CTR_PSX_REGISTER("$8");
 			register s32 productY CTR_PSX_REGISTER("$4");
 
-			rawRng = (u32)RngDeadCoed(&VEH_GAME_TRACKER->deadcoed_struct);
+			rawRng = (u32)RngDeadCoed(&GAME_TRACKER->deadcoed_struct);
 			rng = rawRng & VEH_EMITTER_GROUND_SPARK_RNG_MASK;
 
 			if ((rawRng & 1) != 0)
@@ -464,7 +464,7 @@ void VehEmitter_Terrain_Ground(struct Driver *d, struct ParticleEmitter *emSet)
 		posZ = MFC2_S(27);
 
 		{
-			struct Particle *p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[0], emitter);
+			struct Particle *p = Particle_Init(0, GAME_TRACKER->iconGroup[0], emitter);
 
 			if (p != NULL)
 			{
@@ -633,7 +633,7 @@ rumbleDone:
 		tireZ = otherTireZ;
 	}
 
-	p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[0], emitter);
+	p = Particle_Init(0, GAME_TRACKER->iconGroup[0], emitter);
 	if (p != NULL)
 	{
 		register u32 packedVelocity CTR_PSX_REGISTER("$3");
@@ -1102,7 +1102,7 @@ static inline void VehEmitter_MudSplash(struct Driver *driverArg)
 
 		do
 		{
-			p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[VEH_EMITTER_MUD_SPLASH_ICON], &data.emSet_MudSplash[0]);
+			p = Particle_Init(0, GAME_TRACKER->iconGroup[VEH_EMITTER_MUD_SPLASH_ICON], &data.emSet_MudSplash[0]);
 			if (p != NULL)
 			{
 				p->otIndexOffset = d->instSelf->depthBiasNormal;
@@ -1118,7 +1118,7 @@ static inline void VehEmitter_MudSplash(struct Driver *driverArg)
 	}
 	else
 	{
-		p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[VEH_EMITTER_MUD_SPLASH_ICON], &data.emSet_MudSplash[0]);
+		p = Particle_Init(0, GAME_TRACKER->iconGroup[VEH_EMITTER_MUD_SPLASH_ICON], &data.emSet_MudSplash[0]);
 		if (p == NULL)
 		{
 			return;
@@ -1296,7 +1296,7 @@ void VehEmitter_DriverMain(struct Thread *thread, struct Driver *driverArg)
 		}
 	}
 
-	if (VEH_GAME_TRACKER->numPlyrCurrGame < 2)
+	if (GAME_TRACKER->numPlyrCurrGame < 2)
 	{
 		register TerrainFlags terrainFlagsValue CTR_PSX_REGISTER("$11");
 		int absSpeed = d->speed;
@@ -1311,7 +1311,7 @@ void VehEmitter_DriverMain(struct Thread *thread, struct Driver *driverArg)
 			VehEmitter_MudSplash(d);
 		}
 
-		if (VEH_GAME_TRACKER->numPlyrCurrGame < 2)
+		if (GAME_TRACKER->numPlyrCurrGame < 2)
 		{
 			terrainFlagsValue = terrainFlags;
 			CTR_PSX_KEEP_VALUE(terrainFlagsValue);
@@ -1348,7 +1348,7 @@ void VehEmitter_DriverMain(struct Thread *thread, struct Driver *driverArg)
 				VehGteSetRotTransMatrix(&inst->matrix);
 				CTR_PSX_MEMORY_BARRIER();
 				emSet = terrain->em_EvenFrame;
-				if ((emSet == NULL) || ((VEH_GAME_TRACKER->timer & 1) == 0))
+				if ((emSet == NULL) || ((GAME_TRACKER->timer & 1) == 0))
 				{
 					emSet = terrain->em_OddFrame;
 				}
@@ -1610,7 +1610,7 @@ skidAudioDone:
 	CTR_PSX_KEEP_VALUE(robotModelIndex);
 	if (exhaustModelIndex == robotModelIndex)
 	{
-		if ((VEH_GAME_TRACKER->timer & 3) != (d->driverID & 3))
+		if ((GAME_TRACKER->timer & 3) != (d->driverID & 3))
 		{
 			goto exhaustDone;
 		}
@@ -1622,7 +1622,7 @@ skidAudioDone:
 			goto exhaustDone;
 		}
 
-		gGT = VEH_GAME_TRACKER;
+		gGT = GAME_TRACKER;
 		numPlyr = gGT->numPlyrCurrGame;
 		if (numPlyr >= 2)
 		{
@@ -1767,7 +1767,7 @@ jogGroundCall:
 		return;
 	}
 	jogDriver = d;
-	if ((VEH_GAME_TRACKER->timer & VEH_EMITTER_JOG_WOBBLE_TIMER_MASK) != 0)
+	if ((GAME_TRACKER->timer & VEH_EMITTER_JOG_WOBBLE_TIMER_MASK) != 0)
 	{
 		CTR_PSX_MEMORY_BARRIER();
 		jogValue = VEH_EMITTER_JOG_WOBBLE_ALT;

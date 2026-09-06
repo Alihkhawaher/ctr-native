@@ -142,13 +142,13 @@ void MM_Scrapbook_PlayMovie(struct RectMenu *menu)
 		(void)gameTrackerPage;
 #endif
 #ifndef CTR_NATIVE
-		CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, MM_GAME_TRACKER_ASM_NAME);
+		CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME);
 		stateValue = 1;
 		// infinite loop (cause this is scrapbook),
 		// keep doing DecodeFrame and VSync until done
 		for (;;)
 		{
-			gameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+			gameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 			if (MM_Video_DecodeFrame(gameTracker->db[stateValue - gameTracker->swapchainIndex].drawEnv.ofs[0],
 			                         gameTracker->db[stateValue - gameTracker->swapchainIndex].drawEnv.ofs[1] + 4) != 0)
 			{
@@ -237,7 +237,7 @@ void MM_Scrapbook_PlayMovie(struct RectMenu *menu)
 			// change checkered flag back
 			RaceFlag_SetDrawOrder(0);
 
-			if ((MM_GAME_TRACKER->gameMode1 & ADVENTURE_MODE) != 0)
+			if ((GAME_TRACKER->gameMode1 & ADVENTURE_MODE) != 0)
 			{
 				lev = GEM_STONE_VALLEY;
 			}

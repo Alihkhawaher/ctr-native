@@ -97,7 +97,7 @@ HANDLE_EXITING:
 	// adventure character selection
 	case MM_EXIT_ROUTE_ADV_NEW:
 
-		GAMEPROG_NewProfile_InsideAdv(&MM_ADV_PROGRESS);
+		GAMEPROG_NewProfile_InsideAdv(&GAME_ADV_PROGRESS);
 
 		MM_ADV_PROFILE_INDEX = 0xffff;
 
@@ -147,16 +147,16 @@ HANDLE_EXITING:
 		MM_Title_CameraReset();
 		MM_Title_KillThread();
 
-		MM_GAME_TRACKER->gameMode1 &= ~(BATTLE_MODE | ADVENTURE_MODE | TIME_TRIAL | ADVENTURE_ARENA | ARCADE_MODE | ADVENTURE_CUP);
-		MM_GAME_TRACKER->gameMode2 &= ~(CUP_ANY_KIND);
+		GAME_TRACKER->gameMode1 &= ~(BATTLE_MODE | ADVENTURE_MODE | TIME_TRIAL | ADVENTURE_ARENA | ARCADE_MODE | ADVENTURE_CUP);
+		GAME_TRACKER->gameMode2 &= ~(CUP_ANY_KIND);
 
 		// enable Arcade Mode
-		MM_GAME_TRACKER->gameMode1 |= ARCADE_MODE;
+		GAME_TRACKER->gameMode1 |= ARCADE_MODE;
 
 		// If you have not viewed Oxide cutscene yet
-		if (MM_GAME_TRACKER->boolSeenOxideIntro == 0)
+		if (GAME_TRACKER->boolSeenOxideIntro == 0)
 		{
-			MM_GAME_TRACKER->boolSeenOxideIntro = 1;
+			GAME_TRACKER->boolSeenOxideIntro = 1;
 			cutsceneLev = INTRO_RACE_TODAY;
 		}
 
@@ -164,21 +164,21 @@ HANDLE_EXITING:
 		else
 		{
 			// enable Demo Mode
-			MM_GAME_TRACKER->boolDemoMode = 1;
+			GAME_TRACKER->boolDemoMode = 1;
 
 			// number of times you've seen Demo Mode
 			seenDemo = MM_DEMO_MODE_INDEX;
 
-			MM_GAME_TRACKER->demoCountdownTimer = TITLE_DEMO_RACE_FRAMES;
+			GAME_TRACKER->demoCountdownTimer = TITLE_DEMO_RACE_FRAMES;
 
 			for (demoDriverIndex = 0; demoDriverIndex < TITLE_DEMO_DRIVER_COUNT; demoDriverIndex++)
 			{
-				MM_CHARACTER_IDS[demoDriverIndex] = seenDemo++;
-				MM_CHARACTER_IDS[demoDriverIndex] &= TITLE_DEMO_INDEX_MASK;
+				GAME_CHARACTER_IDS[demoDriverIndex] = seenDemo++;
+				GAME_CHARACTER_IDS[demoDriverIndex] &= TITLE_DEMO_INDEX_MASK;
 			}
 
 			// set number of players to 1
-			MM_GAME_TRACKER->numPlyrNextGame = 1;
+			GAME_TRACKER->numPlyrNextGame = 1;
 
 			// get trackID from demo mode index,
 			// in order of Single Race track selection
@@ -268,7 +268,7 @@ void MM_Title_KillThread(void)
 
 	if (                               // if "title" object exists
 	    (MM_TITLE_OBJECT != NULL) && ( // if you are in main menu
-	                                     (MM_GAME_TRACKER->gameMode1 & MAIN_MENU) != 0))
+	                                     (GAME_TRACKER->gameMode1 & MAIN_MENU) != 0))
 	{
 		// destroy title instances
 		for (instanceIndex = 0; (u16)instanceIndex < TITLE_INSTANCE_COUNT; instanceIndex++)
@@ -278,7 +278,7 @@ void MM_Title_KillThread(void)
 
 		title = MM_TITLE_OBJECT;
 		MM_TITLE_OBJECT = NULL;
-		gGT = MM_GAME_TRACKER;
+		gGT = GAME_TRACKER;
 		title->t->flags |= THREAD_FLAG_DEAD;
 
 		// CameraDC, it must be zero to follow you
@@ -332,7 +332,7 @@ void MM_Title_CameraMove(struct Title *title, s16 frameIndex)
 	// of the screen, to the left of the screen, over the course of 15 frames
 	result = RaceFlag_MoveModels((s16)(MM_TITLE_INTRO_FRAME - TITLE_INTRO_MENU_READY_FRAME), TITLE_CAMERA_MOVE_FRAMES);
 	cameraPath = (const s16 *)&MM_TITLE_CAMERA_PATH[frameIndex];
-	gGT = MM_GAME_TRACKER;
+	gGT = GAME_TRACKER;
 	pushBuffer = &gGT->pushBuffer[0];
 
 	pushBuffer->pos.x = title->cameraPosOffset.x + (cameraPath[0] + (s16)((MM_TITLE_CAMERA_POS.x * result) >> 0xc));
@@ -372,7 +372,7 @@ static inline void MM_Title_UpdateTrophySpecLight(struct Instance *titleInst)
 	register u16 lightY CTR_PSX_REGISTER("$2");
 	register s32 viewMacValue CTR_PSX_REGISTER("$7");
 
-	gGT = MM_GAME_TRACKER;
+	gGT = GAME_TRACKER;
 	pb = &gGT->pushBuffer[0];
 	viewPtr = &view;
 	rot.x = -pb->rot.x;
@@ -570,23 +570,23 @@ void MM_Title_Init(void)
 	    (MM_TITLE_OBJECT == NULL) &&
 
 	    // if you are in main menu
-	    ((MM_GAME_TRACKER->gameMode1 & MAIN_MENU) != 0) &&
+	    ((GAME_TRACKER->gameMode1 & MAIN_MENU) != 0) &&
 
 	    // You're not in transition between menus
 	    (MM_TITLE_MENU_STATE != TITLE_MENU_STATE_EXITING) &&
 
 	    // model ptr (Title blue Ring)
-	    (MM_GAME_TRACKER->modelPtr[STATIC_RINGTOP] != 0) &&
+	    (GAME_TRACKER->modelPtr[STATIC_RINGTOP] != 0) &&
 
 	    // IntroCam ptr exists
-	    (MM_GAME_TRACKER->level1->ptrSpawnType1->count > 2))
+	    (GAME_TRACKER->level1->ptrSpawnType1->count > 2))
 	{
 		// freecam mode
-		MM_GAME_TRACKER->cameraDC[0].cameraMode = CAMERA_MODE_FREECAM;
+		GAME_TRACKER->cameraDC[0].cameraMode = CAMERA_MODE_FREECAM;
 
-		MM_GAME_TRACKER->pushBuffer[0].distanceToScreen_CURR = TITLE_INTRO_DISTANCE_TO_SCREEN;
+		GAME_TRACKER->pushBuffer[0].distanceToScreen_CURR = TITLE_INTRO_DISTANCE_TO_SCREEN;
 
-		pointers = ST1_GETPOINTERS(MM_GAME_TRACKER->level1->ptrSpawnType1);
+		pointers = ST1_GETPOINTERS(GAME_TRACKER->level1->ptrSpawnType1);
 
 		// pointer to Intro Cam, to view Crash holding Trophy in main menu
 		MM_TITLE_CAMERA_PATH = pointers[ST1_CAMERA_PATH];
@@ -613,7 +613,7 @@ void MM_Title_Init(void)
 		// create title instances
 		for (instanceIndex = 0; (u16)instanceIndex < TITLE_INSTANCE_COUNT; instanceIndex++, titleInstanceSlot++)
 		{
-			inst = INSTANCE_Birth3D(MM_GAME_TRACKER->modelPtr[MM_TITLE_INSTANCES[(s16)instanceIndex].modelID], MM_TITLE_OBJECT_NAME, t);
+			inst = INSTANCE_Birth3D(GAME_TRACKER->modelPtr[MM_TITLE_INSTANCES[(s16)instanceIndex].modelID], MM_TITLE_OBJECT_NAME, t);
 
 			// store instance
 			*titleInstanceSlot = inst;
@@ -638,7 +638,7 @@ void MM_Title_Init(void)
 
 			inst->flags |= HIDE_MODEL;
 
-			for (playerIndex = 1; playerIndex < MM_GAME_TRACKER->numPlyrCurrGame; playerIndex++)
+			for (playerIndex = 1; playerIndex < GAME_TRACKER->numPlyrCurrGame; playerIndex++)
 			{
 				playerDraw = INST_GETIDPP(inst);
 				playerDraw += (s16)playerIndex;

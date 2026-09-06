@@ -233,7 +233,7 @@ void VehPhysForce_OnGravity(struct Driver *driver, Vec3 *velocity)
 		localY = MFC2_S(26);
 		localZ = MFC2_S(27);
 	}
-	gameTracker = VEH_GAME_TRACKER;
+	gameTracker = GAME_TRACKER;
 	gravityConstant = driver->const_Gravity;
 	CTR_PSX_OBSERVE_VALUE(gravityConstant);
 	gravityY = CTR_MipsNegLo(gravityConstant);
@@ -1009,7 +1009,7 @@ void VehPhysForce_CollideDrivers(struct Thread *thread, struct Driver *driver)
 			goto TurboPadDone;
 		}
 		reserves = VEH_PHYS_FORCE_TURBO_PAD_RESERVES;
-		if ((VEH_GAME_TRACKER->gameMode2 & CHEAT_TURBOPAD) == 0)
+		if ((GAME_TRACKER->gameMode2 & CHEAT_TURBOPAD) == 0)
 		{
 			goto ApplyNormalTurboPad;
 		}
@@ -1057,7 +1057,7 @@ void VehPhysForce_CollideDrivers(struct Thread *thread, struct Driver *driver)
 		search.bucket.th = NULL;
 
 		PROC_CollidePointWithBucket(thread->siblingThread, &search.bucket);
-		PROC_CollidePointWithBucket(VEH_GAME_TRACKER->threadBuckets[ROBOT].thread, &search.bucket);
+		PROC_CollidePointWithBucket(GAME_TRACKER->threadBuckets[ROBOT].thread, &search.bucket);
 
 		if (search.bucket.th != NULL)
 		{
@@ -1460,7 +1460,7 @@ static inline void VehPhysForce_TranslateMatrix_UpdateInstanceMatrix(struct Inst
 
 static inline void VehPhysForce_TranslateMatrix_SpawnWakeParticle(struct Driver *d)
 {
-	struct Particle *p = Particle_Init(0, VEH_GAME_TRACKER->iconGroup[VEH_PHYS_FORCE_WAKE_PARTICLE_ICON_GROUP], &data.emSet_Falling[0]);
+	struct Particle *p = Particle_Init(0, GAME_TRACKER->iconGroup[VEH_PHYS_FORCE_WAKE_PARTICLE_ICON_GROUP], &data.emSet_Falling[0]);
 
 	if (p != NULL)
 	{
@@ -1559,7 +1559,7 @@ static inline void VehPhysForce_TranslateMatrix_UpdateWake(struct Instance *inst
 	{
 		d->wakeScale = VEH_PHYS_FORCE_WAKE_INITIAL_SCALE;
 
-		if (VEH_GAME_TRACKER->numPlyrCurrGame < 2)
+		if (GAME_TRACKER->numPlyrCurrGame < 2)
 		{
 			if ((VehPhysForce_TranslateMatrix_Abs(d->speed) > VEH_PHYS_FORCE_WAKE_PARTICLE_SPEED_MIN) &&
 			    (d->posPrev.y > VEH_PHYS_FORCE_WAKE_PARTICLE_PREV_Y_MIN))
@@ -1575,7 +1575,7 @@ static inline void VehPhysForce_TranslateMatrix_UpdateWake(struct Instance *inst
 			}
 		}
 	}
-	else if (VEH_GAME_TRACKER->numPlyrCurrGame < 2)
+	else if (GAME_TRACKER->numPlyrCurrGame < 2)
 	{
 		if (VehPhysForce_TranslateMatrix_Abs(d->speed) > VEH_PHYS_FORCE_WAKE_PARTICLE_SPEED_MIN)
 		{

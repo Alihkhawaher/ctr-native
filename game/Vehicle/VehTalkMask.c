@@ -52,7 +52,7 @@ void VehTalkMask_ThTick(struct Thread *t)
 	}
 
 	{
-		gGT = VEH_GAME_TRACKER;
+		gGT = GAME_TRACKER;
 
 		if (gGT->drivers[0] != 0)
 		{
@@ -206,7 +206,7 @@ void VehTalkMask_PlayXA(struct Instance *i, s32 id)
 
 	(void)i;
 	originalID = id;
-	d = VEH_GAME_TRACKER->drivers[0];
+	d = GAME_TRACKER->drivers[0];
 	xaID = originalID;
 
 	if (d != 0)

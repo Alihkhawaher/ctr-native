@@ -201,17 +201,17 @@
         "include"
       ],
       "forced_includes": [
-        "tools/matching/overlays/221/abi.h"
+        "tools/matching/overlays/221/retail_symbols.h"
       ],
       "linker_script": "tools/matching/overlay.ld",
       "output_section": ".overlay",
       "overlay_id": 5,
       "compiler_flags": [
         "-O2",
-        "-G8",
+        "-G0",
         "-msoft-float"
       ],
-      "small_data_limit": 8,
+      "small_data_limit": 0,
       "aspsx_version": "2.77",
       "ranges": [
         {
@@ -240,20 +240,7 @@
           "offset": "0x504",
           "size": "0x2c"
         }
-      ],
-      "address_aliases": {
-        "cc_gameTracker": "0x8008d2ac",
-        "cc_framesSinceRaceEnded": "0x8008d52c",
-        "cc_hudCrystal": "0x8008d9bc",
-        "cc_menuCrystal": "0x8008d9c0",
-        "cc_token": "0x8008d9d0",
-        "cc_languageStrings": "0x8008d878",
-        "cc_menuReady": "0x8008d4bc",
-        "cc_anyPlayerTap": "0x8008d950",
-        "cc_advProgress": "0x8008fba4",
-        "cc_addConfig0": "0x8008d100",
-        "cc_removeConfig0": "0x8008d104"
-      }
+      ]
     },
     {
       "name": "222",

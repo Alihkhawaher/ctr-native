@@ -1259,7 +1259,7 @@ PROCESS_ACCEL:
 	register int rotatedZ CTR_PSX_REGISTER("$6");
 	u32 movementLengthSq;
 	b32 clampToForwardImpulse;
-	int accelerationProduct = CTR_MipsMulLo(acceleration, VEH_GAME_TRACKER->elapsedTimeMS);
+	int accelerationProduct = CTR_MipsMulLo(acceleration, GAME_TRACKER->elapsedTimeMS);
 	int speedMagnitude;
 	register int lossBaseSpeed CTR_PSX_REGISTER("$3");
 
@@ -1503,7 +1503,7 @@ PROCESS_JUMP:
 	    VEH_PHYS_JUMP_SPEED_FIXED_SHIFT);
 
 	{
-		register int verticalSpeedCap CTR_PSX_REGISTER("$3") = VEH_GAME_TRACKER->level1->jumpVerticalSpeedCap;
+		register int verticalSpeedCap CTR_PSX_REGISTER("$3") = GAME_TRACKER->level1->jumpVerticalSpeedCap;
 
 		CTR_PSX_OBSERVE_VALUE(verticalSpeedCap);
 		maxVerticalSpeed = CTR_MipsSll(verticalSpeedCap, VEH_PHYS_JUMP_SPEED_FIXED_SHIFT);
@@ -1689,15 +1689,15 @@ void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 	register struct GameTracker *gGT CTR_PSX_REGISTER("$4");
 
 	// NOTE(aalhendi): Retail classifies the field before choosing the mode-specific item set.
-	mode = VEH_GAME_TRACKER->numPlyrCurrGame + VEH_GAME_TRACKER->numBotsNextGame;
+	mode = GAME_TRACKER->numPlyrCurrGame + GAME_TRACKER->numBotsNextGame;
 
-	if ((VEH_GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
+	if ((GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
 	{
 		// 6th Itemset (Battle Mode Custom Itemset)
 		itemSet = ITEMSET_BattleCustom;
 
 		// 5th Itemset (Battle Mode Default Itemset)
-		if (VEH_GAME_TRACKER->battleSetup.enabledWeapons == BATTLE_DEFAULT_WEAPON_FLAGS)
+		if (GAME_TRACKER->battleSetup.enabledWeapons == BATTLE_DEFAULT_WEAPON_FLAGS)
 		{
 			itemSet = ITEMSET_BattleDefault;
 		}
@@ -1706,7 +1706,7 @@ void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 	// Not in Battle Mode
 	else
 	{
-		if ((VEH_GAME_TRACKER->gameMode1 & CRYSTAL_CHALLENGE) != 0)
+		if ((GAME_TRACKER->gameMode1 & CRYSTAL_CHALLENGE) != 0)
 		{
 			// 7th Itemset (Crystal Challenge)
 			itemSet = ITEMSET_CrystalChallenge;
@@ -1843,13 +1843,13 @@ void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 	// NOTE(aalhendi): Overlay 230 builds this custom item set as a word array;
 	// Vehicle reads the same shared representation here.
 	case ITEMSET_BattleCustom:
-		driver->heldItemID = VEH_GAME_TRACKER->battleSetup.RNG_itemSetCustom[((s32)rng * VEH_GAME_TRACKER->battleSetup.numWeapons) / ITEMSET_RNG_BUCKET_COUNT];
+		driver->heldItemID = GAME_TRACKER->battleSetup.RNG_itemSetCustom[((s32)rng * GAME_TRACKER->battleSetup.numWeapons) / ITEMSET_RNG_BUCKET_COUNT];
 		break;
 
 	case ITEMSET_CrystalChallenge:
 		// Item is bomb at Rocky Road, Nitro Court
 		// Item is turbo at Skull Rock and Rampage Ruins
-		rank = VEH_GAME_TRACKER->levelID;
+		rank = GAME_TRACKER->levelID;
 		if (rank == SKULL_ROCK || rank == RAMPAGE_RUINS)
 		{
 			driver->heldItemID = HELD_ITEM_TURBO;
@@ -1869,9 +1869,9 @@ void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 	}
 
 	// In Boss race
-	if (VEH_GAME_TRACKER->gameMode1 & ADVENTURE_BOSS)
+	if (GAME_TRACKER->gameMode1 & ADVENTURE_BOSS)
 	{
-		s8 bossFails = VEH_ADV_PROGRESS.timesLostBossRace[VEH_GAME_TRACKER->bossID];
+		s8 bossFails = GAME_ADV_PROGRESS.timesLostBossRace[GAME_TRACKER->bossID];
 
 		if (bossFails < ITEMSET_BOSS_LOSSES_REPLACE_MASK_CLOCK_WARPBALL)
 		{
@@ -1898,7 +1898,7 @@ void VehPhysGeneral_SetHeldItem(struct Driver *driver)
 		}
 
 		// Replace 3 Missiles with 1 Missile if racing Komodo Joe
-		if (VEH_GAME_TRACKER->levelID == DRAGON_MINES && driver->heldItemID == HELD_ITEM_MISSILE_3X)
+		if (GAME_TRACKER->levelID == DRAGON_MINES && driver->heldItemID == HELD_ITEM_MISSILE_3X)
 		{
 			driver->heldItemID = HELD_ITEM_MISSILE_1X;
 		}

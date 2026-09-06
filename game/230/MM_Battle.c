@@ -358,36 +358,36 @@ LAB_Battle_ExitMenu:
 	}
 LAB_Battle_DrawMenu:
 	// Validate the setup before accepting input or offering Start Battle.
-	MM_GAME_TRACKER->battleSetup.teamFlags = 0;
+	GAME_TRACKER->battleSetup.teamFlags = 0;
 
-	MM_GAME_TRACKER->battleSetup.numTeams = 0;
+	GAME_TRACKER->battleSetup.numTeams = 0;
 	{
 		s16 index;
-		for (index = 0; index < MM_GAME_TRACKER->numPlyrNextGame; index++)
+		for (index = 0; index < GAME_TRACKER->numPlyrNextGame; index++)
 		{
-			s16 teamFlag = 1 << MM_GAME_TRACKER->battleSetup.teamOfEachPlayer[index];
-			if ((MM_GAME_TRACKER->battleSetup.teamFlags & teamFlag) == 0)
+			s16 teamFlag = 1 << GAME_TRACKER->battleSetup.teamOfEachPlayer[index];
+			if ((GAME_TRACKER->battleSetup.teamFlags & teamFlag) == 0)
 			{
-				MM_GAME_TRACKER->battleSetup.teamFlags |= teamFlag;
-				MM_GAME_TRACKER->battleSetup.numTeams++;
+				GAME_TRACKER->battleSetup.teamFlags |= teamFlag;
+				GAME_TRACKER->battleSetup.numTeams++;
 			}
 		}
 
 		for (index = 0; index < BATTLE_TEAM_COUNT; index++)
 		{
-			if ((MM_GAME_TRACKER->battleSetup.teamFlags & (1 << index)) != 0)
+			if ((GAME_TRACKER->battleSetup.teamFlags & (1 << index)) != 0)
 			{
-				MM_GAME_TRACKER->battleSetup.pointsPerTeam[index] = 0;
+				GAME_TRACKER->battleSetup.pointsPerTeam[index] = 0;
 			}
 			else
 			{
-				MM_GAME_TRACKER->battleSetup.pointsPerTeam[index] = BATTLE_INACTIVE_TEAM_POINTS;
+				GAME_TRACKER->battleSetup.pointsPerTeam[index] = BATTLE_INACTIVE_TEAM_POINTS;
 			}
 		}
 	}
-	if (MM_GAME_TRACKER->battleSetup.numTeams >= 2)
+	if (GAME_TRACKER->battleSetup.numTeams >= 2)
 	{
-		if ((MM_GAME_TRACKER->battleSetup.enabledWeapons & BATTLE_REQUIRED_WEAPON_FLAGS) != 0)
+		if ((GAME_TRACKER->battleSetup.enabledWeapons & BATTLE_REQUIRED_WEAPON_FLAGS) != 0)
 		{
 			goto LAB_Battle_ValidSetup;
 		}
@@ -399,25 +399,25 @@ LAB_Battle_DrawMenu:
 LAB_Battle_ValidSetup:
 {
 	s16 playerIndex;
-	for (playerIndex = 0; playerIndex < MM_GAME_TRACKER->numPlyrNextGame; playerIndex++)
+	for (playerIndex = 0; playerIndex < GAME_TRACKER->numPlyrNextGame; playerIndex++)
 	{
 		if (MM_BATTLE_ROW_HIGHLIGHTED == BATTLE_ROW_TEAMS)
 		{
 			if ((MM_GAME_BUTTON_TAPS[playerIndex] & BTN_LEFT) != 0)
 			{
-				if (BATTLE_VALID_TEAM_MIN < MM_GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex])
+				if (BATTLE_VALID_TEAM_MIN < GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex])
 				{
 					OtherFX_Play(0, 1);
-					MM_GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex]--;
+					GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex]--;
 				}
 				MM_GAME_BUTTON_TAPS[playerIndex] = 0;
 			}
 			if ((MM_GAME_BUTTON_TAPS[playerIndex] & BTN_RIGHT) != 0)
 			{
-				if (MM_GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex] < BATTLE_VALID_TEAM_MAX)
+				if (GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex] < BATTLE_VALID_TEAM_MAX)
 				{
 					OtherFX_Play(0, 1);
-					MM_GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex]++;
+					GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex]++;
 				}
 				MM_GAME_BUTTON_TAPS[playerIndex] = 0;
 			}
@@ -523,16 +523,16 @@ LAB_Battle_ValidSetup:
 					register s32 rowOffset CTR_PSX_REGISTER("$3");
 					register struct GameTracker *gameTracker CTR_PSX_REGISTER("$5");
 					register u32 enabledWeapons CTR_PSX_REGISTER("$3");
-					CTR_PSX_LOAD_SYMBOL_PAGE(itemIndex, MM_GAME_TRACKER_ASM_NAME);
-					CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, MM_GAME_TRACKER_ASM_NAME);
+					CTR_PSX_LOAD_SYMBOL_PAGE(itemIndex, RETAIL_GAME_TRACKER_ASM_NAME);
+					CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME);
 					CTR_PSX_LOAD_SYMBOL_PAGE(weaponItemsAddress, MM_BATTLE_WEAPON_ITEMS_ASM_NAME);
 					CTR_PSX_ADD_SYMBOL_LOW_IN_PLACE(weaponItemsAddress, MM_BATTLE_WEAPON_ITEMS_ASM_NAME, (u32)MM_BATTLE_WEAPON_ITEMS);
 					itemIndex = CTR_PSX_PAGE_LVALUE(u16, itemIndex, MM_BATTLE_ROW_HIGHLIGHTED_PAGE_OFFSET, MM_BATTLE_ROW_HIGHLIGHTED);
-					CTR_PSX_LOAD_SYMBOL_PAGE(rowPage, MM_GAME_TRACKER_ASM_NAME);
+					CTR_PSX_LOAD_SYMBOL_PAGE(rowPage, RETAIL_GAME_TRACKER_ASM_NAME);
 					itemIndex = (s16)(itemIndex - BATTLE_ROW_WEAPON_TOP);
 					rowOffset = itemIndex * BATTLE_WEAPONS_PER_ROW;
 					itemIndex = CTR_PSX_PAGE_LVALUE(s16, rowPage, MM_BATTLE_WEAPON_HIGHLIGHTED_PAGE_OFFSET, MM_BATTLE_WEAPON_HIGHLIGHTED);
-					gameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+					gameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 					itemIndex += rowOffset;
 					enabledWeapons = gameTracker->battleSetup.enabledWeapons;
 					enabledWeapons ^= ((struct BattleWeaponMenuItem *)weaponItemsAddress)[itemIndex].enabledWeaponFlag;
@@ -541,20 +541,19 @@ LAB_Battle_ValidSetup:
 				break;
 
 				case BATTLE_ROW_START:
-					MM_GAME_TRACKER->gameMode1 &= ~((POINT_LIMIT | LIFE_LIMIT) | TIME_LIMIT);
+					GAME_TRACKER->gameMode1 &= ~((POINT_LIMIT | LIFE_LIMIT) | TIME_LIMIT);
 					battleModeFlags = MM_BATTLE_TYPE_MODE_FLAGS[MM_MENU_BATTLE_TYPE.rowSelected];
-					MM_GAME_TRACKER->gameMode1 |= battleModeFlags;
-					if ((MM_GAME_TRACKER->gameMode1 & TIME_LIMIT) != 0)
+					GAME_TRACKER->gameMode1 |= battleModeFlags;
+					if ((GAME_TRACKER->gameMode1 & TIME_LIMIT) != 0)
 					{
-						MM_GAME_TRACKER->gameMode1 |= POINT_LIMIT;
+						GAME_TRACKER->gameMode1 |= POINT_LIMIT;
 					}
-					if (((MM_GAME_TRACKER->gameMode1 & LIFE_LIMIT) != 0) &&
-					    (0 < MM_BATTLE_LIFE_TIME_LIMIT_MINUTES[MM_MENU_BATTLE_LENGTH_LIFE_TIME.rowSelected]))
+					if (((GAME_TRACKER->gameMode1 & LIFE_LIMIT) != 0) && (0 < MM_BATTLE_LIFE_TIME_LIMIT_MINUTES[MM_MENU_BATTLE_LENGTH_LIFE_TIME.rowSelected]))
 					{
-						MM_GAME_TRACKER->gameMode1 |= TIME_LIMIT;
+						GAME_TRACKER->gameMode1 |= TIME_LIMIT;
 					}
 					{
-						struct GameTracker *battleTracker = MM_GAME_TRACKER;
+						struct GameTracker *battleTracker = GAME_TRACKER;
 						register s32 eventTimeMinutes CTR_PSX_REGISTER("$2");
 						register u32 gameTrackerPage CTR_PSX_REGISTER("$6");
 						register struct GameTracker *timeTracker CTR_PSX_REGISTER("$5");
@@ -586,7 +585,7 @@ LAB_Battle_ValidSetup:
 						weaponFlagBase = 1;
 						lifeLimits = MM_BATTLE_LIFE_LIMIT_VALUES;
 						lifeLimitAddress = &lifeLimits[MM_MENU_BATTLE_LENGTH_LIFE_LIFE.rowSelected];
-						CTR_PSX_LOAD_WORD_FROM_PAGE_AFTER(setupTrackerWork, gameTrackerPage, MM_GAME_TRACKER_ASM_NAME, MM_GAME_TRACKER, lifeLimitAddress);
+						CTR_PSX_LOAD_WORD_FROM_PAGE_AFTER(setupTrackerWork, gameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME, GAME_TRACKER, lifeLimitAddress);
 						CTR_PSX_KEEP_VALUE(setupTrackerWork);
 						lifeLimit = *lifeLimitAddress;
 						setupTracker = setupTrackerWork;
@@ -608,13 +607,13 @@ LAB_Battle_ValidSetup:
 						} while (weaponFlagIndex < BATTLE_WEAPON_FLAG_COUNT);
 						MM_BATTLE_TRANSITION_START_AFTER_EXIT = 1;
 						MM_BATTLE_TRANSITION_STATE = EXITING_MENU;
-						for (playerIndex = 0; playerIndex < MM_GAME_TRACKER->numPlyrNextGame; playerIndex++)
+						for (playerIndex = 0; playerIndex < GAME_TRACKER->numPlyrNextGame; playerIndex++)
 						{
-							if (MM_BATTLE_TEAM_OF_EACH_PLAYER[playerIndex] != MM_GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex])
+							if (MM_BATTLE_TEAM_OF_EACH_PLAYER[playerIndex] != GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex])
 							{
 								MainStats_ClearBattleVS();
 							}
-							MM_BATTLE_TEAM_OF_EACH_PLAYER[playerIndex] = MM_GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex];
+							MM_BATTLE_TEAM_OF_EACH_PLAYER[playerIndex] = GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex];
 						}
 
 						MM_GAME_BUTTON_TAPS[1] = 0;
@@ -756,9 +755,9 @@ LAB_Battle_ValidSetup:
 		register s32 menuStateMask CTR_PSX_REGISTER("$23");
 		struct RectMenu *battleTypeMenu;
 		// Draw the variable-height type, length, team, and weapon panels.
-		DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_SETUP_BATTLE], battleTransitions[BATTLE_TITLE_META_INDEX].currX + BATTLE_TITLE_X_OFFSET,
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_SETUP_BATTLE], battleTransitions[BATTLE_TITLE_META_INDEX].currX + BATTLE_TITLE_X_OFFSET,
 		                   battleTransitions[BATTLE_TITLE_META_INDEX].currY + BATTLE_TITLE_Y_OFFSET, FONT_BIG, (s16)BATTLE_TITLE_TEXT_FLAGS);
-		DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_TYPE], battleTransitions[BATTLE_ROW_TYPE_LABEL_META_INDEX].currX + BATTLE_LABEL_X_OFFSET,
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_TYPE], battleTransitions[BATTLE_ROW_TYPE_LABEL_META_INDEX].currX + BATTLE_LABEL_X_OFFSET,
 		                   battleTransitions[BATTLE_ROW_TYPE_LABEL_META_INDEX].currY + BATTLE_TYPE_ROW_Y_OFFSET, FONT_BIG, BATTLE_LABEL_TEXT_FLAGS);
 		battleTypeMenu = &MM_MENU_BATTLE_TYPE;
 #ifdef CTR_NATIVE
@@ -784,7 +783,7 @@ LAB_Battle_ValidSetup:
 		RECTMENU_GetHeight(battleTypeMenu, menuHeightPtr, 0);
 		lengthRowY = ((u16)menuHeight) + BATTLE_LENGTH_ROW_Y_OFFSET;
 		afterLengthY = lengthRowY;
-		DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_LENGTH], battleTransitions[BATTLE_ROW_LENGTH_LABEL_META_INDEX].currX + BATTLE_LABEL_X_OFFSET,
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_LENGTH], battleTransitions[BATTLE_ROW_LENGTH_LABEL_META_INDEX].currX + BATTLE_LABEL_X_OFFSET,
 		                   (battleTransitions[BATTLE_ROW_LENGTH_LABEL_META_INDEX].currY + lengthRowY) + BATTLE_LENGTH_LABEL_Y_OFFSET, FONT_BIG,
 		                   BATTLE_LABEL_TEXT_FLAGS);
 		if (battleTypeMenu->rowSelected == BATTLE_TIME_LIMIT_TYPE_ROW)
@@ -908,7 +907,7 @@ LAB_Battle_ValidSetup:
 
 		teamPanelX = BATTLE_TEAM_PANEL_START_X;
 		CTR_PSX_OBSERVE_VALUE(teamFont);
-		DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_TEAMS], MM_BATTLE_TRANSITIONS[BATTLE_ROW_TEAM_LABEL_META_INDEX].currX + BATTLE_LABEL_X_OFFSET,
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_TEAMS], MM_BATTLE_TRANSITIONS[BATTLE_ROW_TEAM_LABEL_META_INDEX].currX + BATTLE_LABEL_X_OFFSET,
 		                   (MM_BATTLE_TRANSITIONS[BATTLE_ROW_TEAM_LABEL_META_INDEX].currY + afterLengthY) + BATTLE_TEAM_LABEL_Y_OFFSET, teamFont,
 		                   BATTLE_LABEL_TEXT_FLAGS);
 		teamIndex = 0;
@@ -920,9 +919,9 @@ LAB_Battle_ValidSetup:
 			accumulatedTeamWidth += BATTLE_TEAM_SEGMENT_BASE_WIDTH;
 			teamCountScratch.teamPlayerCounts[teamIndex] = 0;
 			teamWidthScratch.teamSegmentWidths[teamIndex] = BATTLE_TEAM_SEGMENT_BASE_WIDTH;
-			for (playerIndex = 0; playerIndex < MM_GAME_TRACKER->numPlyrNextGame; playerIndex++)
+			for (playerIndex = 0; playerIndex < GAME_TRACKER->numPlyrNextGame; playerIndex++)
 			{
-				s32 playerTeam = MM_GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex];
+				s32 playerTeam = GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex];
 				if (playerTeam == teamIndex)
 				{
 					teamCountScratch.teamPlayerCounts[playerTeam]++;
@@ -971,17 +970,17 @@ LAB_Battle_ValidSetup:
 			teamSegmentWidth = teamWidthScratch.teamSegmentWidths[teamIndex];
 			playerIconX =
 			    (teamPanelX + (((s16)teamSegmentWidth) / 2)) + (((int)teamCountScratch.teamPlayerCounts[teamIndex]) * BATTLE_TEAM_PLAYER_CENTER_OFFSET);
-			for (playerIndex = 0; playerIndex < MM_GAME_TRACKER->numPlyrNextGame; playerIndex++)
+			for (playerIndex = 0; playerIndex < GAME_TRACKER->numPlyrNextGame; playerIndex++)
 			{
-				if (MM_GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex] == teamIndex)
+				if (GAME_TRACKER->battleSetup.teamOfEachPlayer[playerIndex] == teamIndex)
 				{
 					s32 shiftedIconX = ((u32)playerIconX) << 16;
 					playerIconX = playerIconX + BATTLE_TEAM_PLAYER_WIDTH;
-					MM_Battle_DrawIcon_Character(MM_GAME_TRACKER->ptrIcons[MM_CHARACTER_METADATA[MM_CHARACTER_IDS[playerIndex]].iconID],
+					MM_Battle_DrawIcon_Character(GAME_TRACKER->ptrIcons[GAME_CHARACTER_METADATA[GAME_CHARACTER_IDS[playerIndex]].iconID],
 					                             ((int)MM_BATTLE_TRANSITIONS[BATTLE_ROW_TEAM_META_INDEX].currX) + (shiftedIconX >> 16),
 					                             (((int)MM_BATTLE_TRANSITIONS[BATTLE_ROW_TEAM_META_INDEX].currY) + ((int)afterLengthY)) +
 					                                 BATTLE_TEAM_PLAYER_ICON_Y_OFFSET,
-					                             &MM_GAME_TRACKER->backBuffer->primMem, MM_GAME_TRACKER->pushBuffer_UI.ptrOT, 1, BATTLE_ICON_SCALE);
+					                             &GAME_TRACKER->backBuffer->primMem, GAME_TRACKER->pushBuffer_UI.ptrOT, 1, BATTLE_ICON_SCALE);
 				}
 			}
 
@@ -990,8 +989,8 @@ LAB_Battle_ValidSetup:
 			teamColorRect.x = MM_BATTLE_TRANSITIONS[BATTLE_ROW_TEAM_META_INDEX].currX + ((s16)teamPanelX);
 			teamColorRect.y = (MM_BATTLE_TRANSITIONS[BATTLE_ROW_TEAM_META_INDEX].currY + afterLengthY) + BATTLE_TEAM_COLOR_Y_OFFSET;
 			teamPanelX = teamPanelX + ((u32)teamSegmentWidth);
-			MM_DRAW_SOLID_BOX_WITH_PRIM_MEM(&teamColorRect, (const Color *)MM_COLOR_POINTERS[PLAYER_BLUE + teamIndex], MM_GAME_TRACKER->backBuffer->otMem.uiOT,
-			                                &MM_GAME_TRACKER->backBuffer->primMem);
+			MM_DRAW_SOLID_BOX_WITH_PRIM_MEM(&teamColorRect, (const Color *)MM_COLOR_POINTERS[PLAYER_BLUE + teamIndex], GAME_TRACKER->backBuffer->otMem.uiOT,
+			                                &GAME_TRACKER->backBuffer->primMem);
 		}
 
 		if (MM_BATTLE_ROW_HIGHLIGHTED == BATTLE_ROW_TEAMS)
@@ -1000,8 +999,8 @@ LAB_Battle_ValidSetup:
 			teamHighlightRect.h = BATTLE_TEAM_HIGHLIGHT_H;
 			teamHighlightRect.x = MM_BATTLE_TRANSITIONS[BATTLE_ROW_TEAM_META_INDEX].currX + BATTLE_MENU_X_OFFSET;
 			teamHighlightRect.y = (MM_BATTLE_TRANSITIONS[BATTLE_ROW_TEAM_META_INDEX].currY + afterLengthY) + BATTLE_TEAM_HIGHLIGHT_Y_OFFSET;
-			MM_DRAW_CLEAR_BOX(&teamHighlightRect, &MM_MENU_ROW_HIGHLIGHT_NORMAL, TRANS_50_DECAL, MM_GAME_TRACKER->backBuffer->otMem.uiOT,
-			                  &MM_GAME_TRACKER->backBuffer->primMem);
+			MM_DRAW_CLEAR_BOX(&teamHighlightRect, &GAME_MENU_HIGHLIGHT, TRANS_50_DECAL, GAME_TRACKER->backBuffer->otMem.uiOT,
+			                  &GAME_TRACKER->backBuffer->primMem);
 		}
 		menuPanelRect.w = BATTLE_TEAM_PANEL_W;
 		menuPanelRect.h = BATTLE_TEAM_PANEL_H;
@@ -1014,7 +1013,7 @@ LAB_Battle_ValidSetup:
 		weaponPanelY = teamIndex;
 		afterLengthY = weaponPanelY;
 		afterLengthY += 0x4a;
-		RECTMENU_DrawInnerRect(&menuPanelRect, 0, MM_GAME_TRACKER->backBuffer->otMem.uiOT);
+		RECTMENU_DrawInnerRect(&menuPanelRect, 0, GAME_TRACKER->backBuffer->otMem.uiOT);
 	}
 
 		{
@@ -1025,7 +1024,7 @@ LAB_Battle_ValidSetup:
 			s32 errorState;
 			register struct GameTracker *battleTracker CTR_PSX_REGISTER("$4");
 			register s32 weaponIndex CTR_PSX_REGISTER("$19");
-			DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_WEAPONS], MM_BATTLE_TRANSITIONS[BATTLE_ROW_WEAPON_LABEL_META_INDEX].currX + BATTLE_LABEL_X_OFFSET,
+			DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_WEAPONS], MM_BATTLE_TRANSITIONS[BATTLE_ROW_WEAPON_LABEL_META_INDEX].currX + BATTLE_LABEL_X_OFFSET,
 			                   (MM_BATTLE_TRANSITIONS[BATTLE_ROW_WEAPON_LABEL_META_INDEX].currY + weaponPanelY) + 0x1a, FONT_BIG, BATTLE_LABEL_TEXT_FLAGS);
 			flashingErrorColor = BATTLE_ERROR_COLOR_A;
 			if ((MM_FRAME_COUNTER & BATTLE_ERROR_COLOR_FRAME_BIT) != 0)
@@ -1034,7 +1033,7 @@ LAB_Battle_ValidSetup:
 			}
 			errorLine1 = 0;
 			errorLine2 = 0;
-			battleTracker = MM_GAME_TRACKER;
+			battleTracker = GAME_TRACKER;
 			if ((battleTracker->battleSetup.enabledWeapons & BATTLE_REQUIRED_WEAPON_FLAGS) == 0)
 			{
 				errorLine1 = LNG_WEAPONS_ERROR_LINE1;
@@ -1048,8 +1047,8 @@ LAB_Battle_ValidSetup:
 			errorState = errorLine1;
 			if (errorState != 0)
 			{
-				DecalFont_DrawLine(MM_LANGUAGE_STRINGS[errorState], BATTLE_ERROR_TEXT_X, afterLengthY - 0xa, FONT_BIG, (int)flashingErrorColor);
-				DecalFont_DrawLine(MM_LANGUAGE_STRINGS[errorLine2], BATTLE_ERROR_TEXT_X, afterLengthY + 6, FONT_BIG, (int)flashingErrorColor);
+				DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[errorState], BATTLE_ERROR_TEXT_X, afterLengthY - 0xa, FONT_BIG, (int)flashingErrorColor);
+				DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[errorLine2], BATTLE_ERROR_TEXT_X, afterLengthY + 6, FONT_BIG, (int)flashingErrorColor);
 			}
 			else
 			{
@@ -1096,7 +1095,7 @@ LAB_Battle_ValidSetup:
 					weaponTextColor = BATTLE_WEAPON_ENABLED_TEXT_COLOR;
 					weaponFlag = weaponItem->enabledWeaponFlag;
 					enabledWeapons =
-					    CTR_PSX_PAGE_LVALUE(struct GameTracker *, weaponTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->battleSetup.enabledWeapons;
+					    CTR_PSX_PAGE_LVALUE(struct GameTracker *, weaponTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->battleSetup.enabledWeapons;
 					CTR_PSX_KEEP_VALUE(enabledWeapons);
 					weaponGridY = weaponRow * BATTLE_WEAPON_GRID_Y_STEP;
 					if ((enabledWeapons & weaponFlag) == 0)
@@ -1112,12 +1111,11 @@ LAB_Battle_ValidSetup:
 						DecalFont_DrawLine(&R230.s_3[0], weaponPosX, weaponPosY, 2, weaponTextColor);
 					}
 					MM_Battle_DrawIcon_Weapon(
-					    CTR_PSX_PAGE_LVALUE(struct GameTracker *, weaponTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)
-					        ->ptrIcons[weaponItem->iconID],
+					    CTR_PSX_PAGE_LVALUE(struct GameTracker *, weaponTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->ptrIcons[weaponItem->iconID],
 					    weaponPosX, weaponPosY,
-					    &CTR_PSX_PAGE_LVALUE(struct GameTracker *, weaponTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->backBuffer->primMem,
-					    (u32 *)CTR_PSX_PAGE_LVALUE(struct GameTracker *, weaponTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->pushBuffer_UI.ptrOT,
-					    1, BATTLE_ICON_SCALE, BATTLE_WEAPON_ICON_ROTATE_RIGHT, (const u32 *)weaponColor);
+					    &CTR_PSX_PAGE_LVALUE(struct GameTracker *, weaponTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->backBuffer->primMem,
+					    (u32 *)CTR_PSX_PAGE_LVALUE(struct GameTracker *, weaponTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->pushBuffer_UI.ptrOT, 1,
+					    BATTLE_ICON_SCALE, BATTLE_WEAPON_ICON_ROTATE_RIGHT, (const u32 *)weaponColor);
 					{
 						register s32 nextWeaponIndex CTR_PSX_REGISTER("$2");
 						nextWeaponIndex = weaponIndex + 1;
@@ -1150,17 +1148,17 @@ LAB_Battle_ValidSetup:
 					teamWidthScratch.weaponHighlightRect.x = weaponHighlightRectX;
 					teamWidthScratch.weaponHighlightRect.y =
 					    (menuPanelRect.y + ((signedHighlightedRow - BATTLE_ROW_WEAPON_TOP) * BATTLE_WEAPON_GRID_Y_STEP)) + BATTLE_WEAPON_HIGHLIGHT_Y_OFFSET;
-					MM_DRAW_CLEAR_BOX(&teamWidthScratch.weaponHighlightRect, &MM_MENU_ROW_HIGHLIGHT_NORMAL, TRANS_50_DECAL,
-					                  MM_GAME_TRACKER->backBuffer->otMem.uiOT, &MM_GAME_TRACKER->backBuffer->primMem);
+					MM_DRAW_CLEAR_BOX(&teamWidthScratch.weaponHighlightRect, &GAME_MENU_HIGHLIGHT, TRANS_50_DECAL, GAME_TRACKER->backBuffer->otMem.uiOT,
+					                  &GAME_TRACKER->backBuffer->primMem);
 				}
 			}
 			teamCountScratch.weaponPanelInsetRect.x = menuPanelRect.x + BATTLE_WEAPON_PANEL_INSET_X;
 			teamCountScratch.weaponPanelInsetRect.y = menuPanelRect.y + BATTLE_WEAPON_PANEL_INSET_Y;
 			teamCountScratch.weaponPanelInsetRect.w = menuPanelRect.w - BATTLE_WEAPON_PANEL_INSET_W_SHRINK;
 			teamCountScratch.weaponPanelInsetRect.h = menuPanelRect.h - BATTLE_WEAPON_PANEL_INSET_H_SHRINK;
-			MM_DRAW_CLEAR_BOX(&teamCountScratch.weaponPanelInsetRect, &MM_BATTLE_WEAPON_PANEL_COLOR, TRANS_50_DECAL, MM_GAME_TRACKER->backBuffer->otMem.uiOT,
-			                  &MM_GAME_TRACKER->backBuffer->primMem);
-			RECTMENU_DrawInnerRect(&menuPanelRect, 0, MM_GAME_TRACKER->backBuffer->otMem.uiOT);
+			MM_DRAW_CLEAR_BOX(&teamCountScratch.weaponPanelInsetRect, &MM_BATTLE_WEAPON_PANEL_COLOR, TRANS_50_DECAL, GAME_TRACKER->backBuffer->otMem.uiOT,
+			                  &GAME_TRACKER->backBuffer->primMem);
+			RECTMENU_DrawInnerRect(&menuPanelRect, 0, GAME_TRACKER->backBuffer->otMem.uiOT);
 		}
 	}
 	// Preserve the selected rows for the next frame.

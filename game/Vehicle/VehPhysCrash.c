@@ -209,7 +209,7 @@ int VehPhysCrash_Attack(struct Driver *driver1, struct Driver *driver2, b32 canP
 			if ((canPlayFeedback != 0) && (driver1->kartState != KS_BLASTED) && (driver1->invincibleTimer == 0))
 			{
 				OtherFX_DriverCrashing((driver1->actionsFlagSet & ACTION_ENGINE_ECHO) != 0, VEH_PHYS_CRASH_VOLUME_MAX);
-				Voiceline_RequestPlay(VEH_PHYS_CRASH_VOICELINE_CRASH, VEH_CHARACTER_IDS[driver1->driverID], VEH_PHYS_CRASH_VOICELINE_PRIORITY);
+				Voiceline_RequestPlay(VEH_PHYS_CRASH_VOICELINE_CRASH, GAME_CHARACTER_IDS[driver1->driverID], VEH_PHYS_CRASH_VOICELINE_PRIORITY);
 			}
 		}
 
@@ -233,7 +233,7 @@ int VehPhysCrash_Attack(struct Driver *driver1, struct Driver *driver2, b32 canP
 					OtherFX_Play(VEH_PHYS_CRASH_BUBBLE_POP_FX, 1);
 				}
 
-				Voiceline_RequestPlay(VEH_PHYS_CRASH_VOICELINE_CRASH, VEH_CHARACTER_IDS[driver1->driverID], VEH_PHYS_CRASH_VOICELINE_PRIORITY);
+				Voiceline_RequestPlay(VEH_PHYS_CRASH_VOICELINE_CRASH, GAME_CHARACTER_IDS[driver1->driverID], VEH_PHYS_CRASH_VOICELINE_PRIORITY);
 			}
 		}
 
@@ -540,7 +540,7 @@ void VehPhysCrash_AnyTwoCars(struct Thread *thread, struct DriverCollisionSearch
 
 				if ((u32)volume > VEH_PHYS_CRASH_HARD_CRASH_VOLUME)
 				{
-					Voiceline_RequestPlay(VEH_PHYS_CRASH_VOICELINE_HARD_CRASH, VEH_CHARACTER_IDS[selfDriver->driverID], VEH_PHYS_CRASH_VOICELINE_PRIORITY);
+					Voiceline_RequestPlay(VEH_PHYS_CRASH_VOICELINE_HARD_CRASH, GAME_CHARACTER_IDS[selfDriver->driverID], VEH_PHYS_CRASH_VOICELINE_PRIORITY);
 				}
 			}
 

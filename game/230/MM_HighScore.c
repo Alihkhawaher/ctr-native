@@ -189,7 +189,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 		    : "=r"(displayData), "=r"(trackTable), "=r"(lineMetadata)
 		    : "r"(trackIndexArg));
 #endif
-		lineWidth = DecalFont_GetLineWidth(MM_LANGUAGE_STRINGS[lineMetadata[displayData->levID].name_LNG], FONT_BIG);
+		lineWidth = DecalFont_GetLineWidth(GAME_LANGUAGE_STRINGS[lineMetadata[displayData->levID].name_LNG], FONT_BIG);
 	}
 
 	// Draw arrow pointing Left
@@ -202,12 +202,12 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 		register u32 posYShift CTR_PSX_REGISTER("$12");
 
 #ifdef CTR_NATIVE
-		CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, MM_GAME_TRACKER_ASM_NAME);
+		CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME);
 #else
-		asm("lui %0,%%hi(" MM_GAME_TRACKER_ASM_NAME ")\n\t.if 0" : "=r"(gameTrackerPage));
+		asm("lui %0,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")\n\t.if 0" : "=r"(gameTrackerPage));
 #endif
 		sharedS1 <<= 2;
-		workV1 = (u32)CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+		workV1 = (u32)CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 		lineWidth /= 2;
 		orderingTable = ((struct GameTracker *)workV1)->pushBuffer_UI.ptrOT;
 		iconGroup = ((struct GameTracker *)workV1)->iconGroup[MM_HIGHSCORE_ARROW_ICON_GROUP];
@@ -304,17 +304,17 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	zeroValue = 0;
 
 	// Draw arrow pointing Right
-	MM_DECALHUD_ARROW_2D((ICONGROUP_GETICONS(MM_GAME_TRACKER->iconGroup[MM_HIGHSCORE_ARROW_ICON_GROUP]))[MM_HIGHSCORE_ARROW_ICON_ID],
+	MM_DECALHUD_ARROW_2D((ICONGROUP_GETICONS(GAME_TRACKER->iconGroup[MM_HIGHSCORE_ARROW_ICON_GROUP]))[MM_HIGHSCORE_ARROW_ICON_ID],
 	                     MM_HIGHSCORE_TRANSITIONS[MM_HIGHSCORE_TITLE_META_INDEX].currX + (lineWidth + scoreRowIndex) + MM_HIGHSCORE_ARROW_RIGHT_X_OFFSET,
-	                     trackOffsetWork + MM_HIGHSCORE_ARROW_Y_OFFSET, &MM_GAME_TRACKER->backBuffer->primMem, MM_GAME_TRACKER->pushBuffer_UI.ptrOT,
+	                     trackOffsetWork + MM_HIGHSCORE_ARROW_Y_OFFSET, &GAME_TRACKER->backBuffer->primMem, GAME_TRACKER->pushBuffer_UI.ptrOT,
 	                     MM_HIGHSCORE_COLOR((u32 **)sharedS1, 0), MM_HIGHSCORE_COLOR((u32 **)sharedS1, 1), MM_HIGHSCORE_COLOR((u32 **)sharedS1, 2),
 	                     MM_HIGHSCORE_COLOR((u32 **)sharedS1, 3), zeroValue, sharedS5, zeroValue);
 #ifndef CTR_NATIVE
 	asm volatile(".endif\n\t"
 	             ".set\tnoreorder\n\t"
 	             ".set\tnomacro\n\t"
-	             "lui $13,%%hi(" MM_GAME_TRACKER_ASM_NAME ")\n\t"
-	             "lw $2,%%lo(" MM_GAME_TRACKER_ASM_NAME ")($13)\n\t"
+	             "lui $13,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")\n\t"
+	             "lw $2,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")($13)\n\t"
 	             "nop\n\t"
 	             "lw $3,5244($2)\n\t"
 	             "lw $4,8484($2)\n\t"
@@ -368,7 +368,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	// draw track name
 	levelMetadata = MM_LEVEL_METADATA;
 	titleOffsetX = draw.posX + MM_HIGHSCORE_TITLE_X_OFFSET;
-	DecalFont_DrawLine(MM_LANGUAGE_STRINGS[levelMetadata[displayData->levID].name_LNG],
+	DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[levelMetadata[displayData->levID].name_LNG],
 	                   MM_HIGHSCORE_TRANSITIONS[MM_HIGHSCORE_TITLE_META_INDEX].currX + (s16)titleOffsetX,
 	                   MM_HIGHSCORE_TRANSITIONS[MM_HIGHSCORE_TITLE_META_INDEX].currY + (s16)(titleOffsetY = draw.posY + MM_HIGHSCORE_TITLE_Y_OFFSET), FONT_BIG,
 	                   (s16)JUSTIFY_CENTER);
@@ -379,7 +379,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "li $7,1\n\t"
 	             "lui $11,%%hi(" MM_LEVEL_METADATA_ASM_NAME ")\n\t"
 	             "addiu $11,$11,%%lo(" MM_LEVEL_METADATA_ASM_NAME ")\n\t"
-	             "lui $12,%%hi(" MM_LANGUAGE_STRINGS_ASM_NAME ")\n\t"
+	             "lui $12,%%hi(" RETAIL_LANGUAGE_STRINGS_ASM_NAME ")\n\t"
 	             "lhu $5,6($fp)\n\t"
 	             "lw $10,76($sp)\n\t"
 	             "lh $3,0($20)\n\t"
@@ -395,7 +395,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "lh $3,8($2)\n\t"
 	             "li $2,-32768\n\t"
 	             "sw $2,16($sp)\n\t"
-	             "lw $2,%%lo(" MM_LANGUAGE_STRINGS_ASM_NAME ")($12)\n\t"
+	             "lw $2,%%lo(" RETAIL_LANGUAGE_STRINGS_ASM_NAME ")($12)\n\t"
 	             "lhu $6,8($fp)\n\t"
 	             "sll $3,$3,2\n\t"
 	             "addu $3,$3,$2\n\t"
@@ -420,12 +420,12 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 
 		ghostStarIndex = 0;
 		CTR_PSX_KEEP_VALUE_RELAXED(ghostStarIndex);
-		CTR_PSX_LOAD_SYMBOL_PAGE(sharedS1, MM_GAME_TRACKER_ASM_NAME);
-		CTR_PSX_LOAD_SYMBOL_PAGE(ghostV0, MM_GAME_PROGRESS_ASM_NAME);
-		CTR_PSX_ADD_SYMBOL_LOW(sharedS5, ghostV0, MM_GAME_PROGRESS_ASM_NAME, (u32)&MM_GAME_PROGRESS);
+		CTR_PSX_LOAD_SYMBOL_PAGE(sharedS1, RETAIL_GAME_TRACKER_ASM_NAME);
+		CTR_PSX_LOAD_SYMBOL_PAGE(ghostV0, RETAIL_GAME_PROGRESS_ASM_NAME);
+		CTR_PSX_ADD_SYMBOL_LOW(sharedS5, ghostV0, RETAIL_GAME_PROGRESS_ASM_NAME, (u32)&GAME_PROGRESS);
 		CTR_PSX_LOAD_SYMBOL_PAGE(ghostV0, MM_HIGHSCORE_GHOST_STAR_FLAGS_ASM_NAME);
 		CTR_PSX_ADD_SYMBOL_LOW(displayData, ghostV0, MM_HIGHSCORE_GHOST_STAR_FLAGS_ASM_NAME, (void *)MM_HIGHSCORE_GHOST_STAR_FLAGS);
-		ghostV0 = (u32)CTR_PSX_PAGE_LVALUE(struct GameTracker *, sharedS1, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+		ghostV0 = (u32)CTR_PSX_PAGE_LVALUE(struct GameTracker *, sharedS1, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 		sharedS2 = (u32)MM_HIGHSCORE_TRANSITIONS;
 		scoreRowIndex = ((struct GameTracker *)ghostV0)->levelID;
 
@@ -444,7 +444,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 
 			CTR_PSX_LOAD_SYMBOL_PAGE(trackPage, MM_ARCADE_TRACKS_ASM_NAME);
 			CTR_PSX_ADD_SYMBOL_LOW_IN_PLACE(trackPage, MM_ARCADE_TRACKS_ASM_NAME, (u32)MM_ARCADE_TRACKS);
-			setTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, sharedS1, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+			setTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, sharedS1, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 			CTR_PSX_KEEP_VALUE_RELAXED(setTracker);
 			setTracker->levelID = ((struct MainMenu_LevelRow *)trackPage)[(s16) * (volatile u16 *)&draw.trackIndex].levID;
 			GAMEPROG_GetPtrHighScoreTrack();
@@ -456,7 +456,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 			CTR_PSX_KEEP_VALUE_RELAXED(doubledGhostStarIndex);
 			currentGhostFlag = *(u16 *)((u8 *)displayData + doubledGhostStarIndex);
 			CTR_PSX_KEEP_VALUE_RELAXED(currentGhostFlag);
-			drawTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, sharedS1, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+			drawTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, sharedS1, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 			CTR_PSX_KEEP_VALUE_RELAXED(drawTracker);
 			flagWordIndex = (((s16)currentGhostFlag) >> 2) >> 3;
 			// NOTE(aalhendi): Retail derives the signed flag-word index in two shifts.
@@ -507,7 +507,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 			ghostStarIndex++;
 		} while (ghostStarIndex < MM_HIGHSCORE_GHOST_STAR_COUNT);
 
-		MM_GAME_TRACKER->levelID = scoreRowIndex;
+		GAME_TRACKER->levelID = scoreRowIndex;
 		GAMEPROG_GetPtrHighScoreTrack();
 	}
 
@@ -520,12 +520,12 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 		CTR_PSX_KEEP_VALUE(sharedS5);
 
 		// first entry: Time Trial or Relic
-		displayData = (struct MainMenu_LevelRow *)&MM_GAME_PROGRESS.highScoreTracks[MM_ARCADE_TRACKS[(s16)draw.trackIndex].levID]
+		displayData = (struct MainMenu_LevelRow *)&GAME_PROGRESS.highScoreTracks[MM_ARCADE_TRACKS[(s16)draw.trackIndex].levID]
 		                  .scoreEntry[selectedScoreMode * MEMCARD_HIGH_SCORE_ENTRIES_PER_MODE];
 		CTR_PSX_KEEP_VALUE_RELAXED(displayData);
 
 		MM_HighScore_Text3D(
-		    MM_LANGUAGE_STRINGS[LNG_BEST_TRACK_TIMES],
+		    GAME_LANGUAGE_STRINGS[LNG_BEST_TRACK_TIMES],
 		    (s16)(((struct TransitionMeta *)sharedS1)[MM_HIGHSCORE_BEST_TRACK_META_INDEX].currX + offsetX + MM_HIGHSCORE_BEST_TRACK_LABEL_X_OFFSET),
 		    (s16)(((struct TransitionMeta *)sharedS1)[MM_HIGHSCORE_BEST_TRACK_META_INDEX].currY + offsetY + MM_HIGHSCORE_BEST_TRACK_LABEL_Y_OFFSET), FONT_SMALL,
 		    zeroValue);
@@ -538,7 +538,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 		{
 			bestLapLabelY = ((struct TransitionMeta *)sharedS1)[MM_HIGHSCORE_BEST_LAP_LABEL_META_INDEX].currY + offsetY;
 			MM_HighScore_Text3D(
-			    MM_LANGUAGE_STRINGS[LNG_BEST_LAP_TIME],
+			    GAME_LANGUAGE_STRINGS[LNG_BEST_LAP_TIME],
 			    (s16)(((struct TransitionMeta *)sharedS1)[MM_HIGHSCORE_BEST_LAP_LABEL_META_INDEX].currX + offsetX + MM_HIGHSCORE_BEST_LAP_LABEL_X_OFFSET),
 			    (s16)(bestLapLabelY + sharedS5), FONT_SMALL, 0);
 
@@ -559,12 +559,12 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 			    FONT_SMALL, zeroValue);
 
 			// Character Icon
-			MM_RECTMENU_DRAW_POLY_GT4(
-			    MM_GAME_TRACKER->ptrIcons[MM_CHARACTER_METADATA[(s16)((struct HighScoreEntry *)displayData)[0].characterID].iconID],
-			    bestLapTransitions[MM_HIGHSCORE_BEST_LAP_ENTRY_META_INDEX].currX + (s16)offsetX + MM_HIGHSCORE_BEST_LAP_ICON_X_OFFSET,
-			    ((struct TransitionMeta *)sharedS1)[MM_HIGHSCORE_BEST_LAP_ENTRY_META_INDEX].currY + (s16)offsetY + MM_HIGHSCORE_BEST_LAP_ICON_Y_OFFSET,
-			    &MM_GAME_TRACKER->backBuffer->primMem, (MM_GAME_TRACKER->pushBuffer_UI).ptrOT, MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_COLOR,
-			    MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_TRANSPARENCY, MM_HIGHSCORE_ICON_SCALE);
+			MM_RECTMENU_DRAW_POLY_GT4(GAME_TRACKER->ptrIcons[GAME_CHARACTER_METADATA[(s16)((struct HighScoreEntry *)displayData)[0].characterID].iconID],
+			                          bestLapTransitions[MM_HIGHSCORE_BEST_LAP_ENTRY_META_INDEX].currX + (s16)offsetX + MM_HIGHSCORE_BEST_LAP_ICON_X_OFFSET,
+			                          ((struct TransitionMeta *)sharedS1)[MM_HIGHSCORE_BEST_LAP_ENTRY_META_INDEX].currY + (s16)offsetY +
+			                              MM_HIGHSCORE_BEST_LAP_ICON_Y_OFFSET,
+			                          &GAME_TRACKER->backBuffer->primMem, (GAME_TRACKER->pushBuffer_UI).ptrOT, MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_COLOR,
+			                          MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_TRANSPARENCY, MM_HIGHSCORE_ICON_SCALE);
 		}
 	}
 
@@ -585,11 +585,11 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 		CTR_PSX_KEEP_VALUE(sharedS1);
 
 		// Character Icon
-		MM_RECTMENU_DRAW_POLY_GT4(MM_GAME_TRACKER->ptrIcons[MM_CHARACTER_METADATA[(s16)rowEntry->characterID].iconID],
+		MM_RECTMENU_DRAW_POLY_GT4(GAME_TRACKER->ptrIcons[GAME_CHARACTER_METADATA[(s16)rowEntry->characterID].iconID],
 		                          ((struct TransitionMeta *)sharedS1)[0].currX + (s16)offsetX + MM_HIGHSCORE_SCORE_ICON_X_OFFSET,
 		                          ((struct TransitionMeta *)sharedS1)[0].currY + (s16)offsetY + sharedS5 + (s16)sharedS2 +
 		                              (MM_HIGHSCORE_SCORE_NAME_Y_OFFSET - MM_HIGHSCORE_BEST_TRACK_LABEL_Y_OFFSET),
-		                          &MM_GAME_TRACKER->backBuffer->primMem, MM_GAME_TRACKER->pushBuffer_UI.ptrOT, MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_COLOR,
+		                          &GAME_TRACKER->backBuffer->primMem, GAME_TRACKER->pushBuffer_UI.ptrOT, MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_COLOR,
 		                          MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_COLOR, MM_HIGHSCORE_ICON_TRANSPARENCY, MM_HIGHSCORE_ICON_SCALE);
 
 		// draw the name string
@@ -642,9 +642,9 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "\n"
 	             "\tmove\t$16,$0\n"
 	             " #APP\n"
-	             "\tlui $17,%%hi(" MM_GAME_TRACKER_ASM_NAME ")\n"
-	             "\tlui $2,%%hi(" MM_GAME_PROGRESS_ASM_NAME ")\n"
-	             "\taddiu $21,$2,%%lo(" MM_GAME_PROGRESS_ASM_NAME ")\n"
+	             "\tlui $17,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")\n"
+	             "\tlui $2,%%hi(" RETAIL_GAME_PROGRESS_ASM_NAME ")\n"
+	             "\taddiu $21,$2,%%lo(" RETAIL_GAME_PROGRESS_ASM_NAME ")\n"
 	             "\tlui $2,%%hi(" MM_HIGHSCORE_GHOST_STAR_FLAGS_ASM_NAME ")\n"
 	             "\taddiu $20,$2,%%lo(" MM_HIGHSCORE_GHOST_STAR_FLAGS_ASM_NAME ")\n"
 	             " #NO_APP\n"
@@ -777,9 +777,9 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "\t.set\tmacro\n"
 	             "\t.set\treorder\n"
 	             "\n"
-	             "\tlui\t$2,%%hi(" MM_GAME_TRACKER_ASM_NAME ")\n"
+	             "\tlui\t$2,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")\n"
 	             "\tsll\t$3,$19,16\n"
-	             "\tlw\t$2,%%lo(" MM_GAME_TRACKER_ASM_NAME ")($2)\n"
+	             "\tlw\t$2,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")($2)\n"
 	             "\tsra\t$3,$3,16\n"
 	             "\t.set\tnoreorder\n"
 	             "\t.set\tnomacro\n"
@@ -792,7 +792,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "$LMM_HighScore_Draw_RestoreTrack:\n"
 	             "\taddiu\t$3,$3,%%lo(" MM_ARCADE_TRACKS_ASM_NAME ")\n"
 	             "\tli\t$7,2\t\t\t# 0x00000002\n"
-	             "\tlui\t$18,%%hi(" MM_LANGUAGE_STRINGS_ASM_NAME ")\n"
+	             "\tlui\t$18,%%hi(" RETAIL_LANGUAGE_STRINGS_ASM_NAME ")\n"
 	             "\tli\t$21,43\t\t\t# 0x0000002b\n"
 	             "\tlhu\t$13,56($sp)\n"
 	             "\tlhu\t$10,64($sp)\n"
@@ -807,7 +807,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "\tsra\t$16,$16,16\n"
 	             "\tsw\t$0,16($sp)\n"
 	             "\tlhu\t$6,18($17)\n"
-	             "\tlw\t$2,%%lo(" MM_LANGUAGE_STRINGS_ASM_NAME ")($18)\n"
+	             "\tlw\t$2,%%lo(" RETAIL_LANGUAGE_STRINGS_ASM_NAME ")($18)\n"
 	             "\taddu\t$5,$5,$23\n"
 	             "\taddiu\t$5,$5,32\n"
 	             "\tsll\t$5,$5,16\n"
@@ -825,8 +825,8 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "\tsll\t$2,$16,3\n"
 	             "\taddu\t$2,$2,$16\n"
 	             "\tsll\t$2,$2,4\n"
-	             "\tlui\t$3,%%hi(" MM_GAME_PROGRESS_ASM_NAME "+12)\n"
-	             "\taddiu\t$3,$3,%%lo(" MM_GAME_PROGRESS_ASM_NAME "+12)\n"
+	             "\tlui\t$3,%%hi(" RETAIL_GAME_PROGRESS_ASM_NAME "+12)\n"
+	             "\taddiu\t$3,$3,%%lo(" RETAIL_GAME_PROGRESS_ASM_NAME "+12)\n"
 	             "\taddu\t$2,$2,$3\n"
 	             "\t.set\tnoreorder\n"
 	             "\t.set\tnomacro\n"
@@ -835,7 +835,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "\tbne\t$16,$0,$L244\n"
 	             "\tmove\t$19,$0\n"
 	             "\tlhu\t$5,76($17)\n"
-	             "\tlw\t$2,%%lo(" MM_LANGUAGE_STRINGS_ASM_NAME ")($18)\n"
+	             "\tlw\t$2,%%lo(" RETAIL_LANGUAGE_STRINGS_ASM_NAME ")($18)\n"
 	             "\tli\t$7,2\t\t\t# 0x00000002\n"
 	             "\tsw\t$0,16($sp)\n"
 	             "\tlhu\t$6,78($17)\n"
@@ -905,15 +905,15 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "\n"
 	             "\tsll\t$2,$23,16\n"
 	             "\tsra\t$2,$2,16\n"
-	             "\tlui\t$4,%%hi(" MM_GAME_TRACKER_ASM_NAME ") # high\n"
+	             "\tlui\t$4,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ") # high\n"
 	             "\tlh\t$5,86($17)\n"
 	             "\tlh\t$3,22($20)\n"
 	             "\tlh\t$6,88($17)\n"
-	             "\tlw\t$4,%%lo(" MM_GAME_TRACKER_ASM_NAME ")($4)\n"
+	             "\tlw\t$4,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")($4)\n"
 	             "\taddu\t$5,$5,$2\n"
 	             "\taddu\t$5,$5,292\n"
-	             "\tlui\t$2,%%hi(" MM_CHARACTER_METADATA_ASM_NAME ") # high\n"
-	             "\taddiu\t$2,$2,%%lo(" MM_CHARACTER_METADATA_ASM_NAME ") # low\n"
+	             "\tlui\t$2,%%hi(" RETAIL_CHARACTER_METADATA_ASM_NAME ") # high\n"
+	             "\taddiu\t$2,$2,%%lo(" RETAIL_CHARACTER_METADATA_ASM_NAME ") # low\n"
 	             "\tsll\t$3,$3,4\n"
 	             "\taddu\t$3,$3,$2\n"
 	             "\tsll\t$2,$22,16\n"
@@ -980,13 +980,13 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "\taddu\t$16,$20,$16\n"
 	             "\tsll\t$18,$3,5\n"
 	             "\tsubu\t$18,$18,$3\n"
-	             "\tlui\t$4,%%hi(" MM_GAME_TRACKER_ASM_NAME ") # high\n"
-	             "\tlui\t$11,%%hi(" MM_CHARACTER_METADATA_ASM_NAME ") # high\n"
-	             "\taddiu\t$11,$11,%%lo(" MM_CHARACTER_METADATA_ASM_NAME ") # low\n"
+	             "\tlui\t$4,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ") # high\n"
+	             "\tlui\t$11,%%hi(" RETAIL_CHARACTER_METADATA_ASM_NAME ") # high\n"
+	             "\taddiu\t$11,$11,%%lo(" RETAIL_CHARACTER_METADATA_ASM_NAME ") # low\n"
 	             "\tlh\t$5,6($17)\n"
 	             "\tlh\t$3,22($16)\n"
 	             "\tlh\t$6,8($17)\n"
-	             "\tlw\t$4,%%lo(" MM_GAME_TRACKER_ASM_NAME ")($4)\n"
+	             "\tlw\t$4,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")($4)\n"
 	             "\taddu\t$5,$5,$2\n"
 	             "\taddu\t$5,$5,32\n"
 	             "\tsll\t$3,$3,4\n"

@@ -70,40 +70,40 @@ enum
 // register choices GCC 2.8.1 cannot express through C alone. Native builds
 // retain the same game-state operations without the PSX scheduling controls.
 #if defined(CTR_NATIVE)
-#define MM_CHARACTERS_LOAD_OUTLINE_GAME_TRACKER(gameTracker)    ((gameTracker) = (u32)MM_GAME_TRACKER)
-#define MM_CHARACTERS_LOAD_OUTER_LOOP_GAME_TRACKER(gameTracker) ((gameTracker) = MM_GAME_TRACKER)
-#define MM_CHARACTERS_LOAD_COLLISION_GAME_TRACKER(gameTracker)  ((gameTracker) = MM_GAME_TRACKER)
-#define MM_CHARACTERS_CAPTURE_FINAL_COLLISION_PAGE(gameTracker) ((gameTracker) = MM_GAME_TRACKER)
+#define MM_CHARACTERS_LOAD_OUTLINE_GAME_TRACKER(gameTracker)    ((gameTracker) = (u32)GAME_TRACKER)
+#define MM_CHARACTERS_LOAD_OUTER_LOOP_GAME_TRACKER(gameTracker) ((gameTracker) = GAME_TRACKER)
+#define MM_CHARACTERS_LOAD_COLLISION_GAME_TRACKER(gameTracker)  ((gameTracker) = GAME_TRACKER)
+#define MM_CHARACTERS_CAPTURE_FINAL_COLLISION_PAGE(gameTracker) ((gameTracker) = GAME_TRACKER)
 #define MM_CHARACTERS_BEGIN_ICON_COLOR_COPY(characterMetadata)  ((void)(characterMetadata))
 #define MM_CHARACTERS_END_ICON_COLOR_COPY()                     ((void)0)
 #define MM_CHARACTERS_LOAD_HIGHLIGHT_GAME_TRACKER(gameTracker, transitionY, metadataY) \
 	do                                                                                 \
 	{                                                                                  \
-		(gameTracker) = MM_GAME_TRACKER;                                               \
+		(gameTracker) = GAME_TRACKER;                                                  \
 		(transitionY) += (metadataY);                                                  \
 	} while (0)
 #else
-#define MM_CHARACTERS_LOAD_OUTLINE_GAME_TRACKER(gameTracker) \
-	__asm__("lui $14,%hi(" MM_GAME_TRACKER_ASM_NAME ")");    \
-	__asm__("lw %0,%%lo(" MM_GAME_TRACKER_ASM_NAME ")($14)" : "=r"(gameTracker))
+#define MM_CHARACTERS_LOAD_OUTLINE_GAME_TRACKER(gameTracker)  \
+	__asm__("lui $14,%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")"); \
+	__asm__("lw %0,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")($14)" : "=r"(gameTracker))
 #define MM_CHARACTERS_LOAD_OUTER_LOOP_GAME_TRACKER(gameTracker) \
-	__asm__("lui $11,%hi(" MM_GAME_TRACKER_ASM_NAME ")");       \
-	__asm__("lw %0,%%lo(" MM_GAME_TRACKER_ASM_NAME ")($11)" : "=r"(gameTracker))
+	__asm__("lui $11,%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")");   \
+	__asm__("lw %0,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")($11)" : "=r"(gameTracker))
 // NOTE(aalhendi): Retail keeps the existing absolute-address pages in $14 and
 // $13 across these collision checks; the compiler otherwise rebuilds them.
 #define MM_CHARACTERS_LOAD_COLLISION_GAME_TRACKER(gameTracker) \
-	__asm__ volatile("move %0,$14\n\tlw %0,%%lo(" MM_GAME_TRACKER_ASM_NAME ")(%0)" : "=r"(gameTracker) : "m"(MM_GAME_TRACKER_VOLATILE))
-#define MM_CHARACTERS_CAPTURE_FINAL_COLLISION_PAGE(gameTracker) __asm__ volatile("move %0,$13" : "=r"(gameTracker) : "m"(MM_GAME_TRACKER_VOLATILE))
+	__asm__ volatile("move %0,$14\n\tlw %0,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")(%0)" : "=r"(gameTracker) : "m"(GAME_TRACKER_RELOAD()))
+#define MM_CHARACTERS_CAPTURE_FINAL_COLLISION_PAGE(gameTracker) __asm__ volatile("move %0,$13" : "=r"(gameTracker) : "m"(GAME_TRACKER_RELOAD()))
 // NOTE(aalhendi): These zero-byte assembler aliases make GCC's generated
 // by-value Color copies use retail's $12 scratch register instead of $14.
 #define MM_CHARACTERS_BEGIN_ICON_COLOR_COPY(characterMetadata)  __asm__ volatile(".set $14,$12" : : "r"(characterMetadata))
 #define MM_CHARACTERS_END_ICON_COLOR_COPY()                     __asm__ volatile(".set $14,$t6")
 // NOTE(aalhendi): Combining the load and add preserves retail's instruction
 // schedule; the native expansion performs the equivalent C assignments.
-#define MM_CHARACTERS_LOAD_HIGHLIGHT_GAME_TRACKER(gameTracker, transitionY, metadataY) \
-	__asm__ volatile("lw %0,%%lo(" MM_GAME_TRACKER_ASM_NAME ")($21)\n\taddu %1,%1,%3"  \
-	                 : "=r"(gameTracker), "=r"(transitionY)                            \
-	                 : "1"(transitionY), "r"(metadataY), "m"(MM_GAME_TRACKER))
+#define MM_CHARACTERS_LOAD_HIGHLIGHT_GAME_TRACKER(gameTracker, transitionY, metadataY)    \
+	__asm__ volatile("lw %0,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")($21)\n\taddu %1,%1,%3" \
+	                 : "=r"(gameTracker), "=r"(transitionY)                               \
+	                 : "1"(transitionY), "r"(metadataY), "m"(GAME_TRACKER))
 #endif
 
 void MM_Characters_AnimateColors(u8 *colorData, s16 playerID, s16 flag)
@@ -176,7 +176,7 @@ s32 MM_Characters_GetNextDriver(s32 direction, s16 characterID)
 	    // if desired driver is not unlocked by default
 	    (unlocked != MM_CHARACTER_UNLOCK_ALWAYS) &&
 
-	    !CHECK_ADV_BIT(MM_GAME_PROGRESS.unlocks, unlocked))
+	    !CHECK_ADV_BIT(GAME_PROGRESS.unlocks, unlocked))
 	{
 		// set new driver to the driver you already have
 		nextIcon = characterID;
@@ -194,7 +194,7 @@ b32 MM_Characters_boolIsInvalid(s16 *iconPerPlayer, s16 characterID, s32 player)
 
 	isInvalid = false;
 	playerToSkip = (s16)player;
-	playerCount = MM_GAME_TRACKER->numPlyrNextGame;
+	playerCount = GAME_TRACKER->numPlyrNextGame;
 
 	// loop through players
 	for (playerIndex = 0; playerIndex < playerCount; playerIndex++)
@@ -218,7 +218,7 @@ struct Model *MM_Characters_GetModelByName(const char *name)
 	struct Model **models;
 	struct Model **modelList;
 	struct Model *model;
-	struct Level *level1 = MM_GAME_TRACKER->level1;
+	struct Level *level1 = GAME_TRACKER->level1;
 
 	model = NULL;
 
@@ -283,18 +283,18 @@ void MM_Characters_DrawWindows(b32 showDrivers)
 	if (boolShowDrivers != 0)
 	{
 		// enable drawing wheels
-		MM_GAME_TRACKER->renderFlags |= RENDER_FLAG_TIRES;
+		GAME_TRACKER->renderFlags |= RENDER_FLAG_TIRES;
 	}
 
-	CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, MM_GAME_TRACKER_ASM_NAME);
+	CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME);
 	playerIndex = 0;
-	if (CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->numPlyrNextGame == 0)
+	if (CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->numPlyrNextGame == 0)
 	{
 		goto LAB_Characters_DrawWindows_End;
 	}
 
-	CTR_PSX_LOAD_SYMBOL_PAGE(dataPointer, MM_CHARACTER_METADATA_ASM_NAME);
-	CTR_PSX_ADD_SYMBOL_LOW(characterMetadata, dataPointer, MM_CHARACTER_METADATA_ASM_NAME, MM_CHARACTER_METADATA);
+	CTR_PSX_LOAD_SYMBOL_PAGE(dataPointer, RETAIL_CHARACTER_METADATA_ASM_NAME);
+	CTR_PSX_ADD_SYMBOL_LOW(characterMetadata, dataPointer, RETAIL_CHARACTER_METADATA_ASM_NAME, GAME_CHARACTER_METADATA);
 	CTR_PSX_LOAD_SYMBOL_PAGE(dataPointer, MM_CHARACTER_SELECT_DESIRED_IDS_ASM_NAME);
 	CTR_PSX_ADD_SYMBOL_LOW(desiredCharacterIDs, dataPointer, MM_CHARACTER_SELECT_DESIRED_IDS_ASM_NAME, MM_CHARACTER_SELECT_DESIRED_IDS);
 
@@ -306,7 +306,7 @@ LAB_Characters_DrawWindows_Loop:
 	CTR_PSX_LOAD_WORD_FROM_PAGE(windowPos, dataPointer, MM_ACTIVE_CHARACTER_SELECT_WINDOW_POS_ASM_NAME, MM_ACTIVE_CHARACTER_SELECT_WINDOW_POS);
 	CTR_PSX_LOAD_SYMBOL_PAGE(dataPointer, MM_CHARACTER_SELECT_TRANSITION_META_ASM_NAME);
 	CTR_PSX_LOAD_WORD_FROM_PAGE(dataPointer, dataPointer, MM_CHARACTER_SELECT_TRANSITION_META_ASM_NAME, (u32)MM_CHARACTER_SELECT_TRANSITION_META);
-	CTR_PSX_LOAD_WORD_FROM_PAGE(gameTrackerPage, gameTrackerPage, MM_GAME_TRACKER_ASM_NAME, (u32)MM_GAME_TRACKER);
+	CTR_PSX_LOAD_WORD_FROM_PAGE(gameTrackerPage, gameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME, (u32)GAME_TRACKER);
 	windowPos = (SVec2 *)(transitionOffsetOrPointer + (u32)windowPos);
 	transitionOffsetOrPointer += playerWindowIndex;
 	transitionOffsetOrPointer <<= 1;
@@ -407,11 +407,11 @@ LAB_Characters_DrawWindows_Loop:
 	pb->distanceToScreen_PREV = MM_CHARACTER_SELECT_DISTANCE_TO_SCREEN;
 
 	CTR_PSX_CLOBBER("$2");
-	CTR_PSX_LOAD_SYMBOL_PAGE(dataPointer, MM_GAME_TRACKER_ASM_NAME);
+	CTR_PSX_LOAD_SYMBOL_PAGE(dataPointer, RETAIL_GAME_TRACKER_ASM_NAME);
 	CTR_PSX_CLOBBER("$4");
 	playerWindowIndex = playerIndex;
 	CTR_PSX_OBSERVE_VALUE(playerWindowIndex);
-	CTR_PSX_LOAD_WORD_FROM_PAGE_AFTER(loopGameTracker, dataPointer, MM_GAME_TRACKER_ASM_NAME, MM_GAME_TRACKER, playerWindowIndex);
+	CTR_PSX_LOAD_WORD_FROM_PAGE_AFTER(loopGameTracker, dataPointer, RETAIL_GAME_TRACKER_ASM_NAME, GAME_TRACKER, playerWindowIndex);
 	dataPointer = playerWindowIndex * sizeof(loopGameTracker->drivers[0]);
 	CTR_PSX_OBSERVE_VALUE(dataPointer);
 
@@ -465,7 +465,7 @@ LAB_Characters_DrawWindows_Loop:
 	driverInst->model = model;
 
 	// CameraDC, freecam mode
-	MM_GAME_TRACKER->cameraDC[indexOrSlideFactor].cameraMode = CAMERA_MODE_FREECAM;
+	GAME_TRACKER->cameraDC[indexOrSlideFactor].cameraMode = CAMERA_MODE_FREECAM;
 
 	// Set position of player
 	CTR_PSX_CLOBBER("$3");
@@ -541,10 +541,10 @@ LAB_Characters_DrawWindows_Loop:
 	else
 	{
 		// compare to character ID
-		if (*currCharacterID != MM_CHARACTER_IDS[indexOrSlideFactor])
+		if (*currCharacterID != GAME_CHARACTER_IDS[indexOrSlideFactor])
 		{
 			*moveTimer = MM_CHARACTER_SELECT_MOVE_FRAMES * 2;
-			desiredCharacterIDs[indexOrSlideFactor] = MM_CHARACTER_IDS[indexOrSlideFactor];
+			desiredCharacterIDs[indexOrSlideFactor] = GAME_CHARACTER_IDS[indexOrSlideFactor];
 		}
 	}
 
@@ -571,8 +571,8 @@ LAB_Characters_DrawWindows_Loop:
 		ConvertRotToMatrix(driverMatrix, &rot);
 	}
 	playerIndex++;
-	CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, MM_GAME_TRACKER_ASM_NAME);
-	CTR_PSX_LOAD_WORD_FROM_PAGE(transitionOffsetOrPointer, gameTrackerPage, MM_GAME_TRACKER_ASM_NAME, (u32)MM_GAME_TRACKER);
+	CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME);
+	CTR_PSX_LOAD_WORD_FROM_PAGE(transitionOffsetOrPointer, gameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME, (u32)GAME_TRACKER);
 	if (playerIndex < ((struct GameTracker *)transitionOffsetOrPointer)->numPlyrNextGame)
 	{
 		goto LAB_Characters_DrawWindows_Loop;
@@ -593,10 +593,10 @@ void MM_Characters_SetMenuLayout(void)
 
 	expandRoster = false;
 	iconIndex = MM_CHARACTER_SELECT_EXPANSION_ICON_FIRST;
-	progress = &MM_GAME_PROGRESS;
+	progress = &GAME_PROGRESS;
 	meta1P2P = MM_CHARACTER_SELECT_META_1P2P;
 
-	layoutIndex = MM_GAME_TRACKER->numPlyrNextGame - 1;
+	layoutIndex = GAME_TRACKER->numPlyrNextGame - 1;
 
 	// By default, draw "Select character" in 3P menu
 	MM_CHARACTER_SELECT_ROSTER_EXPANDED = false;
@@ -617,7 +617,7 @@ void MM_Characters_SetMenuLayout(void)
 
 	if (
 	    // if 1P or 2P
-	    (MM_GAME_TRACKER->numPlyrNextGame < MM_CHARACTER_SELECT_FULL_LAYOUT_COUNT + 1) &&
+	    (GAME_TRACKER->numPlyrNextGame < MM_CHARACTER_SELECT_FULL_LAYOUT_COUNT + 1) &&
 
 	    // if very few characters are unlocked
 	    (!expandRoster))
@@ -637,7 +637,7 @@ void MM_Characters_SetMenuLayout(void)
 	MM_CHARACTER_SELECT_DRIVER_POS.y = MM_CHARACTER_SELECT_LAYOUT_DRIVER_POS_Y[layoutIndex];
 	MM_CHARACTER_SELECT_DRIVER_POS.z = MM_CHARACTER_SELECT_LAYOUT_DRIVER_POS_Z[layoutIndex];
 
-	MM_CHARACTER_SELECT_TRANSITION_META = MM_CHARACTER_SELECT_TRANSITION_BY_PLAYER_COUNT[MM_GAME_TRACKER->numPlyrNextGame - 1];
+	MM_CHARACTER_SELECT_TRANSITION_META = MM_CHARACTER_SELECT_TRANSITION_BY_PLAYER_COUNT[GAME_TRACKER->numPlyrNextGame - 1];
 }
 void MM_Characters_BackupIDs(void)
 {
@@ -647,7 +647,7 @@ void MM_Characters_BackupIDs(void)
 	{
 		// make a backup when you leave character selection,
 		// backup is restored when you go back to selection
-		MM_CHARACTER_IDS_BACKUP[driverIndex] = MM_CHARACTER_IDS[driverIndex];
+		MM_CHARACTER_IDS_BACKUP[driverIndex] = GAME_CHARACTER_IDS[driverIndex];
 	}
 	return;
 }
@@ -672,10 +672,10 @@ void MM_Characters_PreventOverlap(void)
 	availableDefaultCharacters = *(const struct PackedCharacterIDs *)MM_DEFAULT_CHARACTER_ID_WORDS;
 #endif
 
-	for (playerIndex = 0; playerIndex < MM_GAME_TRACKER->numPlyrNextGame; playerIndex++)
+	for (playerIndex = 0; playerIndex < GAME_TRACKER->numPlyrNextGame; playerIndex++)
 	{
 		// get character ID
-		characterID = MM_CHARACTER_IDS[playerIndex];
+		characterID = GAME_CHARACTER_IDS[playerIndex];
 
 		// if not a secret character
 		if (characterID < MM_CHARACTER_SELECT_DEFAULT_DRIVER_COUNT)
@@ -685,12 +685,12 @@ void MM_Characters_PreventOverlap(void)
 		}
 	}
 
-	for (playerIndex = 1; playerIndex < MM_GAME_TRACKER->numPlyrNextGame; playerIndex++)
+	for (playerIndex = 1; playerIndex < GAME_TRACKER->numPlyrNextGame; playerIndex++)
 	{
 		for (previousPlayer = 0; previousPlayer < playerIndex; previousPlayer++)
 		{
 			// if two characters are the same
-			if (MM_CHARACTER_IDS[playerIndex] == MM_CHARACTER_IDS[previousPlayer])
+			if (GAME_CHARACTER_IDS[playerIndex] == GAME_CHARACTER_IDS[previousPlayer])
 			{
 				// look for a new character
 				for (defaultIndex = 0; defaultIndex < MM_CHARACTER_SELECT_DEFAULT_DRIVER_COUNT; defaultIndex++)
@@ -703,7 +703,7 @@ void MM_Characters_PreventOverlap(void)
 					if (-1 < freeCharacter)
 					{
 						// assign free character
-						MM_CHARACTER_IDS[playerIndex] = (s16)freeCharacter;
+						GAME_CHARACTER_IDS[playerIndex] = (s16)freeCharacter;
 
 						// character is now taken
 						*defaultCharacter = -1;
@@ -732,7 +732,7 @@ void MM_Characters_RestoreIDs(void)
 	for (driverIndex = 0; driverIndex < MM_CHARACTER_SELECT_DEFAULT_DRIVER_COUNT; driverIndex++)
 	{
 		// set character ID to the last ID you entered
-		MM_CHARACTER_IDS[driverIndex] = MM_CHARACTER_IDS_BACKUP[driverIndex];
+		GAME_CHARACTER_IDS[driverIndex] = MM_CHARACTER_IDS_BACKUP[driverIndex];
 	}
 
 	MM_Characters_SetMenuLayout();
@@ -758,16 +758,16 @@ void MM_Characters_RestoreIDs(void)
 		s16 *characterIDs;
 		s16 unlockPlayerIndex;
 
-		gGT = MM_GAME_TRACKER;
+		gGT = GAME_TRACKER;
 		unlockPlayerIndex = 0;
 
 		if (gGT->numPlyrNextGame != 0)
 		{
-			characterIDs = MM_CHARACTER_IDS;
+			characterIDs = GAME_CHARACTER_IDS;
 			activeMeta = MM_ACTIVE_CHARACTER_SELECT_META;
 			unlockAlways = MM_CHARACTER_UNLOCK_ALWAYS;
-			CTR_PSX_LOAD_SYMBOL_PAGE(progressPage, MM_GAME_PROGRESS_ASM_NAME);
-			CTR_PSX_ADD_SYMBOL_LOW(progress, progressPage, MM_GAME_PROGRESS_ASM_NAME, &MM_GAME_PROGRESS);
+			CTR_PSX_LOAD_SYMBOL_PAGE(progressPage, RETAIL_GAME_PROGRESS_ASM_NAME);
+			CTR_PSX_ADD_SYMBOL_LOW(progress, progressPage, RETAIL_GAME_PROGRESS_ASM_NAME, &GAME_PROGRESS);
 			CTR_PSX_CLOBBER("$7");
 			loopGT = gGT;
 
@@ -798,13 +798,13 @@ void MM_Characters_RestoreIDs(void)
 
 	MM_Characters_PreventOverlap();
 
-	for (playerIndex = 0; playerIndex < MM_GAME_TRACKER->numPlyrNextGame; playerIndex++)
+	for (playerIndex = 0; playerIndex < GAME_TRACKER->numPlyrNextGame; playerIndex++)
 	{
 		s16 characterID;
 
 		// set name string ID to the character ID of each player.
 		// The string will only draw if both these variables match
-		characterID = MM_CHARACTER_SELECT_DESIRED_IDS[playerIndex] = (MM_CHARACTER_SELECT_CURRENT_IDS[playerIndex] = MM_CHARACTER_IDS[playerIndex]);
+		characterID = MM_CHARACTER_SELECT_DESIRED_IDS[playerIndex] = (MM_CHARACTER_SELECT_CURRENT_IDS[playerIndex] = GAME_CHARACTER_IDS[playerIndex]);
 #ifdef CTR_NATIVE
 		(void)characterID;
 #endif
@@ -826,9 +826,9 @@ void MM_Characters_HideDrivers(void)
 
 	for (playerIndex = 0; playerIndex < MM_CHARACTER_SELECT_MAX_PLAYERS; playerIndex++)
 	{
-		PushBuffer_Init(&MM_GAME_TRACKER->pushBuffer[playerIndex], 0, 1);
+		PushBuffer_Init(&GAME_TRACKER->pushBuffer[playerIndex], 0, 1);
 
-		MM_GAME_TRACKER->drivers[playerIndex]->instSelf->flags |= HIDE_MODEL;
+		GAME_TRACKER->drivers[playerIndex]->instSelf->flags |= HIDE_MODEL;
 	}
 
 	return;
@@ -860,7 +860,7 @@ void MM_Characters_MenuProc(struct RectMenu *unused)
 
 	for (playerIndex = 0; playerIndex < MM_CHARACTER_SELECT_MAX_PLAYERS; playerIndex++)
 	{
-		iconPerPlayer[playerIndex] = MM_CHARACTER_MENU_ID[MM_CHARACTER_IDS[playerIndex]];
+		iconPerPlayer[playerIndex] = MM_CHARACTER_MENU_ID[GAME_CHARACTER_IDS[playerIndex]];
 	}
 
 	switch (MM_CHARACTER_SELECT_MENU_STATE)
@@ -906,7 +906,7 @@ void MM_Characters_MenuProc(struct RectMenu *unused)
 				MM_Characters_HideDrivers();
 
 				// if you are in a cup
-				if ((MM_GAME_TRACKER->gameMode2 & CUP_ANY_KIND) != 0)
+				if ((GAME_TRACKER->gameMode2 & CUP_ANY_KIND) != 0)
 				{
 					MM_DESIRED_MENU = &MM_MENU_CUP_SELECT;
 					MM_CupSelect_Init();
@@ -945,11 +945,11 @@ void MM_Characters_MenuProc(struct RectMenu *unused)
 			goto dontDrawSelectCharacter;
 		}
 
-		DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_SELECT_CHARACTER_SELECT],
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_SELECT_CHARACTER_SELECT],
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currX + MM_CHARACTER_SELECT_3P_TITLE_X,
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currY + MM_CHARACTER_SELECT_3P_SELECT_Y, FONT_BIG,
 		                   (JUSTIFY_CENTER | ORANGE));
-		DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_CHARACTER],
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_CHARACTER],
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currX + MM_CHARACTER_SELECT_3P_TITLE_X,
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currY + MM_CHARACTER_SELECT_3P_CHARACTER_Y, FONT_BIG,
 		                   (JUSTIFY_CENTER | ORANGE));
@@ -959,16 +959,16 @@ void MM_Characters_MenuProc(struct RectMenu *unused)
 	case MM_CHARACTER_SELECT_LAYOUT_4P:
 
 		// If Fake Crash is unlocked, do not draw "Select Character"
-		if (MM_GAME_PROGRESS.unlocks[0] & UNLOCK_FAKE_CRASH)
+		if (GAME_PROGRESS.unlocks[0] & UNLOCK_FAKE_CRASH)
 		{
 			goto dontDrawSelectCharacter;
 		}
 
-		DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_SELECT_CHARACTER_SELECT],
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_SELECT_CHARACTER_SELECT],
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currX + MM_CHARACTER_SELECT_4P_TITLE_X,
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currY + MM_CHARACTER_SELECT_4P_SELECT_Y,
 		                   FONT_CREDITS, (JUSTIFY_CENTER | ORANGE));
-		DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_CHARACTER],
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_CHARACTER],
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currX + MM_CHARACTER_SELECT_4P_TITLE_X,
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currY + MM_CHARACTER_SELECT_4P_CHARACTER_Y,
 		                   FONT_CREDITS, (JUSTIFY_CENTER | ORANGE));
@@ -978,7 +978,7 @@ void MM_Characters_MenuProc(struct RectMenu *unused)
 	// when you do NOT have a lot of characters selected
 	case MM_CHARACTER_SELECT_LAYOUT_1P_LIMITED:
 	case MM_CHARACTER_SELECT_LAYOUT_2P_LIMITED:
-		DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_SELECT_CHARACTER],
+		DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_SELECT_CHARACTER],
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currX + MM_CHARACTER_SELECT_LIMITED_TITLE_X,
 		                   MM_CHARACTER_SELECT_TRANSITION_META[MM_CHARACTER_SELECT_TITLE_TRANSITION_INDEX].currY + MM_CHARACTER_SELECT_LIMITED_TITLE_Y,
 		                   FONT_BIG, (JUSTIFY_CENTER | ORANGE));
@@ -990,7 +990,7 @@ void MM_Characters_MenuProc(struct RectMenu *unused)
 
 dontDrawSelectCharacter:
 	outerGameTrackerPage = MM_GAME_TRACKER_PAGE_VALUE;
-	outerGameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *volatile, outerGameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+	outerGameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *volatile, outerGameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 	CTR_PSX_OBSERVE_VALUE(outerGameTrackerPage);
 	playerIndex = 0;
 	if (playerIndex >= outerGameTracker->numPlyrNextGame)
@@ -1134,7 +1134,7 @@ dontDrawSelectCharacter:
 
 						candidateInUseByOtherPlayer = false;
 						otherPlayerIndex = collisionPlayerIndexStart;
-						if (MM_GAME_TRACKER_VOLATILE->numPlyrNextGame != 0)
+						if (GAME_TRACKER_RELOAD()->numPlyrNextGame != 0)
 						{
 							collisionCandidateWord = candidateIcon << 16;
 							CTR_PSX_OBSERVE_VALUE(collisionCandidateWord);
@@ -1184,7 +1184,7 @@ dontDrawSelectCharacter:
 					s32 finalCollisionPlayerIndex;
 
 					otherPlayerIndex = 0;
-					if (MM_GAME_TRACKER_VOLATILE->numPlyrNextGame != 0)
+					if (GAME_TRACKER_RELOAD()->numPlyrNextGame != 0)
 					{
 						finalCollisionPlayerIndex = (s16)playerIndex;
 						finalCollisionPlayerOffset = finalCollisionPlayerIndex * sizeof(*finalCollisionPlayerIcon);
@@ -1192,7 +1192,7 @@ dontDrawSelectCharacter:
 						MM_CHARACTERS_CAPTURE_FINAL_COLLISION_PAGE(finalCollisionGameTracker);
 						finalCollisionPlayerIcon = (s16 *)((u32)navigationIconBase + finalCollisionPlayerOffset);
 						finalCollisionGameTracker =
-						    CTR_PSX_PAGE_LVALUE(struct GameTracker *volatile, finalCollisionGameTracker, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+						    CTR_PSX_PAGE_LVALUE(struct GameTracker *volatile, finalCollisionGameTracker, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 						finalCollisionPlayerCount = finalCollisionGameTracker->numPlyrNextGame;
 						do
 						{
@@ -1214,7 +1214,7 @@ dontDrawSelectCharacter:
 					// this player has now selected a character
 					MM_CHARACTER_SELECT_FLAGS = MM_CHARACTER_SELECT_FLAGS | (u16)(1 << playerIndex);
 
-					numPlyrNextGame = MM_GAME_TRACKER_VOLATILE->numPlyrNextGame;
+					numPlyrNextGame = GAME_TRACKER_RELOAD()->numPlyrNextGame;
 					selectedPlayerMask = ((0xffU << numPlyrNextGame) ^ 0xffU) & 0xffU;
 
 					// Play sound
@@ -1318,7 +1318,7 @@ outerPlayerLoopComplete:
 			    // if character is unlocked
 			    // from the global unlock bitfield
 			    // also the variable written by cheats
-			    CHECK_ADV_BIT(MM_GAME_PROGRESS.unlocks, unlockRequirement))
+			    CHECK_ADV_BIT(GAME_PROGRESS.unlocks, unlockRequirement))
 			{
 				register struct TransitionMeta *iconTransition CTR_PSX_REGISTER("$3");
 				register struct MetaDataCHAR *iconCharacterMetadata CTR_PSX_REGISTER("$4");
@@ -1331,7 +1331,7 @@ outerPlayerLoopComplete:
 
 				iconColor = &MM_CHARACTER_SELECT_NEUTRAL_COLOR;
 
-				for (selectedPlayerIndex = 0; selectedPlayerIndex < MM_GAME_TRACKER->numPlyrNextGame; selectedPlayerIndex++)
+				for (selectedPlayerIndex = 0; selectedPlayerIndex < GAME_TRACKER->numPlyrNextGame; selectedPlayerIndex++)
 				{
 					if (((s16)playerIndex == iconPerPlayer[selectedPlayerIndex]) &&
 
@@ -1347,13 +1347,13 @@ outerPlayerLoopComplete:
 				iconCharacterMetadata = (struct MetaDataCHAR *)MM_CHARACTER_SELECT_TRANSITION_POINTER_PAGE_VALUE;
 				CTR_PSX_FORGET_VALUE(iconCharacterMetadata);
 				iconTransitionByteOffset = iconWork * sizeof(*iconTransition);
-				CTR_PSX_LOAD_SYMBOL_PAGE_AFTER(iconGameTrackerPage, MM_GAME_TRACKER_ASM_NAME, iconTransitionByteOffset);
+				CTR_PSX_LOAD_SYMBOL_PAGE_AFTER(iconGameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME, iconTransitionByteOffset);
 				CTR_PSX_LOAD_WORD_FROM_PAGE(iconWork, iconCharacterMetadata, MM_CHARACTER_SELECT_TRANSITION_META_ASM_NAME,
 				                            (u32)MM_CHARACTER_SELECT_TRANSITION_META);
 				iconCharacterMetadata = (struct MetaDataCHAR *)MM_CHARACTER_METADATA_PAGE_VALUE;
 				CTR_PSX_FORGET_VALUE(iconCharacterMetadata);
 #if defined(CTR_NATIVE)
-				iconCharacterMetadata = MM_CHARACTER_METADATA;
+				iconCharacterMetadata = GAME_CHARACTER_METADATA;
 #else
 				iconCharacterMetadata = (struct MetaDataCHAR *)((u8 *)iconCharacterMetadata + MM_CHARACTER_METADATA_PAGE_OFFSET);
 #endif
@@ -1363,12 +1363,12 @@ outerPlayerLoopComplete:
 				iconPosX = iconTransition->currX + preInputCharacterMeta->posX + MM_CHARACTER_SELECT_ICON_DECAL_OFFSET_X;
 
 				MM_RECTMENU_DRAW_POLY_GT4(
-				    CTR_PSX_PAGE_LVALUE(struct GameTracker *, iconGameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)
+				    CTR_PSX_PAGE_LVALUE(struct GameTracker *, iconGameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)
 				        ->ptrIcons[iconCharacterMetadata[iconMetaTail[3]].iconID],
 				    iconPosX, iconTransition->currY + iconMetaTail[0] + MM_CHARACTER_SELECT_ICON_DECAL_OFFSET_Y,
 
-				    &CTR_PSX_PAGE_LVALUE(struct GameTracker *, iconGameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->backBuffer->primMem,
-				    CTR_PSX_PAGE_LVALUE(struct GameTracker *, iconGameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->pushBuffer_UI.ptrOT,
+				    &CTR_PSX_PAGE_LVALUE(struct GameTracker *, iconGameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->backBuffer->primMem,
+				    CTR_PSX_PAGE_LVALUE(struct GameTracker *, iconGameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->pushBuffer_UI.ptrOT,
 
 				    *iconColor, *iconColor, *iconColor, *iconColor, TRANS_50_DECAL, FP(1.0));
 				MM_CHARACTERS_END_ICON_COLOR_COPY();
@@ -1384,7 +1384,7 @@ outerPlayerLoopComplete:
 		s32 iconPerPlayerOffset;
 
 		playerIndex = 0;
-		characterIDOutput = MM_CHARACTER_IDS;
+		characterIDOutput = GAME_CHARACTER_IDS;
 		iconPerPlayerBase = iconPerPlayer;
 		characterIDMeta = MM_ACTIVE_CHARACTER_SELECT_META;
 
@@ -1398,7 +1398,7 @@ outerPlayerLoopComplete:
 	}
 
 	playerIndex = 0;
-	if (MM_GAME_TRACKER->numPlyrNextGame != 0)
+	if (GAME_TRACKER->numPlyrNextGame != 0)
 	{
 		Color animatedColor;
 		register Color *animatedColorPtr CTR_PSX_REGISTER("$20");
@@ -1452,7 +1452,7 @@ outerPlayerLoopComplete:
 				                                &highlightGameTracker->backBuffer->primMem);
 			}
 			if ((MM_CHARACTER_SELECT_MOVE_TIMERS[menuPlayerIndex] == 0) &&
-			    (MM_CHARACTER_SELECT_CURRENT_IDS[menuPlayerIndex] == MM_CHARACTER_IDS[menuPlayerIndex]))
+			    (MM_CHARACTER_SELECT_CURRENT_IDS[menuPlayerIndex] == GAME_CHARACTER_IDS[menuPlayerIndex]))
 			{
 				struct TransitionMeta *driverWindowTransition;
 				struct TransitionMeta *transitionBase;
@@ -1472,7 +1472,7 @@ outerPlayerLoopComplete:
 				s16 characterSelectWindowWidth;
 
 				// get number of players
-				numPlyrNextGame = MM_GAME_TRACKER->numPlyrNextGame;
+				numPlyrNextGame = GAME_TRACKER->numPlyrNextGame;
 				nameYOffset = (s16)((((u32)(numPlyrNextGame < 3) ^ 1) << 0x12) >> 0x10);
 
 				// if number of players is 1 or 2
@@ -1484,9 +1484,9 @@ outerPlayerLoopComplete:
 					fontType = FONT_SMALL;
 				}
 
-				localizedStrings = MM_LANGUAGE_STRINGS;
+				localizedStrings = GAME_LANGUAGE_STRINGS;
 				transitionWordOffset = menuPlayerIndex * (sizeof(*driverWindowTransition) / sizeof(s16));
-				characterNameOffset = MM_CHARACTER_METADATA[preInputCharacterMeta->characterID].name_LNG_long * sizeof(*localizedStrings);
+				characterNameOffset = GAME_CHARACTER_METADATA[preInputCharacterMeta->characterID].name_LNG_long * sizeof(*localizedStrings);
 				characterNameSlot = (char **)(characterNameOffset + (u32)localizedStrings);
 				transitionBase = MM_CHARACTER_SELECT_TRANSITION_META;
 				characterSelectWindowWidth = MM_CHARACTER_SELECT_WINDOW_WIDTH;
@@ -1522,7 +1522,7 @@ outerPlayerLoopComplete:
 			// spin the character
 			MM_CHARACTER_SELECT_ANGLE[playerIndex] += MM_CHARACTER_SELECT_SPIN_STEP;
 			playerIndex++;
-		} while (playerIndex < MM_GAME_TRACKER->numPlyrNextGame);
+		} while (playerIndex < GAME_TRACKER->numPlyrNextGame);
 	}
 
 	// reset
@@ -1545,7 +1545,7 @@ outerPlayerLoopComplete:
 		    // if character is unlocked
 		    // from the global unlock bitfield
 		    // also the variable written by cheats
-		    CHECK_ADV_BIT(MM_GAME_PROGRESS.unlocks, unlockRequirement))
+		    CHECK_ADV_BIT(GAME_PROGRESS.unlocks, unlockRequirement))
 		{
 			iconRect.x = MM_CHARACTER_SELECT_TRANSITION_META[playerIndex].currX + preInputCharacterMeta->posX;
 			iconRect.y = MM_CHARACTER_SELECT_TRANSITION_META[playerIndex].currY + (s16)iconMetaTail[0];
@@ -1553,13 +1553,13 @@ outerPlayerLoopComplete:
 			iconRect.h = MM_CHARACTER_SELECT_ICON_RECT_H;
 
 			// Draw 2D Menu rectangle background
-			RECTMENU_DrawInnerRect(&iconRect, 0, MM_GAME_TRACKER->backBuffer->otMem.uiOT);
+			RECTMENU_DrawInnerRect(&iconRect, 0, GAME_TRACKER->backBuffer->otMem.uiOT);
 		}
 	}
 
 	windowPos = MM_ACTIVE_CHARACTER_SELECT_WINDOW_POS;
 
-	for (playerIndex = 0; playerIndex < MM_GAME_TRACKER->numPlyrNextGame; playerIndex++)
+	for (playerIndex = 0; playerIndex < GAME_TRACKER->numPlyrNextGame; playerIndex++)
 	{
 		Color animatedColor;
 		RECT windowRect;
@@ -1578,7 +1578,7 @@ outerPlayerLoopComplete:
 		                            // flags of which characters are selected
 		                            (((int)(s16)MM_CHARACTER_SELECT_FLAGS >> menuPlayerIndex) ^ 1U) & 1U);
 
-		RECTMENU_DrawOuterRect_HighLevel(&windowRect, &animatedColor, 0, MM_GAME_TRACKER->backBuffer->otMem.uiOT);
+		RECTMENU_DrawOuterRect_HighLevel(&windowRect, &animatedColor, 0, GAME_TRACKER->backBuffer->otMem.uiOT);
 
 		// if player selected a character
 		if ((((int)(s16)MM_CHARACTER_SELECT_FLAGS >> menuPlayerIndex) & 1U) != 0)
@@ -1597,11 +1597,11 @@ outerPlayerLoopComplete:
 				animatedColor.g = (u8)((int)((u32)animatedColor.g << 2) / 5);
 				animatedColor.b = (u8)((int)((u32)animatedColor.b << 2) / 5);
 
-				RECTMENU_DrawOuterRect_HighLevel(&r58, &animatedColor, 0, MM_GAME_TRACKER->backBuffer->otMem.uiOT);
+				RECTMENU_DrawOuterRect_HighLevel(&r58, &animatedColor, 0, GAME_TRACKER->backBuffer->otMem.uiOT);
 			}
 		}
 		// Draw 2D Menu rectangle background
-		RECTMENU_DrawInnerRect(&windowRect, 9, &MM_GAME_TRACKER->backBuffer->otMem.uiOT[3]);
+		RECTMENU_DrawInnerRect(&windowRect, 9, &GAME_TRACKER->backBuffer->otMem.uiOT[3]);
 		windowPos++;
 
 		// not screen-space anymore,
@@ -1609,8 +1609,8 @@ outerPlayerLoopComplete:
 		windowRect.x = 0;
 		windowRect.y = 0;
 
-		RECTMENU_DrawRwdBlueRect(&windowRect, &MM_CHARACTER_SELECT_BLUE_RECT_COLORS[0], &MM_GAME_TRACKER->pushBuffer[playerIndex].ptrOT[0x3ff],
-		                         &MM_GAME_TRACKER->backBuffer->primMem);
+		RECTMENU_DrawRwdBlueRect(&windowRect, &MM_CHARACTER_SELECT_BLUE_RECT_COLORS[0], &GAME_TRACKER->pushBuffer[playerIndex].ptrOT[0x3ff],
+		                         &GAME_TRACKER->backBuffer->primMem);
 	}
 	return;
 }

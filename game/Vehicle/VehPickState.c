@@ -74,7 +74,7 @@ int VehPickState_NewState(struct Driver *victimDriver, int damageType, struct Dr
 	    (victimDriver->invincibleTimer != 0))
 	{
 		voiceType = VEH_PICK_VOICELINE_VICTIM_LAUGH;
-		characterIDs = VEH_CHARACTER_IDS;
+		characterIDs = GAME_CHARACTER_IDS;
 		victimID = victimDriver->driverID;
 		goto VictimLaugh;
 	}
@@ -99,7 +99,7 @@ int VehPickState_NewState(struct Driver *victimDriver, int damageType, struct Dr
 			shieldTimer = VEH_PICK_SHIELD_DAMAGE_INVINCIBLE_TIMER;
 			victimDriver->invincibleTimer = shieldTimer;
 		}
-		characterIDs = VEH_CHARACTER_IDS;
+		characterIDs = GAME_CHARACTER_IDS;
 		victimID = victimDriver->driverID;
 		victimDriver->instBubbleHold = NULL;
 	}
@@ -217,7 +217,7 @@ Burn:
 	if (victimDriver->burnTimer == 0)
 	{
 		OtherFX_Play(VEH_PICK_SOUND_BURN, 1);
-		Voiceline_RequestPlay(VEH_PICK_VOICELINE_COMMON_DAMAGE, VEH_CHARACTER_IDS[victimDriver->driverID], VEH_PICK_VOICELINE_PRIORITY);
+		Voiceline_RequestPlay(VEH_PICK_VOICELINE_COMMON_DAMAGE, GAME_CHARACTER_IDS[victimDriver->driverID], VEH_PICK_VOICELINE_PRIORITY);
 	}
 
 	victimDriver->burnTimer = VEH_PICK_BURN_TIMER;
@@ -228,7 +228,7 @@ Squish:
 	if (victimState != KS_SPINNING)
 	{
 		OtherFX_Play_Echo(VEH_PICK_SOUND_SQUISH, 1, (u16)(victimDriver->actionsFlagSet >> 16) & 1);
-		Voiceline_RequestPlay(VEH_PICK_VOICELINE_SQUISH, VEH_CHARACTER_IDS[victimDriver->driverID], VEH_PICK_VOICELINE_PRIORITY);
+		Voiceline_RequestPlay(VEH_PICK_VOICELINE_SQUISH, GAME_CHARACTER_IDS[victimDriver->driverID], VEH_PICK_VOICELINE_PRIORITY);
 	}
 
 	victimDriver->squishTimer = VEH_PICK_SQUISH_TIMER;
@@ -305,23 +305,23 @@ DamageApplied:
 	GAMEPAD_ShockFreq(victimDriver, VEH_PICK_RUMBLE_FRAMES, 0);
 	GAMEPAD_ShockForce1(victimDriver, VEH_PICK_RUMBLE_FRAMES, VEH_PICK_RUMBLE_FORCE);
 
-	if ((attackDriver != NULL) && ((VEH_GAME_TRACKER->gameMode1 & END_OF_RACE) == 0))
+	if ((attackDriver != NULL) && ((GAME_TRACKER->gameMode1 & END_OF_RACE) == 0))
 	{
 		worldPosition.x = (s16)attackDriver->instSelf->matrix.t[0];
 		worldPosition.y = (s16)attackDriver->instSelf->matrix.t[1];
 		worldPosition.z = (s16)attackDriver->instSelf->matrix.t[2];
-		VehGteSetRotTransMatrix(&VEH_GAME_TRACKER->pushBuffer[attackDriver->driverID].matrix_ViewProj);
+		VehGteSetRotTransMatrix(&GAME_TRACKER->pushBuffer[attackDriver->driverID].matrix_ViewProj);
 		VehGteLoadSVec3V0(&worldPosition);
 		gte_rtps();
 		screenPosition = CTR_VECTOR_DATA(&posScreen);
 		VehGteStoreSXY(screenPosition);
 
 		// screenPosXY
-		attackDriver->BattleHUD.startX = screenPosition[0] + VEH_GAME_TRACKER->pushBuffer[attackDriver->driverID].rect.x;
-		attackDriver->BattleHUD.startY = screenPosition[1] + VEH_GAME_TRACKER->pushBuffer[attackDriver->driverID].rect.y - VEH_PICK_BATTLE_HUD_OFFSET_Y;
+		attackDriver->BattleHUD.startX = screenPosition[0] + GAME_TRACKER->pushBuffer[attackDriver->driverID].rect.x;
+		attackDriver->BattleHUD.startY = screenPosition[1] + GAME_TRACKER->pushBuffer[attackDriver->driverID].rect.y - VEH_PICK_BATTLE_HUD_OFFSET_Y;
 
 		battleResultPass = 0;
-		if ((VEH_GAME_TRACKER->gameMode1 & LIFE_LIMIT) != 0)
+		if ((GAME_TRACKER->gameMode1 & LIFE_LIMIT) != 0)
 		{
 			one = 1;
 		}
@@ -331,7 +331,7 @@ DamageApplied:
 
 			// NOTE(aalhendi): Retail rechecks END_OF_RACE after RB_Player_KillPlayer,
 			// which can transition battle finish state inside this one-pass loop.
-			if ((VEH_GAME_TRACKER->gameMode1 & END_OF_RACE) != 0)
+			if ((GAME_TRACKER->gameMode1 & END_OF_RACE) != 0)
 			{
 				attackDriver->quip1 = (s16)reason;
 				victimDriver->quip3 = (s16)reason;
@@ -340,7 +340,7 @@ DamageApplied:
 			battleResultPass++;
 		}
 
-		if ((attackDriver == victimDriver) && ((VEH_GAME_TRACKER->gameMode1 & POINT_LIMIT) != 0))
+		if ((attackDriver == victimDriver) && ((GAME_TRACKER->gameMode1 & POINT_LIMIT) != 0))
 		{
 			if (victimDriver->BattleHUD.cooldown == VEH_PICK_BATTLE_HUD_COOLDOWN)
 			{

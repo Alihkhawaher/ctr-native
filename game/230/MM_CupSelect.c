@@ -87,20 +87,20 @@ void MM_CupSelect_MenuProc(struct RectMenu *menu)
 			if (MM_CUP_TRANSITION_START_AFTER_EXIT != 0)
 			{
 				// set cupID to the cup selected
-				MM_GAME_TRACKER->cup.cupID = menuState->rowSelected;
+				GAME_TRACKER->cup.cupID = menuState->rowSelected;
 
 				// set track index to zero, to go to first track
-				MM_GAME_TRACKER->cup.trackIndex = 0;
+				GAME_TRACKER->cup.trackIndex = 0;
 
 				// loop through 8 drivers
 				for (driverIndex = 0; driverIndex < MM_CUP_SELECT_DRIVER_SLOT_COUNT; driverIndex++)
 				{
 					// set all points for all 8 drivers to zero
-					MM_GAME_TRACKER->cup.points[driverIndex] = 0;
+					GAME_TRACKER->cup.points[driverIndex] = 0;
 				}
 
 				// set current level
-				MM_GAME_TRACKER->currLEV = MM_ARCADE_CUPS[MM_GAME_TRACKER->cup.cupID].CupTrack[MM_GAME_TRACKER->cup.trackIndex].trackID;
+				GAME_TRACKER->currLEV = MM_ARCADE_CUPS[GAME_TRACKER->cup.cupID].CupTrack[GAME_TRACKER->cup.trackIndex].trackID;
 
 				// passthrough Menu for the function
 				MM_DESIRED_MENU = &MM_MENU_QUEUE_LOAD_TRACK;
@@ -131,7 +131,7 @@ void MM_CupSelect_MenuProc(struct RectMenu *menu)
 			// retail's temporary address materialization in $v0.
 			CTR_PSX_OBSERVE_VALUE(transitionBase);
 			cupTransitions = transitionBase;
-			DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_SELECT_CUP_RACE],
+			DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_SELECT_CUP_RACE],
 			                   (u16)cupTransitions[MM_CUP_SELECT_TITLE_META_INDEX].currX + MM_CUP_SELECT_TITLE_X_OFFSET,
 			                   (u16)cupTransitions[MM_CUP_SELECT_TITLE_META_INDEX].currY + MM_CUP_SELECT_TITLE_Y_OFFSET, titleFont, MM_CUP_SELECT_TEXT_COLOR);
 		}
@@ -162,10 +162,10 @@ void MM_CupSelect_MenuProc(struct RectMenu *menu)
 					CTR_PSX_OBSERVE_VALUE(coordinateOffset);
 					cupOrNameYWork = signedCupIndex + ((u32)cupOrNameYWork >> 31);
 					cupOrNameYWork >>= 1;
-					CTR_PSX_LOAD_SYMBOL_PAGE(languageStringAddress, MM_LANGUAGE_STRINGS_ASM_NAME);
+					CTR_PSX_LOAD_SYMBOL_PAGE(languageStringAddress, RETAIL_LANGUAGE_STRINGS_ASM_NAME);
 					nameY = (u16)((struct TransitionMeta *)transitionAddressOrNameX)->currX;
-					CTR_PSX_LOAD_WORD_FROM_PAGE_AFTER(languageStringAddress, languageStringAddress, MM_LANGUAGE_STRINGS_ASM_NAME, (u32)MM_LANGUAGE_STRINGS,
-					                                  nameY);
+					CTR_PSX_LOAD_WORD_FROM_PAGE_AFTER(languageStringAddress, languageStringAddress, RETAIL_LANGUAGE_STRINGS_ASM_NAME,
+					                                  (u32)GAME_LANGUAGE_STRINGS, nameY);
 					nameY += coordinateOffset;
 					CTR_PSX_OBSERVE_VALUE(nameY);
 					coordinateOffset = cupOrNameYWork << 2;
@@ -246,8 +246,8 @@ void MM_CupSelect_MenuProc(struct RectMenu *menu)
 		cupIndex = 0;
 		{
 			register u32 symbolPage CTR_PSX_REGISTER("$2");
-			CTR_PSX_LOAD_SYMBOL_PAGE(symbolPage, MM_GAME_PROGRESS_ASM_NAME);
-			CTR_PSX_ADD_SYMBOL_LOW(gameUnlocksBase, symbolPage, MM_GAME_PROGRESS_ASM_NAME, (u32)MM_GAME_UNLOCKS - sizeof(u32));
+			CTR_PSX_LOAD_SYMBOL_PAGE(symbolPage, RETAIL_GAME_PROGRESS_ASM_NAME);
+			CTR_PSX_ADD_SYMBOL_LOW(gameUnlocksBase, symbolPage, RETAIL_GAME_PROGRESS_ASM_NAME, (u32)MM_GAME_UNLOCKS - sizeof(u32));
 			CTR_PSX_KEEP_VALUE(gameUnlocksBase);
 		}
 		CTR_PSX_ZERO_VALUE(starIndex);
@@ -353,7 +353,7 @@ void MM_CupSelect_MenuProc(struct RectMenu *menu)
 							workV0 = MM_GAME_TRACKER_PAGE_VALUE;
 							CTR_PSX_DEPEND_VALUE(starX, workV0);
 							starX += MM_CUP_SELECT_STAR_X_OFFSET;
-							gameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, workV0, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+							gameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, workV0, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 							CTR_PSX_DEPEND_VALUE(starX, gameTracker);
 							starX = signedStartX + starX;
 							CTR_PSX_OBSERVE_VALUE(starX);
@@ -414,7 +414,7 @@ void MM_CupSelect_MenuProc(struct RectMenu *menu)
 						posX = (s16)posX;
 						CTR_PSX_KEEP_VALUE(posX);
 						posY = startY + (trackIndex / 2) * MM_CUP_SELECT_TRACK_Y_STEP;
-						CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, MM_GAME_TRACKER_ASM_NAME);
+						CTR_PSX_LOAD_SYMBOL_PAGE(gameTrackerPage, RETAIL_GAME_TRACKER_ASM_NAME);
 						signedTrackIndex = (s16)trackIndex;
 						trackAddress = signedTrackIndex << 2;
 						trackAddress += cupTrackOffset;
@@ -422,7 +422,7 @@ void MM_CupSelect_MenuProc(struct RectMenu *menu)
 						posY = (s16)posY;
 						CTR_PSX_KEEP_VALUE(posY);
 						iconID = *(s16 *)(trackAddress + 4);
-						gameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+						gameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 						iconID <<= 2;
 						backBuffer = gameTracker->backBuffer;
 						orderingTable = gameTracker->pushBuffer_UI.ptrOT;
@@ -445,15 +445,15 @@ void MM_CupSelect_MenuProc(struct RectMenu *menu)
 					cupBox.h = MM_CUP_SELECT_HIGHLIGHT_HEIGHT;
 
 					MM_DRAW_CLEAR_BOX(
-					    &cupBox, &MM_MENU_ROW_HIGHLIGHT_NORMAL, TRANS_50_DECAL,
-					    CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->backBuffer->otMem.uiOT,
-					    &CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->backBuffer->primMem);
+					    &cupBox, &GAME_MENU_HIGHLIGHT, TRANS_50_DECAL,
+					    CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->backBuffer->otMem.uiOT,
+					    &CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->backBuffer->primMem);
 				}
 
 				// background box
 				{
 					register struct GameTracker *backgroundGameTracker CTR_PSX_REGISTER("$3");
-					backgroundGameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+					backgroundGameTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 					cupBox.x = startX + MM_CUP_SELECT_BACKGROUND_X_OFFSET;
 					cupBox.y = startY + MM_CUP_SELECT_BACKGROUND_Y_OFFSET;
 					cupBox.w = MM_CUP_SELECT_BACKGROUND_WIDTH;

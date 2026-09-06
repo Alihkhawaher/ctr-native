@@ -70,7 +70,7 @@ enum
 	MM_TRACK_SELECT_INPUT_BACK = BTN_TRIANGLE | BTN_SQUARE_one,
 };
 
-#define MM_TRACK_GAME_TRACKER(page) CTR_PSX_PAGE_LVALUE(struct GameTracker *, page, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)
+#define MM_TRACK_GAME_TRACKER(page) CTR_PSX_PAGE_LVALUE(struct GameTracker *, page, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)
 
 void MM_TrackSelect_Video_SetDefaults(void)
 {
@@ -203,9 +203,9 @@ void MM_TrackSelect_Video_Draw(RECT *r, struct MainMenu_LevelRow *selectMenu, s1
 			int srcX;
 			int srcY;
 			int uploaded;
-			u16 tpage = MM_GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.tpage;
-			u0 = MM_GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.u0;
-			v0 = MM_GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.v0;
+			u16 tpage = GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.tpage;
+			u0 = GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.u0;
+			v0 = GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.v0;
 			srcX = u0 + (tpage & 0xf) * 0x40;
 			srcY = v0 + ((tpage & 0x10) * 0x10 + ((tpage & 0x800) >> 2));
 			uploaded = NativeSTR_UploadNextFrame(srcX, srcY);
@@ -268,9 +268,9 @@ void MM_TrackSelect_Video_Draw(RECT *r, struct MainMenu_LevelRow *selectMenu, s1
 			s16 dstX;
 			s16 dstY;
 			b32 decodedFrame;
-			u32 tpage = MM_GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.tpage;
-			u0 = MM_GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.u0;
-			v0 = MM_GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.v0;
+			u32 tpage = GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.tpage;
+			u0 = GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.u0;
+			v0 = GAME_TRACKER->ptrIcons[MM_TRACK_VIDEO_ICON_INDEX]->texLayout.v0;
 			// Decode into the icon's VRAM page; the copied rectangle starts inside it.
 			decodeX = u0 + (tpage & 0xf) * 0x40;
 			decodeY = v0 + (((tpage & 0x10) * 0x10) + ((tpage & 0x800) >> 2));
@@ -297,10 +297,10 @@ void MM_TrackSelect_Video_Draw(RECT *r, struct MainMenu_LevelRow *selectMenu, s1
 				videoRect->h = MM_TRACK_VIDEO_FRAME_HEIGHT;
 
 				// VRAM destination (x,y) on swapchain image
-				displayX = ((volatile struct GameTracker *)MM_GAME_TRACKER)->db[MM_GAME_TRACKER->swapchainIndex].dispEnv.disp.x;
+				displayX = ((volatile struct GameTracker *)GAME_TRACKER)->db[GAME_TRACKER->swapchainIndex].dispEnv.disp.x;
 				dstX = (displayX + ((volatile u16 *)r)[0]) + MM_TRACK_VIDEO_FRAME_SRC_OFFSET_X;
 				MM_VIDEO_STR_DST_X = dstX;
-				displayY = ((volatile struct GameTracker *)MM_GAME_TRACKER)->db[MM_GAME_TRACKER->swapchainIndex].dispEnv.disp.y;
+				displayY = ((volatile struct GameTracker *)GAME_TRACKER)->db[GAME_TRACKER->swapchainIndex].dispEnv.disp.y;
 				dstY = (displayY + ((volatile u16 *)r)[1]) + MM_TRACK_VIDEO_FRAME_SRC_OFFSET_Y;
 				MM_VIDEO_STR_DST_Y = dstY;
 
@@ -321,8 +321,8 @@ void MM_TrackSelect_Video_Draw(RECT *r, struct MainMenu_LevelRow *selectMenu, s1
 	if (MM_TRACK_VIDEO_STATE_CURR != MM_TRACK_VIDEO_PLAYING)
 	{
 		// Draw Video icon
-		MM_RECTMENU_DRAW_POLY_GT4(MM_GAME_TRACKER->ptrIcons[selectMenu[trackIndex].videoThumbnail], (r->x + MM_TRACK_VIDEO_FRAME_SRC_OFFSET_X),
-		                          (r->y + MM_TRACK_VIDEO_FRAME_SRC_OFFSET_Y), &MM_GAME_TRACKER->backBuffer->primMem, MM_GAME_TRACKER->pushBuffer_UI.ptrOT,
+		MM_RECTMENU_DRAW_POLY_GT4(GAME_TRACKER->ptrIcons[selectMenu[trackIndex].videoThumbnail], (r->x + MM_TRACK_VIDEO_FRAME_SRC_OFFSET_X),
+		                          (r->y + MM_TRACK_VIDEO_FRAME_SRC_OFFSET_Y), &GAME_TRACKER->backBuffer->primMem, GAME_TRACKER->pushBuffer_UI.ptrOT,
 		                          MM_VIDEO_COLOR, MM_VIDEO_COLOR, MM_VIDEO_COLOR, MM_VIDEO_COLOR, 0, FP(1.0));
 	}
 
@@ -379,7 +379,7 @@ void MM_TrackSelect_Video_Draw(RECT *r, struct MainMenu_LevelRow *selectMenu, s1
 	MM_TRACK_VIDEO_STATE_PREV = MM_TRACK_VIDEO_STATE_CURR;
 
 	// Draw 2D Menu rectangle background
-	RECTMENU_DrawInnerRect(r, (s16)(rectFlags | 1), MM_GAME_TRACKER->backBuffer->otMem.uiOT);
+	RECTMENU_DrawInnerRect(r, (s16)(rectFlags | 1), GAME_TRACKER->backBuffer->otMem.uiOT);
 }
 
 b16 MM_TrackSelect_boolTrackOpen(struct MainMenu_LevelRow *menuSelect)
@@ -390,8 +390,8 @@ b16 MM_TrackSelect_boolTrackOpen(struct MainMenu_LevelRow *menuSelect)
 	flag = menuSelect->unlock;
 	unlocked = false;
 
-	if ((flag == MM_TRACK_UNLOCK_ALWAYS) || ((flag == MM_TRACK_UNLOCK_1P_ONLY) && (MM_GAME_TRACKER->numPlyrNextGame == 1)) ||
-	    ((flag >= 0) && CHECK_ADV_BIT(MM_GAME_PROGRESS.unlocks, flag)))
+	if ((flag == MM_TRACK_UNLOCK_ALWAYS) || ((flag == MM_TRACK_UNLOCK_1P_ONLY) && (GAME_TRACKER->numPlyrNextGame == 1)) ||
+	    ((flag >= 0) && CHECK_ADV_BIT(GAME_PROGRESS.unlocks, flag)))
 	{
 		unlocked = true;
 	}
@@ -475,7 +475,7 @@ void MM_TrackSelect_MenuProc(struct RectMenu *menu)
 		register u32 enteringFramePage CTR_PSX_REGISTER("$16");
 		register s32 enteringFrame CTR_PSX_REGISTER("$5");
 		register s32 slideFrames CTR_PSX_REGISTER("$6");
-		if ((MM_GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
+		if ((GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
 		{
 			errorMessagePosIndex = 2;
 		}
@@ -515,13 +515,13 @@ void MM_TrackSelect_MenuProc(struct RectMenu *menu)
 			MM_ERROR_MESSAGE_POS_INDEX = 0;
 			if (MM_TRACK_TRANSITION_START_AFTER_EXIT != 0)
 			{
-				if ((MM_GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
+				if ((GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
 				{
 					MM_DESIRED_MENU = &MM_MENU_BATTLE_WEAPONS;
 					MM_Battle_Init();
 					return;
 				}
-				if ((MM_GAME_TRACKER->gameMode1 & TIME_TRIAL) != 0)
+				if ((GAME_TRACKER->gameMode1 & TIME_TRIAL) != 0)
 				{
 					MM_GHOST_TAPE_PLAYING = MM_ALLOC_HIGH_MEM(MM_TRACK_SELECT_GHOST_TAPE_ALLOC_SIZE, MM_LOADED_GHOST_DATA);
 					memset(MM_GHOST_TAPE_PLAYING, 0, MM_TRACK_SELECT_GHOST_TAPE_CLEAR_SIZE);
@@ -550,7 +550,7 @@ void MM_TrackSelect_MenuProc(struct RectMenu *menu)
 #endif
 
 	// Battle and race modes use different track tables and row counts.
-	if ((MM_GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
+	if ((GAME_TRACKER->gameMode1 & BATTLE_MODE) != 0)
 	{
 		register u32 trackTablePage CTR_PSX_REGISTER("$2");
 		register s16 trackCountValue CTR_PSX_REGISTER("$12");
@@ -676,7 +676,7 @@ void MM_TrackSelect_MenuProc(struct RectMenu *menu)
 								{
 									OtherFX_Play(1, 1);
 									{
-										u32 gameMode = MM_GAME_TRACKER->gameMode1;
+										u32 gameMode = GAME_TRACKER->gameMode1;
 										if ((gameMode & BATTLE_MODE) != 0)
 										{
 											register u32 startAfterPage CTR_PSX_REGISTER("$2");
@@ -770,7 +770,7 @@ void MM_TrackSelect_MenuProc(struct RectMenu *menu)
 			}
 			RECTMENU_DrawSelf(&MM_MENU_LAP_SELECT, MM_TRACK_TRANSITIONS[2].currX, MM_TRACK_TRANSITIONS[2].currY, MM_TRACK_SELECT_LAP_MENU_WIDTH);
 			MM_USELESS_LAP_ROW_COPY = MM_MENU_LAP_SELECT.rowSelected;
-			MM_GAME_TRACKER->numLaps = MM_LAP_COUNT_BY_ROW[MM_MENU_LAP_SELECT.rowSelected].lapCount;
+			GAME_TRACKER->numLaps = MM_LAP_COUNT_BY_ROW[MM_MENU_LAP_SELECT.rowSelected].lapCount;
 			{
 				s32 lapResult;
 				lapResult = (s16)lapSelTransitionState;
@@ -784,9 +784,9 @@ void MM_TrackSelect_MenuProc(struct RectMenu *menu)
 					MM_TRACK_LAP_BOX_OPEN = 0;
 				}
 			}
-			if ((MM_GAME_TRACKER->gameMode2 & CHEAT_ONELAP) != 0)
+			if ((GAME_TRACKER->gameMode2 & CHEAT_ONELAP) != 0)
 			{
-				MM_GAME_TRACKER->numLaps = 1;
+				GAME_TRACKER->numLaps = 1;
 			}
 		}
 	}
@@ -840,9 +840,9 @@ trackSelectionMenuDone:
 		register struct GameTracker *scanTracker CTR_PSX_REGISTER("$3");
 		register s32 selectedTrack CTR_PSX_REGISTER("$4");
 #ifdef CTR_NATIVE
-		scanTracker = MM_GAME_TRACKER;
+		scanTracker = GAME_TRACKER;
 #else
-		asm("lui %0,%%hi(" MM_GAME_TRACKER_ASM_NAME ")" : "=r"(scanTracker));
+		asm("lui %0,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")" : "=r"(scanTracker));
 #endif
 		trackCount = numTracks;
 #ifndef CTR_NATIVE
@@ -851,7 +851,7 @@ trackSelectionMenuDone:
 		scanMenu = menuLocal;
 #ifndef CTR_NATIVE
 		asm("" : "+r"(scanMenu) : "r"(trackCount));
-		asm volatile("lw %0,%%lo(" MM_GAME_TRACKER_ASM_NAME ")(%0)" : "+r"(scanTracker) : "r"(scanMenu));
+		asm volatile("lw %0,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")(%0)" : "+r"(scanTracker) : "r"(scanMenu));
 #endif
 		selectedTrack = (s16)scanMenu->rowSelected;
 #ifdef CTR_NATIVE
@@ -883,7 +883,7 @@ trackSelectionMenuDone:
 #ifdef CTR_NATIVE
 		gameTrackerPage = 0;
 #else
-		asm("lui %0,%%hi(" MM_GAME_TRACKER_ASM_NAME ")" : "=r"(gameTrackerPage));
+		asm("lui %0,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")" : "=r"(gameTrackerPage));
 #endif
 		// Draw each visible row, wrapping past locked and final tracks.
 		do
@@ -1015,7 +1015,7 @@ trackSelectionMenuDone:
 			rowRect.x = (s16)rowBaseX;
 			CTR_PSX_MEMORY_BARRIER();
 			rowBaseY = (u16)rowTransition->currY;
-			rowTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+			rowTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 			CTR_PSX_KEEP_VALUE(rowTracker);
 			rowBaseY += rowCalc;
 			rowBaseY += MM_TRACK_SELECT_ROW_Y_OFFSET;
@@ -1037,11 +1037,11 @@ trackSelectionMenuDone:
 				{
 					s16 beatenFlagBit;
 					u32 timeTrialFlags;
-					CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->levelID = timeTrialTrack->levID;
+					CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->levelID = timeTrialTrack->levID;
 					GAMEPROG_GetPtrHighScoreTrack();
 #ifdef CTR_NATIVE
 					beatenFlagBit = MM_TIME_TRIAL_STAR_FLAGS[starIndex];
-					timeTrialFlags = MM_GAME_PROGRESS.highScoreTracks[rowTracker->levelID].timeTrialFlags;
+					timeTrialFlags = GAME_PROGRESS.highScoreTracks[rowTracker->levelID].timeTrialFlags;
 #else
 					{
 						register u32 starFlagsAddress CTR_PSX_REGISTER("$2");
@@ -1049,8 +1049,8 @@ trackSelectionMenuDone:
 						asm("lui %0,%%hi(" MM_TIME_TRIAL_STAR_FLAGS_ASM_NAME ")" : "=r"(starFlagsAddress));
 						asm("addiu %0,%0,%%lo(" MM_TIME_TRIAL_STAR_FLAGS_ASM_NAME ")" : "+r"(starFlagsAddress));
 						starFlagsAddress = (starIndex << 1) + starFlagsAddress;
-						asm("lui %0,%%hi(" MM_GAME_PROGRESS_ASM_NAME ")" : "=r"(gameProgressBase) : "r"(starFlagsAddress));
-						asm("addiu %0,%0,%%lo(" MM_GAME_PROGRESS_ASM_NAME ")" : "+r"(gameProgressBase));
+						asm("lui %0,%%hi(" RETAIL_GAME_PROGRESS_ASM_NAME ")" : "=r"(gameProgressBase) : "r"(starFlagsAddress));
+						asm("addiu %0,%0,%%lo(" RETAIL_GAME_PROGRESS_ASM_NAME ")" : "+r"(gameProgressBase));
 						beatenFlagBit = *((u16 *)starFlagsAddress);
 						timeTrialFlags = ((u32 *)(gameProgressBase + MM_TRACK_SELECT_TIME_TRIAL_FLAGS_OFFSET))
 						    [((*((struct GameTracker **)(((u32)gameTrackerPage) + MM_GAME_TRACKER_PAGE_OFFSET)))->levelID *
@@ -1089,7 +1089,7 @@ trackSelectionMenuDone:
 #else
 						asm("addiu %0,%0,4" : "+r"(starY));
 #endif
-						starTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+						starTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 						starOt = starTracker->pushBuffer_UI.ptrOT;
 						starIconGroup = starTracker->iconGroup[MM_TRACK_SELECT_TT_STAR_ICON_GROUP];
 						starBackBuffer = starTracker->backBuffer;
@@ -1105,7 +1105,7 @@ trackSelectionMenuDone:
 					}
 				}
 
-				CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->levelID = previousLevelID;
+				CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->levelID = previousLevelID;
 				GAMEPROG_GetPtrHighScoreTrack();
 			}
 			{
@@ -1138,7 +1138,7 @@ trackSelectionMenuDone:
 #ifndef CTR_NATIVE
 				asm("sra %0,%0,16" : "+r"(rowNameY));
 #endif
-				MM_DRAW_LINE_WIDE_FLAGS(CTR_PSX_PAGE_LVALUE(char **, uiPage, MM_LANGUAGE_STRINGS_PAGE_OFFSET, MM_LANGUAGE_STRINGS)[trackNameIndex], rowNameX,
+				MM_DRAW_LINE_WIDE_FLAGS(CTR_PSX_PAGE_LVALUE(char **, uiPage, MM_LANGUAGE_STRINGS_PAGE_OFFSET, GAME_LANGUAGE_STRINGS)[trackNameIndex], rowNameX,
 				                        rowNameY, FONT_BIG, ORANGE);
 				rowDrawRectArg = &rowRect;
 				if ((MM_TRACK_CHANGE_FRAMES == 0) && (((s16)rowIndex) == MM_TRACK_SELECT_CENTER_ROW))
@@ -1147,7 +1147,7 @@ trackSelectionMenuDone:
 					register RECT16 *clearRectArg CTR_PSX_REGISTER("$4");
 					register u32 highlightColorPage CTR_PSX_REGISTER("$5");
 					register struct GameTracker *highlightTracker CTR_PSX_REGISTER("$2");
-					if ((CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER)->gameMode1 & TIME_TRIAL) != 0)
+					if ((CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER)->gameMode1 & TIME_TRIAL) != 0)
 					{
 						s16 ghostProfileCount = RefreshCard_CountGhostProfilesForLEV(trackEntry->levID);
 						if (ghostProfileCount != 0)
@@ -1173,7 +1173,7 @@ trackSelectionMenuDone:
 								ghostTextY = (s16)ghostTextYCalc;
 							}
 							ghostTextFlags = MM_FRAME_COUNTER;
-							ghostStrings = CTR_PSX_PAGE_LVALUE(char **, uiPage, MM_LANGUAGE_STRINGS_PAGE_OFFSET, MM_LANGUAGE_STRINGS);
+							ghostStrings = CTR_PSX_PAGE_LVALUE(char **, uiPage, MM_LANGUAGE_STRINGS_PAGE_OFFSET, GAME_LANGUAGE_STRINGS);
 							ghostTextFlags &= MM_TRACK_SELECT_GHOST_FLASH_FRAME_BIT;
 							if (ghostTextFlags != 0)
 							{
@@ -1193,14 +1193,14 @@ trackSelectionMenuDone:
 					highlightRect.x = rowRect.x + MM_TRACK_SELECT_HIGHLIGHT_INSET_X;
 					highlightRect.w = rowRect.w - MM_TRACK_SELECT_HIGHLIGHT_W_SHRINK;
 					highlightRect.y = rowRect.y + MM_TRACK_SELECT_HIGHLIGHT_INSET_Y;
-					highlightTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+					highlightTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 					highlightRect.h = rowRect.h - MM_TRACK_SELECT_HIGHLIGHT_H_SHRINK;
 					MM_DRAW_CLEAR_BOX(clearRectArg,
-					                  &CTR_PSX_PAGE_LVALUE(Color, highlightColorPage, MM_MENU_ROW_HIGHLIGHT_NORMAL_PAGE_OFFSET, MM_MENU_ROW_HIGHLIGHT_NORMAL),
+					                  &CTR_PSX_PAGE_LVALUE(Color, highlightColorPage, MM_MENU_ROW_HIGHLIGHT_NORMAL_PAGE_OFFSET, GAME_MENU_HIGHLIGHT),
 					                  TRANS_50_DECAL, highlightTracker->backBuffer->otMem.uiOT, &highlightTracker->backBuffer->primMem);
 					rowDrawRectArg = &rowRect;
 				}
-				rowDrawTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+				rowDrawTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, gameTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 				rowDrawZero = 0;
 				rowDrawTrackCount = *((volatile u16 *)&numTracks);
 				rowDrawOt = rowDrawTracker->backBuffer->otMem.uiOT;
@@ -1265,9 +1265,9 @@ trackSelectionMenuDone:
 					{
 #ifdef CTR_NATIVE
 						levelTitleTransition = MM_TRACK_TRANSITIONS;
-						DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_SELECT_LEVEL_SELECT], levelTitleTransition[3].currX + MM_TRACK_SELECT_TITLE_X,
+						DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_SELECT_LEVEL_SELECT], levelTitleTransition[3].currX + MM_TRACK_SELECT_TITLE_X,
 						                   levelTitleTransition[3].currY + (u16)previewRect.y, FONT_BIG, JUSTIFY_CENTER | ORANGE);
-						DecalFont_DrawLine(MM_LANGUAGE_STRINGS[LNG_LEVEL], levelTitleTransition[3].currX + MM_TRACK_SELECT_TITLE_X,
+						DecalFont_DrawLine(GAME_LANGUAGE_STRINGS[LNG_LEVEL], levelTitleTransition[3].currX + MM_TRACK_SELECT_TITLE_X,
 						                   levelTitleTransition[3].currY + (u16)previewRect.y + MM_TRACK_SELECT_LEVEL_TEXT_Y_STEP, FONT_BIG,
 						                   JUSTIFY_CENTER | ORANGE);
 #else
@@ -1277,10 +1277,10 @@ trackSelectionMenuDone:
 						             ".set\tnomacro\n\t"
 						             "lui $16,%%hi(" MM_TRACK_TRANSITIONS_ASM_NAME ")\n\t"
 						             "addiu $16,$16,%%lo(" MM_TRACK_TRANSITIONS_ASM_NAME ")\n\t"
-						             "lui $18,%%hi(" MM_LANGUAGE_STRINGS_ASM_NAME ")\n\t"
+						             "lui $18,%%hi(" RETAIL_LANGUAGE_STRINGS_ASM_NAME ")\n\t"
 						             "lhu $5,36($16)\n\t"
 						             "lhu $3,%0\n\t"
-						             "lw $2,%%lo(" MM_LANGUAGE_STRINGS_ASM_NAME ")($18)\n\t"
+						             "lw $2,%%lo(" RETAIL_LANGUAGE_STRINGS_ASM_NAME ")($18)\n\t"
 						             "li $17,-32768\n\t"
 						             "sw $17,16($sp)\n\t"
 						             "lhu $6,38($16)\n\t"
@@ -1294,7 +1294,7 @@ trackSelectionMenuDone:
 						             "sra $6,$6,16\n\t"
 						             "lhu $5,36($16)\n\t"
 						             "lhu $3,%0\n\t"
-						             "lw $2,%%lo(" MM_LANGUAGE_STRINGS_ASM_NAME ")($18)\n\t"
+						             "lw $2,%%lo(" RETAIL_LANGUAGE_STRINGS_ASM_NAME ")($18)\n\t"
 						             "li $7,1\n\t"
 						             "sw $17,16($sp)\n\t"
 						             "lhu $6,38($16)\n\t"
@@ -1399,7 +1399,7 @@ trackSelectionMenuDone:
 									mapRect.y = mapRectY;
 								}
 								mapID = selectMenu[mapMenu->rowSelected].mapTextureID;
-								mapTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, mapTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, MM_GAME_TRACKER);
+								mapTracker = CTR_PSX_PAGE_LVALUE(struct GameTracker *, mapTrackerPage, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
 								iconMap0 = mapTracker->ptrIcons[mapID + 0];
 								iconMap1 = mapTracker->ptrIcons[mapID + 1];
 							}
@@ -1436,7 +1436,7 @@ trackSelectionMenuDone:
 								register struct RectMenu *mapDrawMenu CTR_PSX_REGISTER("$15");
 								register struct GameTracker *mapDrawTracker CTR_PSX_REGISTER("$8");
 								register s32 mapLayerIndex CTR_PSX_REGISTER("$2");
-								mapDrawTracker = MM_GAME_TRACKER;
+								mapDrawTracker = GAME_TRACKER;
 								mapHalfWidth = ((s32)((s16)mapRect.w)) / 2;
 								mapLayerIndex = (s16)mapLayer;
 								mapOffset = &mapOffsetBase[mapLayerIndex];
@@ -1460,7 +1460,7 @@ trackSelectionMenuDone:
 							             "srl $3,$3,31\n\t"
 							             "addu $2,$2,$3\n\t"
 							             "sra $16,$2,1\n\t"
-							             "lui $5,%%hi(" MM_GAME_TRACKER_ASM_NAME ")\n\t"
+							             "lui $5,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")\n\t"
 							             "1:\n\t"
 							             "sll $2,$18,16\n\t"
 							             "sra $2,$2,16\n\t"
@@ -1470,7 +1470,7 @@ trackSelectionMenuDone:
 							             "addu $4,$4,$19\n\t"
 							             "addiu $18,$18,1\n\t"
 							             "lw $15,80($sp)\n\t"
-							             "lw $8,%%lo(" MM_GAME_TRACKER_ASM_NAME ")($5)\n\t"
+							             "lw $8,%%lo(" RETAIL_GAME_TRACKER_ASM_NAME ")($5)\n\t"
 							             "lh $6,0($4)\n\t"
 							             "lh $10,72($sp)\n\t"
 							             "lh $9,2($4)\n\t"
@@ -1520,7 +1520,7 @@ trackSelectionMenuDone:
 							             "andi $2,$18,0xffff\n\t"
 							             "sltiu $2,$2,6\n\t"
 							             "bne $2,$0,1b\n\t"
-							             "lui $5,%%hi(" MM_GAME_TRACKER_ASM_NAME ")\n\t"
+							             "lui $5,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")\n\t"
 							             ".set\tmacro\n\t"
 							             ".set\treorder"
 							             :

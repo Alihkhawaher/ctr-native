@@ -62,7 +62,7 @@ typedef s16 VehGroundShadowSignedHalfword CTR_MAY_ALIAS;
 b32 VehGroundShadow_Subset1(struct TextureLayout *pDst, int iconIndex)
 {
 	// get pointer to icon
-	struct Icon *pIcon = VEH_GAME_TRACKER->ptrIcons[iconIndex];
+	struct Icon *pIcon = GAME_TRACKER->ptrIcons[iconIndex];
 	register VehGroundShadowWord textureWord CTR_PSX_REGISTER("$2");
 
 	// validate icon pointer
@@ -147,7 +147,7 @@ void VehGroundShadow_Main(void)
 		return;
 
 	{
-		struct GameTracker *tracker = VEH_GAME_TRACKER;
+		struct GameTracker *tracker = GAME_TRACKER;
 		struct DB *backBuffer = tracker->backBuffer;
 
 		prim = (u32 *)backBuffer->primMem.cursor;
@@ -166,7 +166,7 @@ void VehGroundShadow_Main(void)
 	y = (size_t)(scratch + 0xb6);
 	do
 	{
-		struct GameTracker *tracker = VEH_GAME_TRACKER;
+		struct GameTracker *tracker = GAME_TRACKER;
 
 		driver = tracker->drivers[playerIndex];
 		if (driver != NULL)
@@ -211,7 +211,7 @@ void VehGroundShadow_Main(void)
 	} while (playerIndex < VEH_GROUND_SHADOW_MAX_DRIVERS);
 
 	{
-		struct GameTracker *tracker = VEH_GAME_TRACKER;
+		struct GameTracker *tracker = GAME_TRACKER;
 
 		*(struct Driver **)(entryBase + 0x14) = NULL;
 		v0Value = tracker->numPlyrCurrGame;
@@ -584,7 +584,7 @@ void VehGroundShadow_Main(void)
 
 write_cursor:
 {
-	struct GameTracker *tracker = VEH_GAME_TRACKER;
+	struct GameTracker *tracker = GAME_TRACKER;
 	tracker->backBuffer->primMem.cursor = prim;
 }
 }
