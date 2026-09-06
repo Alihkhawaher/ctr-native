@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 import io
 import struct
 import sys
@@ -12,21 +11,10 @@ from types import SimpleNamespace
 from unittest import mock
 
 
-MODULE_PATH = Path(__file__).with_name("match.py")
-SPEC = importlib.util.spec_from_file_location("ctr_match", MODULE_PATH)
-assert SPEC is not None and SPEC.loader is not None
-ctr_match = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = ctr_match
-SPEC.loader.exec_module(ctr_match)
-
-NAMESPACE_MODULE_PATH = Path(__file__).with_name("namespace_match.py")
-NAMESPACE_SPEC = importlib.util.spec_from_file_location(
-    "ctr_namespace_match", NAMESPACE_MODULE_PATH
-)
-assert NAMESPACE_SPEC is not None and NAMESPACE_SPEC.loader is not None
-ctr_namespace_match = importlib.util.module_from_spec(NAMESPACE_SPEC)
-sys.modules[NAMESPACE_SPEC.name] = ctr_namespace_match
-NAMESPACE_SPEC.loader.exec_module(ctr_namespace_match)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pipeline as ctr_match
+import resident as ctr_resident
+import match as cli
 
 
 class ExtractFunctionTests(unittest.TestCase):
@@ -52,7 +40,7 @@ void after(void) {}
 
     def test_manifest_probes_extract_from_production_source(self) -> None:
         manifest = ctr_match.load_json(ctr_match.DEFAULT_MANIFEST)
-        for probe in manifest["compiler_probes"]:
+        for probe in ctr_match.configured_targets(manifest, "probe"):
             source = ctr_match.ROOT / probe["source"]
             extracted = ctr_match.extract_function(source.read_text(), probe["symbol"])
             self.assertIn(probe["symbol"], extracted)
@@ -62,7 +50,7 @@ class ComparisonTests(unittest.TestCase):
     def test_rejects_unknown_artifact_selection(self) -> None:
         manifest = {"artifacts": [{"id": "exe"}]}
         with self.assertRaises(ctr_match.MatchError):
-            ctr_match.parse_selected(manifest, ["typo"])
+            cli.parse_selected(manifest, ["typo"])
 
     def test_first_difference(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -170,54 +158,6 @@ class ToolchainTests(unittest.TestCase):
             ]
         )
 
-    def test_manifest_has_production_overlay_221_build(self) -> None:
-        manifest = ctr_match.load_json(ctr_match.DEFAULT_MANIFEST)
-        build = ctr_match.artifact_build_by_id(manifest, "221")
-        self.assertEqual(build["source"], "game/221.c")
-        self.assertEqual(build["aspsx_version"], "2.77")
-        self.assertEqual(build["overlay_id"], 5)
-        self.assertTrue((ctr_match.ROOT / build["linker_script"]).is_file())
-        self.assertEqual(build["linker_script"], "tools/matching/overlay.ld")
-        self.assertEqual(
-            build["forced_includes"],
-            [
-                "tools/matching/overlays/221/abi.h",
-            ],
-        )
-        self.assertNotIn(
-            "tools/matching/overlays/221/include",
-            build["include_directories"],
-        )
-        self.assertEqual(
-            build["address_aliases"]["cc_gameTracker"],
-            "0x8008d2ac",
-        )
-
-        linker = (ctr_match.ROOT / build["linker_script"]).read_text()
-        self.assertIn("__overlay_load_address", linker)
-        self.assertIn("__overlay_id", linker)
-        self.assertNotIn("0x8009f6fc", linker)
-        self.assertNotIn("CC_EndEvent_DrawMenu", linker)
-
-        abi = ctr_match.ROOT / build["forced_includes"][0]
-        abi_text = abi.read_text()
-        self.assertIn("#include <common.h>", abi_text)
-        self.assertIn("extern struct GameTracker *cc_gameTracker", abi_text)
-        self.assertIn("#define CC_READ_GAME_TRACKER()", abi_text)
-        self.assertNotIn(
-            "extern struct GameTracker *cc_gameTracker",
-            (ctr_match.ROOT / build["source"]).read_text(),
-        )
-        self.assertEqual(
-            set(ctr_match.artifact_build_input_hashes(build)),
-            {
-                build["source"],
-                build["linker_script"],
-                str(ctr_match.SYMBOL_FILE.relative_to(ctr_match.ROOT)),
-                *build["forced_includes"],
-            },
-        )
-
 
 class ResidentNamespaceTests(unittest.TestCase):
     def test_symbol_ranges_cover_the_interval_without_gaps(self) -> None:
@@ -228,13 +168,13 @@ class ResidentNamespaceTests(unittest.TestCase):
             "symbol_prefix": "Veh_",
         }
         symbols = [
-            ctr_namespace_match.Symbol("BeforeVehicle", 0x0FF0),
-            ctr_namespace_match.Symbol("Veh_First", 0x1000),
-            ctr_namespace_match.Symbol("Veh_Second", 0x1020),
-            ctr_namespace_match.Symbol("AfterVehicle", 0x1050),
+            ctr_resident.Symbol("BeforeVehicle", 0x0FF0),
+            ctr_resident.Symbol("Veh_First", 0x1000),
+            ctr_resident.Symbol("Veh_Second", 0x1020),
+            ctr_resident.Symbol("AfterVehicle", 0x1050),
         ]
 
-        ranges = ctr_namespace_match.namespace_symbol_ranges(config, symbols)
+        ranges = ctr_resident.namespace_symbol_ranges(config, symbols)
 
         self.assertEqual(
             [(symbol.name, size) for symbol, size in ranges],
@@ -247,26 +187,26 @@ class ResidentNamespaceTests(unittest.TestCase):
             assembly.write_text(
                 "\t.sdata\nvalue:\n\t.word\t1\n"
                 "\t.extern\tsdata_static+832, 4\n"
-                "\t.section .Veh_Test,\"ax\",@progbits\n"
+                '\t.section .Veh_Test,"ax",@progbits\n'
             )
 
-            ctr_namespace_match.normalize_compiler_directives(assembly)
+            ctr_match.normalize_compiler_directives(assembly)
 
             self.assertEqual(
                 assembly.read_text(),
                 "\t.sdata\nvalue:\n\t.word\t1\n\t.text\n"
-                "\t.section .Veh_Test,\"ax\",@progbits\n",
+                '\t.section .Veh_Test,"ax",@progbits\n',
             )
 
     def test_function_linker_script_keeps_reachable_helpers_nearby(self) -> None:
-        function = ctr_namespace_match.FunctionRange(
+        function = ctr_resident.FunctionRange(
             name="Veh_Test",
             address=0x80050000,
             size=0x40,
             source="game/Vehicle/Test.c",
         )
 
-        linker = ctr_namespace_match.function_linker_script(
+        linker = ctr_resident.function_linker_script(
             function,
             [".Veh_Test", ".Veh_Test_Helper", ".Unrelated"],
         )
@@ -281,12 +221,14 @@ class ResidentNamespaceTests(unittest.TestCase):
         )
 
     def test_vehicle_inventory_maps_every_retail_symbol_to_production(self) -> None:
-        config = ctr_namespace_match.load_namespace("vehicle")
-        symbols = ctr_namespace_match.parse_symbols(
+        config = ctr_match.target_by_name(
+            ctr_match.load_json(ctr_match.DEFAULT_MANIFEST), "vehicle"
+        )
+        symbols = ctr_resident.parse_symbols(
             ctr_match.repository_path(config["symbol_file"])
         )
 
-        functions = ctr_namespace_match.discover_function_ranges(config, symbols)
+        functions = ctr_resident.discover_function_ranges(config, symbols)
 
         self.assertEqual(len(functions), 129)
         self.assertEqual(functions[0].name, "VehAfterColl_GetSurface")
@@ -299,67 +241,142 @@ class ResidentNamespaceTests(unittest.TestCase):
         self.assertEqual(len({function.name for function in functions}), 129)
         self.assertEqual(
             len({function.source for function in functions}),
-            len(ctr_namespace_match.namespace_sources(config)),
+            len(ctr_resident.namespace_sources(config)),
         )
 
 
 class CheckTests(unittest.TestCase):
-    def test_check_rebuilds_linked_artifacts(self) -> None:
-        build = {"artifact": "221"}
-        manifest = {
-            "compiler_probes": [{"symbol": "probe"}],
-            "artifact_builds": [build],
-        }
-        toolchain = SimpleNamespace(
-            compiler_version="2.8.1",
-            default_aspsx_version="2.77",
-        )
-        args = SimpleNamespace(
-            manifest="matching.json",
-            reference_root=None,
-            aspsx_version=None,
-        )
-        references = Path("/retail")
-        probe_result = {
-            "exact": True,
-            "symbol": "probe",
-            "address": "0x80000000",
-            "candidate_size": 4,
-            "expected_size": 4,
-        }
-        artifact_result = {"exact": True}
+    def test_check_includes_every_kind_and_fails_on_any_mismatch(self) -> None:
+        targets = [
+            {"name": "221", "kind": "artifact"},
+            {"name": "vehicle", "kind": "resident"},
+            {"name": "probe", "kind": "probe"},
+        ]
+        manifest = {"targets": targets}
+        args = cli.build_parser().parse_args(["check"])
+        for failed in (None, "221", "vehicle", "probe"):
+            with (
+                self.subTest(failed=failed),
+                mock.patch.object(cli, "load_json", return_value=manifest),
+                mock.patch.object(cli, "resolve_toolchain"),
+                mock.patch.object(cli, "print_toolchain"),
+                mock.patch.object(cli, "reference_root", return_value=Path("/retail")),
+                mock.patch.object(cli, "verify_references", return_value=[]),
+                mock.patch.object(
+                    cli,
+                    "build_target",
+                    side_effect=lambda manifest, tools, config, root: {
+                        "exact": config["name"] != failed
+                    },
+                ) as build,
+                redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(cli.cmd_check(args), int(failed is not None))
+                self.assertEqual(
+                    [call.args[2]["name"] for call in build.call_args_list],
+                    ["221", "vehicle", "probe"],
+                )
 
+    def test_target_inventory_rejects_duplicates_and_unknown_names(self) -> None:
+        config = {"name": "vehicle", "kind": "resident"}
+        with self.assertRaises(ctr_match.MatchError):
+            ctr_match.configured_targets({"targets": [config, config]})
+        with self.assertRaises(ctr_match.MatchError):
+            ctr_match.target_by_name({"targets": [config]}, "typo")
+
+    def test_existing_build_commands_use_the_same_entry_point(self) -> None:
+        for command in ("build", "artifact", "namespace"):
+            args = cli.build_parser().parse_args([command, "vehicle"])
+            self.assertIs(args.func, cli.cmd_build)
+            self.assertEqual(args.target, "vehicle")
+
+
+class EvidenceTests(unittest.TestCase):
+    def test_evidence_expires_when_an_input_or_candidate_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.c"
+            header = root / "header.h"
+            candidate = root / "candidate.bin"
+            source.write_text("source")
+            header.write_text("header")
+            candidate.write_bytes(b"code")
+            config = {
+                "name": "test",
+                "kind": "probe",
+                "source": "source.c",
+                "region": "exe",
+                "compiler_flags": [],
+            }
+            manifest = {
+                "target": "test",
+                "artifacts": [{"id": "exe", "sha256": "retail"}],
+                "toolchain": {
+                    "compiler": {"directory": "gcc", "sha256": {}},
+                    "maspsx": {
+                        "directory": "maspsx",
+                        "sha256": {},
+                        "aspsx_version": "2.77",
+                    },
+                    "binutils": {"prefix": "mips-", "sha256": {}},
+                },
+            }
+            tools = SimpleNamespace(
+                compiler_banner="2.8.1",
+                compiler_hashes={},
+                default_aspsx_version="2.77",
+                maspsx_commit="pinned",
+                maspsx_hashes={},
+                assembler_banner="2.40",
+                binutils_hashes={},
+                config_hash=ctr_match.sha256_json(manifest["toolchain"]),
+            )
+            with mock.patch.object(ctr_match, "ROOT", root):
+                result = {
+                    **ctr_match.build_evidence(manifest, tools, config, ["header.h"]),
+                    "candidate": "candidate.bin",
+                    "candidate_sha256": ctr_match.sha256_file(candidate),
+                    "exact": True,
+                }
+                self.assertTrue(ctr_match.result_is_current(manifest, config, result))
+                for path, content in (
+                    (source, "source"),
+                    (header, "header"),
+                    (candidate, "code"),
+                ):
+                    path.write_text("changed")
+                    self.assertFalse(
+                        ctr_match.result_is_current(manifest, config, result)
+                    )
+                    path.write_text(content)
+                del result["build_input_sha256"]["source.c"]
+                self.assertFalse(ctr_match.result_is_current(manifest, config, result))
+
+    def test_partial_resident_result_is_reported_as_partial(self) -> None:
+        config = {"name": "vehicle", "kind": "resident"}
+        result = {
+            "complete": False,
+            "exact": False,
+            "selected_exact": True,
+            "exact_function_count": 1,
+            "function_count": 129,
+        }
+        args = cli.build_parser().parse_args(["status"])
+        output = io.StringIO()
         with (
-            mock.patch.object(ctr_match, "load_json", return_value=manifest),
             mock.patch.object(
-                ctr_match, "resolve_toolchain", return_value=toolchain
+                cli,
+                "load_json",
+                side_effect=[{"target": "test", "targets": [config]}, result],
             ),
-            mock.patch.object(ctr_match, "print_toolchain"),
-            mock.patch.object(
-                ctr_match, "reference_root", return_value=references
-            ),
-            mock.patch.object(
-                ctr_match, "verify_references", return_value=[]
-            ),
-            mock.patch.object(
-                ctr_match, "print_verification", return_value=True
-            ),
-            mock.patch.object(
-                ctr_match, "build_probe", return_value=probe_result
-            ),
-            mock.patch.object(
-                ctr_match, "build_artifact", return_value=artifact_result
-            ) as build_artifact,
-            mock.patch.object(
-                ctr_match, "print_artifact_result", return_value=True
-            ),
+            mock.patch.object(cli, "result_path", return_value=Path("result.json")),
+            mock.patch.object(cli, "result_is_current", return_value=True),
+            redirect_stdout(output),
         ):
-            with redirect_stdout(io.StringIO()):
-                self.assertEqual(ctr_match.cmd_check(args), 0)
-
-        build_artifact.assert_called_once_with(
-            manifest, toolchain, build, references
-        )
+            self.assertEqual(cli.cmd_status(args), 0)
+        self.assertIn("PARTIAL", output.getvalue())
+        self.assertIn("1/129", output.getvalue())
+        self.assertNotIn("MATCH", output.getvalue())
 
 
 class PsxHeaderTests(unittest.TestCase):

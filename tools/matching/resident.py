@@ -1,28 +1,19 @@
 #!/usr/bin/env python3
-"""Match a resident source namespace against its retail EXE interval."""
+"""Link resident functions individually at their retail EXE addresses."""
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
-import subprocess
-import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
-
-import match as ctr_match
+import pipeline as ctr_match
 
 
-NAMESPACE_DIR = SCRIPT_DIR / "namespaces"
 BUILD_ROOT = ctr_match.BUILD / "namespaces"
-FUNCTION_SECTIONS_FLAG = "-ffunction-sections"
 
 
 @dataclass(frozen=True)
@@ -37,21 +28,6 @@ class FunctionRange:
     address: int
     size: int
     source: str
-
-
-def load_namespace(name: str) -> dict[str, Any]:
-    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", name):
-        raise ctr_match.MatchError(f"invalid namespace name: {name!r}")
-    config = ctr_match.load_json(NAMESPACE_DIR / f"{name}.json")
-    if config.get("name") != name:
-        raise ctr_match.MatchError(
-            f"namespace file names {config.get('name')!r}, expected {name!r}"
-        )
-    if config.get("kind") != "resident-exe":
-        raise ctr_match.MatchError(
-            f"namespace {name!r} is not a resident-exe namespace"
-        )
-    return config
 
 
 def parse_symbols(path: Path) -> list[Symbol]:
@@ -111,14 +87,7 @@ def namespace_symbol_ranges(
 
 
 def namespace_sources(config: dict[str, Any]) -> list[Path]:
-    source_config = config["sources"]
-    directory = ctr_match.repository_path(source_config["directory"])
-    sources = sorted(directory.glob(source_config["glob"]))
-    if not sources:
-        raise ctr_match.MatchError(
-            f"namespace {config['name']!r} has no production sources"
-        )
-    return sources
+    return [ctr_match.repository_path(path) for path in ctr_match.source_paths(config)]
 
 
 def definition_count(text: str, symbol: str) -> int:
@@ -175,83 +144,21 @@ def discover_function_ranges(
     return ranges
 
 
-def effective_compiler_flags(config: dict[str, Any]) -> list[str]:
-    flags = list(config["compiler_flags"])
-    if FUNCTION_SECTIONS_FLAG not in flags:
-        flags.append(FUNCTION_SECTIONS_FLAG)
-    return flags
-
-
-def source_output_directory(namespace: str, source: Path) -> Path:
-    relative = source.relative_to(ctr_match.ROOT)
-    return BUILD_ROOT / namespace / "sources" / relative.with_suffix("")
-
-
-def normalize_compiler_directives(assembly: Path) -> None:
-    """Normalize GCC directives that maspsx cannot pass to GNU as.
-
-    This only removes redundant expression-named extern declarations and
-    closes GCC's small-data state before custom function sections. It never
-    changes instructions or injects candidate bytes.
-    """
-    lines: list[str] = []
-    in_small_data = False
-    for line in assembly.read_text().splitlines(keepends=True):
-        directive = line.strip()
-        if re.fullmatch(r"\.extern\s+[^,]+[+-]\d+\s*,\s*\d+", directive):
-            # GCC emits invalid .extern directives for declarations bound to
-            # a linker expression. The relocation itself retains that exact
-            # expression, so the declaration is redundant.
-            continue
-        if directive == ".sdata":
-            in_small_data = True
-        elif in_small_data and directive.startswith(".section "):
-            # maspsx parses directives as small-data values until a standard
-            # section switch closes that state. GCC 2.8 emits the custom
-            # function section directly, so make the implied switch explicit.
-            lines.append("\t.text\n")
-            in_small_data = False
-        elif directive in (".text", ".data", ".rdata", ".rodata"):
-            in_small_data = False
-        lines.append(line)
-    assembly.write_text("".join(lines))
-
-
 def compile_source(
     config: dict[str, Any],
     toolchain: ctr_match.Toolchain,
     source: Path,
 ) -> dict[str, Any]:
-    output = source_output_directory(config["name"], source)
-    output.mkdir(parents=True, exist_ok=True)
-    assembly = output / f"{source.stem}.s"
-    object_file = output / f"{source.stem}.o"
-    dependency_file = output / f"{source.stem}.d"
+    relative = source.relative_to(ctr_match.ROOT)
+    output = BUILD_ROOT / config["name"] / "sources" / relative.with_suffix("")
     error_file = output / "compile-error.txt"
-    include_directories = [
-        ctr_match.repository_path(value) for value in config["include_directories"]
-    ]
-    forced_includes = [
-        ctr_match.repository_path(value)
-        for value in config.get("forced_includes", [])
-    ]
+    output.mkdir(parents=True, exist_ok=True)
     try:
-        ctr_match.compile_c(
+        object_file, dependencies = ctr_match.build_object(
             toolchain,
+            config,
             source,
-            assembly,
-            effective_compiler_flags(config),
-            include_directories,
-            forced_includes,
-            dependency_file,
-        )
-        normalize_compiler_directives(assembly)
-        ctr_match.assemble_compiler_output(
-            toolchain,
-            assembly,
-            object_file,
-            config.get("aspsx_version", toolchain.default_aspsx_version),
-            config["small_data_limit"],
+            output / source.name,
         )
     except ctr_match.MatchError as exc:
         error_file.write_text(f"{exc}\n")
@@ -264,21 +171,10 @@ def compile_source(
         }
 
     error_file.unlink(missing_ok=True)
-    dependency_inputs = ctr_match.dependency_inputs(dependency_file)
-    build_inputs = {
-        path: ctr_match.sha256_file(ctr_match.repository_path(path))
-        for path in dependency_inputs
-    }
     return {
-        "source": str(source.relative_to(ctr_match.ROOT)),
-        "source_sha256": ctr_match.sha256_file(source),
-        "assembly": str(assembly.relative_to(ctr_match.ROOT)),
-        "object": str(object_file.relative_to(ctr_match.ROOT)),
+        "source": str(relative),
         "object_path": object_file,
-        "build_input_sha256": build_inputs,
-        "build_input_set_sha256": ctr_match.sha256_bytes(
-            "\n".join(sorted(build_inputs)).encode()
-        ),
+        "dependencies": dependencies,
         "compiled": True,
     }
 
@@ -377,9 +273,7 @@ def link_function(
         }
     )
 
-    function_rodata = config.get("function_rodata_addresses", {}).get(
-        function.name
-    )
+    function_rodata = config.get("function_rodata_addresses", {}).get(function.name)
     linker_script.write_text(
         function_linker_script(
             function,
@@ -476,39 +370,24 @@ def selected_functions(
     return [function for function in functions if function.name in requested_set]
 
 
-def run_namespace(args: argparse.Namespace) -> int:
-    config = load_namespace(args.namespace)
-    manifest = ctr_match.load_json(Path(args.manifest))
+def build_resident(
+    manifest: dict[str, Any],
+    toolchain: ctr_match.Toolchain,
+    config: dict[str, Any],
+    references: Path,
+    requested: list[str] | None = None,
+) -> dict[str, Any]:
     artifact = ctr_match.artifact_by_id(manifest, config["artifact"])
     if artifact["kind"] != "ps-x-exe":
-        raise ctr_match.MatchError(
-            f"namespace {config['name']!r} does not target a PS-X EXE"
-        )
-    symbol_path = ctr_match.repository_path(config["symbol_file"])
-    symbols = parse_symbols(symbol_path)
+        raise ctr_match.MatchError(f"{config['name']!r} is not a resident EXE target")
+    symbols = parse_symbols(ctr_match.repository_path(config["symbol_file"]))
     inventory = discover_function_ranges(config, symbols)
-    functions = selected_functions(inventory, args.function)
+    functions = selected_functions(inventory, requested)
     interval_size = sum(function.size for function in inventory)
     print(
-        f"namespace {config['name']}: {len(inventory)} functions, "
+        f"resident {config['name']}: {len(inventory)} functions, "
         f"0x{interval_size:x} bytes, {len(namespace_sources(config))} sources"
     )
-    if args.inventory_only:
-        for function in functions:
-            print(
-                f"{function.name:<48} 0x{function.address:08x} "
-                f"0x{function.size:x} {function.source}"
-            )
-        return 0
-
-    toolchain = ctr_match.resolve_toolchain(manifest)
-    ctr_match.print_toolchain(toolchain)
-    references = ctr_match.reference_root(manifest, args.reference_root)
-    verification = ctr_match.verify_references(
-        manifest, references, {config["artifact"]}
-    )
-    if not ctr_match.print_verification(verification):
-        return 1
 
     sources = {
         function.source: ctr_match.repository_path(function.source)
@@ -590,21 +469,17 @@ def run_namespace(args: argparse.Namespace) -> int:
     selected_exact = exact_count == len(functions)
     complete = len(functions) == len(inventory)
     result = {
-        "schema_version": 1,
-        "target": manifest["target"],
-        "namespace": config["name"],
-        "kind": config["kind"],
-        "artifact": config["artifact"],
-        "namespace_config_sha256": ctr_match.sha256_json(config),
-        "manifest_sha256": ctr_match.sha256_json(manifest),
-        "pipeline_sha256": ctr_match.sha256_json(
-            {
-                "namespace_match.py": ctr_match.sha256_file(Path(__file__)),
-                "match.py": ctr_match.sha256_file(Path(ctr_match.__file__)),
-            }
+        **ctr_match.build_evidence(
+            manifest,
+            toolchain,
+            config,
+            [
+                path
+                for source in source_results.values()
+                for path in source.get("dependencies", [])
+            ],
         ),
-        "symbol_file": config["symbol_file"],
-        "symbol_file_sha256": ctr_match.sha256_file(symbol_path),
+        "artifact": config["artifact"],
         "interval_start": f"0x{inventory[0].address:08x}",
         "interval_end": f"0x{inventory[-1].address + inventory[-1].size:08x}",
         "interval_size": interval_size,
@@ -613,54 +488,9 @@ def run_namespace(args: argparse.Namespace) -> int:
         "exact_function_count": exact_count,
         "complete": complete,
         "selected_exact": selected_exact,
-        "compiler_version": toolchain.compiler_banner,
-        "compiler_sha256": toolchain.compiler_hashes,
-        "compiler_flags": effective_compiler_flags(config),
-        "aspsx_version": config.get(
-            "aspsx_version", toolchain.default_aspsx_version
-        ),
-        "maspsx_commit": toolchain.maspsx_commit,
-        "maspsx_sha256": toolchain.maspsx_hashes,
-        "binutils_version": toolchain.assembler_banner,
-        "binutils_sha256": toolchain.binutils_hashes,
-        "toolchain_config_sha256": toolchain.config_hash,
-        "sources": [
-            {key: value for key, value in source_result.items() if key != "object_path"}
-            for source_result in source_results.values()
-        ],
         "functions": function_results,
         "exact": complete and selected_exact,
     }
     write_result(BUILD_ROOT / config["name"], result)
     print(f"{exact_count}/{len(functions)} selected functions match exactly")
-    return 0 if selected_exact else 1
-
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Compile a resident namespace at its retail EXE addresses and compare "
-            "every byte through one evidence-producing interface."
-        )
-    )
-    parser.add_argument("namespace")
-    parser.add_argument("--manifest", default=str(ctr_match.DEFAULT_MANIFEST))
-    parser.add_argument("--reference-root")
-    parser.add_argument("--function", action="append")
-    parser.add_argument("--inventory-only", action="store_true")
-    return parser
-
-
-def main() -> int:
-    try:
-        return run_namespace(build_parser().parse_args())
-    except ctr_match.MatchError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 2
-    except subprocess.CalledProcessError as exc:
-        print(f"ERROR: command failed with exit code {exc.returncode}", file=sys.stderr)
-        return 2
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    return result

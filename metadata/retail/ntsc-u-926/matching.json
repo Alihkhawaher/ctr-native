@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "target": "ntsc-u-926",
   "goal": "A byte-identical reconstruction of the complete NTSC-U 926 game disc from reviewed C, assembly, data, and packaging inputs.",
   "reference_root": "assets",
@@ -37,551 +37,6 @@
       }
     }
   },
-  "artifact_builds": [
-    {
-      "artifact": "221",
-      "source": "game/221.c",
-      "include_directories": [
-        "include"
-      ],
-      "forced_includes": [
-        "tools/matching/overlays/221/abi.h"
-      ],
-      "linker_script": "tools/matching/overlay.ld",
-      "output_section": ".overlay",
-      "overlay_id": 5,
-      "compiler_flags": [
-        "-O2",
-        "-G8",
-        "-msoft-float"
-      ],
-      "small_data_limit": 8,
-      "aspsx_version": "2.77",
-      "address_aliases": {
-        "cc_gameTracker": "0x8008d2ac",
-        "cc_framesSinceRaceEnded": "0x8008d52c",
-        "cc_hudCrystal": "0x8008d9bc",
-        "cc_menuCrystal": "0x8008d9c0",
-        "cc_token": "0x8008d9d0",
-        "cc_languageStrings": "0x8008d878",
-        "cc_menuReady": "0x8008d4bc",
-        "cc_anyPlayerTap": "0x8008d950",
-        "cc_advProgress": "0x8008fba4",
-        "cc_addConfig0": "0x8008d100",
-        "cc_removeConfig0": "0x8008d104"
-      },
-      "ranges": [
-        {
-          "name": "overlay_id",
-          "kind": "data",
-          "offset": "0x0",
-          "size": "0x4"
-        },
-        {
-          "name": "s_battleTrackPurpleTokenOffset",
-          "kind": "data",
-          "offset": "0x4",
-          "size": "0xe"
-        },
-        {
-          "name": "rows221",
-          "kind": "data",
-          "candidate_symbol": "rows221",
-          "offset": "0x4f0",
-          "size": "0x12"
-        },
-        {
-          "name": "menu221",
-          "kind": "data",
-          "candidate_symbol": "menu221",
-          "offset": "0x504",
-          "size": "0x2c"
-        }
-      ]
-    },
-    {
-      "artifact": "222",
-      "source": "game/222.c",
-      "include_directories": [
-        "include"
-      ],
-      "forced_includes": [
-        "tools/matching/overlays/222/retail_symbols.h"
-      ],
-      "linker_script": "tools/matching/overlay.ld",
-      "output_section": ".overlay",
-      "overlay_id": 6,
-      "compiler_flags": [
-        "-O2",
-        "-fno-strength-reduce",
-        "-G0",
-        "-msoft-float"
-      ],
-      "small_data_limit": 0,
-      "aspsx_version": "2.77",
-      "ranges": [
-        {
-          "name": "overlay_id",
-          "kind": "data",
-          "offset": "0x0",
-          "size": "0x4"
-        },
-        {
-          "name": "s_driverRankString222",
-          "kind": "data",
-          "candidate_symbol": "s_driverRankString222",
-          "offset": "0x4",
-          "size": "0x4"
-        },
-        {
-          "name": "rows222",
-          "kind": "data",
-          "candidate_symbol": "rows222",
-          "offset": "0x143c",
-          "size": "0x1e"
-        },
-        {
-          "name": "menu222",
-          "kind": "data",
-          "candidate_symbol": "menu222",
-          "offset": "0x145c",
-          "size": "0x2c"
-        },
-        {
-          "name": "menu222_2P",
-          "kind": "data",
-          "candidate_symbol": "menu222_2P",
-          "offset": "0x1488",
-          "size": "0x2c"
-        }
-      ]
-    },
-    {
-      "artifact": "223",
-      "source": "game/223.c",
-      "include_directories": [
-        "include"
-      ],
-      "forced_includes": [
-        "tools/matching/overlays/223/retail_symbols.h"
-      ],
-      "linker_script": "tools/matching/overlay.ld",
-      "output_section": ".overlay",
-      "overlay_id": 7,
-      "compiler_flags": [
-        "-O2",
-        "-G0",
-        "-msoft-float"
-      ],
-      "small_data_limit": 0,
-      "aspsx_version": "2.77",
-      "ranges": [
-        {
-          "name": "overlay_id",
-          "kind": "data",
-          "offset": "0x0",
-          "size": "0x4"
-        },
-        {
-          "name": "format_strings",
-          "kind": "data",
-          "offset": "0x4",
-          "size": "0x1c"
-        },
-        {
-          "name": "s_highScoreIconColor223",
-          "kind": "data",
-          "candidate_symbol": "s_highScoreIconColor223",
-          "offset": "0x15b8",
-          "size": "0x4"
-        }
-      ]
-    },
-    {
-      "artifact": "224",
-      "source": "game/224.c",
-      "include_directories": [
-        "include"
-      ],
-      "forced_includes": [
-        "tools/matching/overlays/224/retail_symbols.h"
-      ],
-      "linker_script": "tools/matching/overlay.ld",
-      "output_section": ".overlay",
-      "overlay_id": 8,
-      "compiler_flags": [
-        "-O2",
-        "-G0",
-        "-msoft-float"
-      ],
-      "small_data_limit": 0,
-      "aspsx_version": "2.77",
-      "ranges": [
-        {
-          "name": "overlay_id",
-          "kind": "data",
-          "offset": "0x0",
-          "size": "0x4"
-        },
-        {
-          "name": "s_rankString224",
-          "kind": "data",
-          "candidate_symbol": "s_rankString224",
-          "offset": "0x4",
-          "size": "0x4"
-        },
-        {
-          "name": "rowsWithSave",
-          "kind": "data",
-          "candidate_symbol": "rowsWithSave",
-          "offset": "0xd38",
-          "size": "0x24"
-        },
-        {
-          "name": "menu224",
-          "kind": "data",
-          "candidate_symbol": "menu224",
-          "offset": "0xd5c",
-          "size": "0x2c"
-        },
-        {
-          "name": "rowsNoSave",
-          "kind": "data",
-          "candidate_symbol": "rowsNoSave",
-          "offset": "0xd88",
-          "size": "0x1e"
-        },
-        {
-          "name": "menu224NoSave",
-          "kind": "data",
-          "candidate_symbol": "menu224NoSave",
-          "offset": "0xda8",
-          "size": "0x2c"
-        },
-        {
-          "name": "s_highScoreIconColor224",
-          "kind": "data",
-          "candidate_symbol": "s_highScoreIconColor224",
-          "offset": "0xdd4",
-          "size": "0x4"
-        }
-      ]
-    },
-    {
-      "artifact": "225",
-      "source": "game/225.c",
-      "include_directories": [
-        "include"
-      ],
-      "forced_includes": [
-        "tools/matching/overlays/225/retail_symbols.h"
-      ],
-      "linker_script": "tools/matching/overlay.ld",
-      "output_section": ".overlay",
-      "overlay_id": 9,
-      "compiler_flags": [
-        "-O2",
-        "-G0",
-        "-msoft-float"
-      ],
-      "small_data_limit": 0,
-      "aspsx_version": "2.77",
-      "symbols": {
-        "sdata_static": "0x8008cf6c",
-        "data": "0x800809a0",
-        "DecalFont_DrawLine": "0x80022878",
-        "DecalHUD_DrawPolyFT4": "0x80022db0",
-        "RaceFlag_SetFullyOnScreen": "0x8004402c",
-        "RECTMENU_DrawOuterRect_HighLevel": "0x80045650",
-        "RECTMENU_Show": "0x80046990",
-        "UI_Lerp2D_Linear": "0x8004ecd4",
-        "UI_RaceEnd_MenuProc": "0x80055c90",
-        "memset": "0x800718bc",
-        "sprintf": "0x80078348"
-      },
-      "ranges": [
-        {
-          "name": "overlay_id",
-          "kind": "data",
-          "offset": "0x0",
-          "size": "0x4"
-        },
-        {
-          "name": "format_strings",
-          "kind": "data",
-          "offset": "0x4",
-          "size": "0x18"
-        },
-        {
-          "name": "VB_EndEvent_DrawMenu",
-          "kind": "code",
-          "candidate_symbol": "VB_EndEvent_DrawMenu",
-          "offset": "0x1c",
-          "size": "0xa2c"
-        },
-        {
-          "name": "rowsVS",
-          "kind": "data",
-          "candidate_symbol": "rowsVS",
-          "offset": "0xa48",
-          "size": "0x1e"
-        },
-        {
-          "name": "menuVS",
-          "kind": "data",
-          "candidate_symbol": "menuVS",
-          "offset": "0xa68",
-          "size": "0x2c"
-        },
-        {
-          "name": "rowsBattle",
-          "kind": "data",
-          "candidate_symbol": "rowsBattle",
-          "offset": "0xa94",
-          "size": "0x24"
-        },
-        {
-          "name": "menuBattle",
-          "kind": "data",
-          "candidate_symbol": "menuBattle",
-          "offset": "0xab8",
-          "size": "0x2c"
-        },
-        {
-          "name": "s_vsStandingsYByPlayerCount",
-          "kind": "data",
-          "candidate_symbol": "s_vsStandingsYByPlayerCount",
-          "offset": "0xae4",
-          "size": "0x1e"
-        },
-        {
-          "name": "s_standingsSuffixStringIds225",
-          "kind": "data",
-          "candidate_symbol": "s_standingsSuffixStringIds225",
-          "offset": "0xb04",
-          "size": "0x8"
-        }
-      ]
-    },
-    {
-      "artifact": "226",
-      "sources": [
-        "game/226/226_00_DrawLevelOvr1P_psx.s",
-        "game/226/R226.c"
-      ],
-      "include_directories": [
-        "include",
-        "game/RenderLevel/psx"
-      ],
-      "linker_script": "tools/matching/overlay.ld",
-      "output_section": ".overlay",
-      "overlay_id": 11,
-      "compiler_flags": [
-        "-O2",
-        "-G0",
-        "-msoft-float"
-      ],
-      "small_data_limit": 0,
-      "aspsx_version": "2.77",
-      "symbols": {},
-      "ranges": [
-        {
-          "name": "overlay_id",
-          "kind": "data",
-          "offset": "0x0",
-          "size": "0x4"
-        },
-        {
-          "name": "DrawLevelOvr1P",
-          "kind": "code",
-          "candidate_symbol": "DrawLevelOvr1P",
-          "offset": "0x4",
-          "size": "0xa750"
-        },
-        {
-          "name": "R226",
-          "kind": "data",
-          "candidate_symbol": "R226",
-          "offset": "0xa754",
-          "size": "0x564"
-        }
-      ]
-    },
-    {
-      "artifact": "227",
-      "sources": [
-        "game/227/227_00_DrawLevelOvr2P_psx.s",
-        "game/227/R227.c"
-      ],
-      "include_directories": [
-        "include",
-        "game/RenderLevel/psx"
-      ],
-      "linker_script": "tools/matching/overlay.ld",
-      "output_section": ".overlay",
-      "overlay_id": 12,
-      "compiler_flags": [
-        "-O2",
-        "-G0",
-        "-msoft-float"
-      ],
-      "small_data_limit": 0,
-      "aspsx_version": "2.77",
-      "symbols": {},
-      "ranges": [
-        {
-          "name": "overlay_id",
-          "kind": "data",
-          "offset": "0x0",
-          "size": "0x4"
-        },
-        {
-          "name": "DrawLevelOvr2P",
-          "kind": "code",
-          "candidate_symbol": "DrawLevelOvr2P",
-          "offset": "0x4",
-          "size": "0xa7d0"
-        },
-        {
-          "name": "R227",
-          "kind": "data",
-          "candidate_symbol": "R227",
-          "offset": "0xa7d4",
-          "size": "0x564"
-        }
-      ]
-    },
-    {
-      "artifact": "228",
-      "sources": [
-        "game/228/228_00_DrawLevelOvr3P_psx.s",
-        "game/228/R228.c"
-      ],
-      "include_directories": [
-        "include",
-        "game/RenderLevel/psx"
-      ],
-      "linker_script": "tools/matching/overlay.ld",
-      "output_section": ".overlay",
-      "overlay_id": 13,
-      "compiler_flags": [
-        "-O2",
-        "-G0",
-        "-msoft-float"
-      ],
-      "small_data_limit": 0,
-      "aspsx_version": "2.77",
-      "symbols": {},
-      "ranges": [
-        {
-          "name": "overlay_id",
-          "kind": "data",
-          "offset": "0x0",
-          "size": "0x4"
-        },
-        {
-          "name": "DrawLevelOvr3P",
-          "kind": "code",
-          "candidate_symbol": "DrawLevelOvr3P",
-          "offset": "0x4",
-          "size": "0x817c"
-        },
-        {
-          "name": "R228",
-          "kind": "data",
-          "candidate_symbol": "R228",
-          "offset": "0x8180",
-          "size": "0x420"
-        }
-      ]
-    },
-    {
-      "artifact": "229",
-      "sources": [
-        "game/229/229_00_DrawLevelOvr4P_psx.s",
-        "game/229/R229.c"
-      ],
-      "include_directories": [
-        "include",
-        "game/RenderLevel/psx"
-      ],
-      "linker_script": "tools/matching/overlay.ld",
-      "output_section": ".overlay",
-      "overlay_id": 14,
-      "compiler_flags": [
-        "-O2",
-        "-G0",
-        "-msoft-float"
-      ],
-      "small_data_limit": 0,
-      "aspsx_version": "2.77",
-      "symbols": {},
-      "ranges": [
-        {
-          "name": "overlay_id",
-          "kind": "data",
-          "offset": "0x0",
-          "size": "0x4"
-        },
-        {
-          "name": "DrawLevelOvr4P",
-          "kind": "code",
-          "candidate_symbol": "DrawLevelOvr4P",
-          "offset": "0x4",
-          "size": "0x8230"
-        },
-        {
-          "name": "R229",
-          "kind": "data",
-          "candidate_symbol": "R229",
-          "offset": "0x8234",
-          "size": "0x420"
-        }
-      ]
-    },
-    {
-      "artifact": "230",
-      "include_directories": [
-        "include"
-      ],
-      "forced_includes": [
-        "tools/matching/overlays/230/retail_symbols.h"
-      ],
-      "linker_script": "tools/matching/overlays/230/overlay.ld",
-      "linker_flags": [
-        "--no-check-sections"
-      ],
-      "output_section": ".overlay",
-      "overlay_id": 16,
-      "compiler_flags": [
-        "-O2",
-        "-ffunction-sections",
-        "-G0",
-        "-msoft-float"
-      ],
-      "small_data_limit": 0,
-      "aspsx_version": "2.77",
-      "address_aliases": {
-        "V230": "0x800b67ac"
-      },
-      "ranges": [
-        {
-          "name": "R230",
-          "kind": "data",
-          "candidate_symbol": "R230",
-          "offset": "0x0",
-          "size": "0xb8"
-        },
-        {
-          "name": "D230",
-          "kind": "data",
-          "candidate_symbol": "D230",
-          "offset": "0x8af4",
-          "size": "0x1580"
-        }
-      ]
-    }
-  ],
   "artifacts": [
     {
       "id": "disc",
@@ -736,8 +191,598 @@
       "mapped_size": "0xde0c"
     }
   ],
-  "compiler_probes": [
+  "targets": [
     {
+      "name": "221",
+      "kind": "artifact",
+      "artifact": "221",
+      "source": "game/221.c",
+      "include_directories": [
+        "include"
+      ],
+      "forced_includes": [
+        "tools/matching/overlays/221/abi.h"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 5,
+      "compiler_flags": [
+        "-O2",
+        "-G8",
+        "-msoft-float"
+      ],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77",
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "s_battleTrackPurpleTokenOffset",
+          "kind": "data",
+          "offset": "0x4",
+          "size": "0xe"
+        },
+        {
+          "name": "rows221",
+          "kind": "data",
+          "candidate_symbol": "rows221",
+          "offset": "0x4f0",
+          "size": "0x12"
+        },
+        {
+          "name": "menu221",
+          "kind": "data",
+          "candidate_symbol": "menu221",
+          "offset": "0x504",
+          "size": "0x2c"
+        }
+      ],
+      "address_aliases": {
+        "cc_gameTracker": "0x8008d2ac",
+        "cc_framesSinceRaceEnded": "0x8008d52c",
+        "cc_hudCrystal": "0x8008d9bc",
+        "cc_menuCrystal": "0x8008d9c0",
+        "cc_token": "0x8008d9d0",
+        "cc_languageStrings": "0x8008d878",
+        "cc_menuReady": "0x8008d4bc",
+        "cc_anyPlayerTap": "0x8008d950",
+        "cc_advProgress": "0x8008fba4",
+        "cc_addConfig0": "0x8008d100",
+        "cc_removeConfig0": "0x8008d104"
+      }
+    },
+    {
+      "name": "222",
+      "kind": "artifact",
+      "artifact": "222",
+      "source": "game/222.c",
+      "include_directories": [
+        "include"
+      ],
+      "forced_includes": [
+        "tools/matching/overlays/222/retail_symbols.h"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 6,
+      "compiler_flags": [
+        "-O2",
+        "-fno-strength-reduce",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "s_driverRankString222",
+          "kind": "data",
+          "candidate_symbol": "s_driverRankString222",
+          "offset": "0x4",
+          "size": "0x4"
+        },
+        {
+          "name": "rows222",
+          "kind": "data",
+          "candidate_symbol": "rows222",
+          "offset": "0x143c",
+          "size": "0x1e"
+        },
+        {
+          "name": "menu222",
+          "kind": "data",
+          "candidate_symbol": "menu222",
+          "offset": "0x145c",
+          "size": "0x2c"
+        },
+        {
+          "name": "menu222_2P",
+          "kind": "data",
+          "candidate_symbol": "menu222_2P",
+          "offset": "0x1488",
+          "size": "0x2c"
+        }
+      ]
+    },
+    {
+      "name": "223",
+      "kind": "artifact",
+      "artifact": "223",
+      "source": "game/223.c",
+      "include_directories": [
+        "include"
+      ],
+      "forced_includes": [
+        "tools/matching/overlays/223/retail_symbols.h"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 7,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "format_strings",
+          "kind": "data",
+          "offset": "0x4",
+          "size": "0x1c"
+        },
+        {
+          "name": "s_highScoreIconColor223",
+          "kind": "data",
+          "candidate_symbol": "s_highScoreIconColor223",
+          "offset": "0x15b8",
+          "size": "0x4"
+        }
+      ]
+    },
+    {
+      "name": "224",
+      "kind": "artifact",
+      "artifact": "224",
+      "source": "game/224.c",
+      "include_directories": [
+        "include"
+      ],
+      "forced_includes": [
+        "tools/matching/overlays/224/retail_symbols.h"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 8,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "s_rankString224",
+          "kind": "data",
+          "candidate_symbol": "s_rankString224",
+          "offset": "0x4",
+          "size": "0x4"
+        },
+        {
+          "name": "rowsWithSave",
+          "kind": "data",
+          "candidate_symbol": "rowsWithSave",
+          "offset": "0xd38",
+          "size": "0x24"
+        },
+        {
+          "name": "menu224",
+          "kind": "data",
+          "candidate_symbol": "menu224",
+          "offset": "0xd5c",
+          "size": "0x2c"
+        },
+        {
+          "name": "rowsNoSave",
+          "kind": "data",
+          "candidate_symbol": "rowsNoSave",
+          "offset": "0xd88",
+          "size": "0x1e"
+        },
+        {
+          "name": "menu224NoSave",
+          "kind": "data",
+          "candidate_symbol": "menu224NoSave",
+          "offset": "0xda8",
+          "size": "0x2c"
+        },
+        {
+          "name": "s_highScoreIconColor224",
+          "kind": "data",
+          "candidate_symbol": "s_highScoreIconColor224",
+          "offset": "0xdd4",
+          "size": "0x4"
+        }
+      ]
+    },
+    {
+      "name": "225",
+      "kind": "artifact",
+      "artifact": "225",
+      "source": "game/225.c",
+      "include_directories": [
+        "include"
+      ],
+      "forced_includes": [
+        "tools/matching/overlays/225/retail_symbols.h"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 9,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "format_strings",
+          "kind": "data",
+          "offset": "0x4",
+          "size": "0x18"
+        },
+        {
+          "name": "VB_EndEvent_DrawMenu",
+          "kind": "code",
+          "candidate_symbol": "VB_EndEvent_DrawMenu",
+          "offset": "0x1c",
+          "size": "0xa2c"
+        },
+        {
+          "name": "rowsVS",
+          "kind": "data",
+          "candidate_symbol": "rowsVS",
+          "offset": "0xa48",
+          "size": "0x1e"
+        },
+        {
+          "name": "menuVS",
+          "kind": "data",
+          "candidate_symbol": "menuVS",
+          "offset": "0xa68",
+          "size": "0x2c"
+        },
+        {
+          "name": "rowsBattle",
+          "kind": "data",
+          "candidate_symbol": "rowsBattle",
+          "offset": "0xa94",
+          "size": "0x24"
+        },
+        {
+          "name": "menuBattle",
+          "kind": "data",
+          "candidate_symbol": "menuBattle",
+          "offset": "0xab8",
+          "size": "0x2c"
+        },
+        {
+          "name": "s_vsStandingsYByPlayerCount",
+          "kind": "data",
+          "candidate_symbol": "s_vsStandingsYByPlayerCount",
+          "offset": "0xae4",
+          "size": "0x1e"
+        },
+        {
+          "name": "s_standingsSuffixStringIds225",
+          "kind": "data",
+          "candidate_symbol": "s_standingsSuffixStringIds225",
+          "offset": "0xb04",
+          "size": "0x8"
+        }
+      ]
+    },
+    {
+      "name": "226",
+      "kind": "artifact",
+      "artifact": "226",
+      "sources": [
+        "game/226/226_00_DrawLevelOvr1P_psx.s",
+        "game/226/R226.c"
+      ],
+      "include_directories": [
+        "include",
+        "game/RenderLevel/psx"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 11,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "DrawLevelOvr1P",
+          "kind": "code",
+          "candidate_symbol": "DrawLevelOvr1P",
+          "offset": "0x4",
+          "size": "0xa750"
+        },
+        {
+          "name": "R226",
+          "kind": "data",
+          "candidate_symbol": "R226",
+          "offset": "0xa754",
+          "size": "0x564"
+        }
+      ]
+    },
+    {
+      "name": "227",
+      "kind": "artifact",
+      "artifact": "227",
+      "sources": [
+        "game/227/227_00_DrawLevelOvr2P_psx.s",
+        "game/227/R227.c"
+      ],
+      "include_directories": [
+        "include",
+        "game/RenderLevel/psx"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 12,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "DrawLevelOvr2P",
+          "kind": "code",
+          "candidate_symbol": "DrawLevelOvr2P",
+          "offset": "0x4",
+          "size": "0xa7d0"
+        },
+        {
+          "name": "R227",
+          "kind": "data",
+          "candidate_symbol": "R227",
+          "offset": "0xa7d4",
+          "size": "0x564"
+        }
+      ]
+    },
+    {
+      "name": "228",
+      "kind": "artifact",
+      "artifact": "228",
+      "sources": [
+        "game/228/228_00_DrawLevelOvr3P_psx.s",
+        "game/228/R228.c"
+      ],
+      "include_directories": [
+        "include",
+        "game/RenderLevel/psx"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 13,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "DrawLevelOvr3P",
+          "kind": "code",
+          "candidate_symbol": "DrawLevelOvr3P",
+          "offset": "0x4",
+          "size": "0x817c"
+        },
+        {
+          "name": "R228",
+          "kind": "data",
+          "candidate_symbol": "R228",
+          "offset": "0x8180",
+          "size": "0x420"
+        }
+      ]
+    },
+    {
+      "name": "229",
+      "kind": "artifact",
+      "artifact": "229",
+      "sources": [
+        "game/229/229_00_DrawLevelOvr4P_psx.s",
+        "game/229/R229.c"
+      ],
+      "include_directories": [
+        "include",
+        "game/RenderLevel/psx"
+      ],
+      "linker_script": "tools/matching/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 14,
+      "compiler_flags": [
+        "-O2",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "ranges": [
+        {
+          "name": "overlay_id",
+          "kind": "data",
+          "offset": "0x0",
+          "size": "0x4"
+        },
+        {
+          "name": "DrawLevelOvr4P",
+          "kind": "code",
+          "candidate_symbol": "DrawLevelOvr4P",
+          "offset": "0x4",
+          "size": "0x8230"
+        },
+        {
+          "name": "R229",
+          "kind": "data",
+          "candidate_symbol": "R229",
+          "offset": "0x8234",
+          "size": "0x420"
+        }
+      ]
+    },
+    {
+      "name": "230",
+      "kind": "artifact",
+      "artifact": "230",
+      "include_directories": [
+        "include"
+      ],
+      "forced_includes": [
+        "tools/matching/overlays/230/retail_symbols.h"
+      ],
+      "linker_script": "tools/matching/overlays/230/overlay.ld",
+      "linker_flags": [
+        "--no-check-sections"
+      ],
+      "output_section": ".overlay",
+      "overlay_id": 16,
+      "compiler_flags": [
+        "-O2",
+        "-ffunction-sections",
+        "-G0",
+        "-msoft-float"
+      ],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77",
+      "address_aliases": {
+        "V230": "0x800b67ac"
+      },
+      "ranges": [
+        {
+          "name": "R230",
+          "kind": "data",
+          "candidate_symbol": "R230",
+          "offset": "0x0",
+          "size": "0xb8"
+        },
+        {
+          "name": "D230",
+          "kind": "data",
+          "candidate_symbol": "D230",
+          "offset": "0x8af4",
+          "size": "0x1580"
+        }
+      ],
+      "sources": {
+        "directory": "game/230",
+        "glob": "*.c"
+      }
+    },
+    {
+      "name": "vehicle",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "VehAfterColl_GetSurface",
+      "end_symbol": "DrawSky_Full",
+      "symbol_prefix": "Veh",
+      "sources": {
+        "directory": "game/Vehicle",
+        "glob": "*.c"
+      },
+      "include_directories": [
+        "include"
+      ],
+      "forced_includes": [
+        "tools/matching/namespaces/vehicle/retail_symbols.h"
+      ],
+      "compiler_flags": [
+        "-O2",
+        "-G8",
+        "-msoft-float"
+      ],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77",
+      "function_rodata_addresses": {
+        "VehPhysGeneral_SetHeldItem": "0x800119a0",
+        "VehPickState_NewState": "0x800119e0"
+      },
+      "link_symbols": {
+        "_gp": "0x8008cf6c",
+        "veh_maskThreadAlive": "0x8008d65c",
+        "veh_talkMaskDead": "0x8008da00",
+        "veh_botCrashNavRotArg": "0x8008d9ec",
+        "veh_physCrashForward": "0x8009ae28",
+        "veh_physCrashMatrix": "0x8009ae38"
+      }
+    },
+    {
+      "name": "BOTS_EmptyFunc",
+      "kind": "probe",
       "symbol": "BOTS_EmptyFunc",
       "source": "game/BOTS.c",
       "region": "exe",
@@ -757,6 +802,8 @@
       "purpose": "Smoke-test the source extraction, old GCC, maspsx, GNU assembler, object extraction, and retail-byte oracle. This trivial function cannot identify the original compiler."
     },
     {
+      "name": "DecalFont_DrawLine",
+      "kind": "probe",
       "symbol": "DecalFont_DrawLine",
       "source": "game/DecalFont.c",
       "region": "exe",
@@ -783,6 +830,8 @@
       "purpose": "Verify the production wrapper's signed 16-bit position, font, and style contract, including its stack argument load, sign extension, call scheduling, and exact link address."
     },
     {
+      "name": "UI_ConvertX_2",
+      "kind": "probe",
       "symbol": "UI_ConvertX_2",
       "source": "game/UI/UI_Convert.c",
       "region": "exe",
@@ -805,6 +854,8 @@
       "purpose": "Exercise arithmetic lowering, multiplication, a signed branch, delay-slot scheduling, and negative fixed-point rounding from production source."
     },
     {
+      "name": "MATH_FastSqrt",
+      "kind": "probe",
       "symbol": "MATH_FastSqrt",
       "source": "game/MATH/MATH_2_FastSqrt.c",
       "region": "exe",
@@ -826,6 +877,8 @@
       "purpose": "Exercise a non-trivial loop, shifts, signed and unsigned comparisons, multiplication, induction-variable lowering, and register allocation."
     },
     {
+      "name": "RaceFlag_GetCanDraw",
+      "kind": "probe",
       "symbol": "RaceFlag_GetCanDraw",
       "source": "game/RaceFlag.c",
       "region": "exe",
@@ -846,6 +899,8 @@
       "purpose": "Exercise the retail global-pointer contract and a signed halfword load at the disassembly-verified sData offset 0x4dc."
     },
     {
+      "name": "AH_MaskHint_boolCanSpawn",
+      "kind": "probe",
       "symbol": "AH_MaskHint_boolCanSpawn",
       "source": "game/232/AH_MaskHint.c",
       "region": "232",
