@@ -165,6 +165,9 @@ The full extracted asset list is:
 - `XA/ENG/GAME/S00.XA` through `S20.XA`
 - `XA/MUSIC/S00.XA` through `S01.XA`
 
+`BIGFILE.BIG` and `SOUNDS/KART.HWL` are required. Missing XA/XNF files or
+`TEST.STR` produce a startup warning: the game can continue without the affected streamed audio or Scrapbook video. Files available in `ctr-u.bin` still provide the fallback for missing extracted files. A present but invalid XA manifest remains a startup error.
+
 ## Bug Replays
 
 Internal builds can record a small bug report folder. See `docs/REPLAYS.md`.
