@@ -730,6 +730,23 @@
       }
     },
     {
+      "name": "231",
+      "kind": "artifact",
+      "artifact": "231",
+      "sources": {
+        "directory": "game/231",
+        "glob": "*.c"
+      },
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/overlays/231/retail_symbols.h"],
+      "linker_script": "tools/matching/overlays/231/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 17,
+      "compiler_flags": ["-O2", "-ffunction-sections", "-G0", "-msoft-float"],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77"
+    },
+    {
       "name": "vehicle",
       "kind": "resident",
       "artifact": "exe",

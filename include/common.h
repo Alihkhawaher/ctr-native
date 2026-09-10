@@ -30,6 +30,7 @@
 #define GAME_TOKEN                   (sdata->ptrToken)
 #define GAME_ADD_CONFIG_0            (sdata->Loading.OnBegin.AddBitsConfig0)
 #define GAME_REMOVE_CONFIG_0         (sdata->Loading.OnBegin.RemBitsConfig0)
+#define GAME_DOOR_ACCESS_FLAGS       (sdata->doorAccessFlags)
 #endif
 
 // NOTE(aalhendi): Retail sometimes rereads the pointer slot rather than reusing

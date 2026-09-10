@@ -214,12 +214,9 @@ struct Instance *INSTANCE_BirthWithThread(int modelID, const char *name, int poo
 }
 
 
-// used for every explosion
-struct Instance *INSTANCE_BirthWithThread_Stack(int *spArr)
+struct Instance *INSTANCE_BirthWithThread_Stack(const struct InstanceBirthParams *params)
 {
-	// spArr = array on $sp (stack pointer)
-
-	return INSTANCE_BirthWithThread(spArr[0], (char *)spArr[1], spArr[2], spArr[3], (void *)spArr[4], spArr[5], (struct Thread *)spArr[6]);
+	return INSTANCE_BirthWithThread(params->modelID, params->name, params->poolType, params->bucket, params->funcThTick, params->objSize, params->parent);
 }
 
 
@@ -413,7 +410,7 @@ void INSTANCE_LevDelayedLInBs(struct InstDef *instDef, int numInstances)
 /// @brief Obtain number of actual animation data frames in the first lod entry of the passed model.
 /// @param pInstance - pointer to Instance
 /// @param animIndex - animation index to check
-u16 INSTANCE_GetNumAnimFrames(struct Instance *pInstance, int animIndex)
+s32 INSTANCE_GetNumAnimFrames(struct Instance *pInstance, int animIndex)
 {
 	struct Model *pModel;
 	struct ModelHeader *pHeader;

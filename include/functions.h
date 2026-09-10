@@ -286,9 +286,9 @@ void INSTANCE_Birth(struct Instance *inst, struct Model *model, const char *name
 struct Instance *INSTANCE_Birth2D(struct Model *model, const char *name, struct Thread *th);
 struct Instance *INSTANCE_Birth3D(struct Model *model, const char *name, struct Thread *th);
 struct Instance *INSTANCE_BirthWithThread(int modelID, const char *name, int poolType, int bucket, void *funcThTick, int objSize, struct Thread *parent);
-struct Instance *INSTANCE_BirthWithThread_Stack(int *spArr);
+struct Instance *INSTANCE_BirthWithThread_Stack(const struct InstanceBirthParams *params);
 void INSTANCE_Death(struct Instance *inst);
-u16 INSTANCE_GetNumAnimFrames(struct Instance *pInstance, int animIndex);
+s32 INSTANCE_GetNumAnimFrames(struct Instance *pInstance, int animIndex);
 void INSTANCE_LevInitAll(struct InstDef *levInstDef, int numInst);
 
 // JitPool
@@ -902,10 +902,10 @@ struct Instance *RB_Hazard_CollideWithDrivers(struct Instance *weaponInst, s16 p
 struct Instance *RB_Hazard_CollideWithBucket(struct Instance *weaponInst, struct Thread *weaponTh, struct Thread *bucket, s16 parentSafetyFrames, int hitRadius,
                                              struct Instance *mineDriverInst);
 
-void RB_Hazard_ThCollide_Missile(struct Thread *thread);
-void RB_Hazard_ThCollide_Generic(struct Thread *thread);
-void RB_Hazard_ThCollide_Generic_Alt(struct Thread **threadSlot);
-u16 RB_Hazard_CollLevInst(struct ScratchpadStruct *sps, struct Thread *th);
+int RB_Hazard_ThCollide_Missile(struct Thread *thread, struct Thread *other, void *funcThCollide, struct ScratchpadStruct *sps);
+int RB_Hazard_ThCollide_Generic(struct Thread *thread, struct Thread *other, void *funcThCollide, struct ScratchpadStruct *sps);
+int RB_Hazard_ThCollide_Generic_Alt(struct ThreadCollisionArgs *collision);
+s32 RB_Hazard_CollLevInst(struct ScratchpadStruct *sps, struct Thread *th);
 
 int RB_Hazard_InterpolateValue(s16 currRot, s16 desiredRot, s16 rotSpeed);
 
@@ -926,7 +926,6 @@ void RB_Burst_CollLevInst(struct ScratchpadStruct *sps, void *hitObject);
 void RB_Burst_ThTick(struct Thread *t);
 void RB_Burst_DrawAll(struct GameTracker *gGT);
 void RB_Fruit_ThTick(struct Thread *fruitTh);
-void RB_Fruit_GetScreenCoords(struct PushBuffer *pb, struct Instance *inst, s16 *output);
 void RB_Default_LInB(struct Instance *inst);
 void RB_Fruit_LInB(struct Instance *inst);
 int RB_Fruit_LInC(struct Instance *fruitInst, struct Thread *driverTh, struct ScratchpadStruct *sps);
@@ -955,7 +954,6 @@ void RB_TNT_ThTick_SitOnHead(struct Thread *t);
 void RB_TNT_ThTick_ThrowOnHead(struct Thread *t);
 
 void RB_Minecart_ThTick(struct Thread *t);
-void RB_Minecart_CheckColl(struct Instance *minecartInst, struct Thread *minecartTh);
 void RB_Minecart_LInB(struct Instance *inst);
 
 void RB_Potion_ThTick_InAir(struct Thread *t);
@@ -979,7 +977,6 @@ void RB_Orca_LInB(struct Instance *inst);
 void RB_Plant_LInB(struct Instance *inst);
 void RB_Plant_ThTick_Rest(struct Thread *t);
 
-void Seal_CheckColl(struct Instance *sealInst, struct Thread *sealTh, int damage, int radius, int sound);
 void RB_Seal_ThTick_Move(struct Thread *t);
 void RB_Seal_ThTick_TurnAround(struct Thread *t);
 void RB_Seal_LInB(struct Instance *inst);
@@ -1001,6 +998,7 @@ int RB_Turtle_LInC(struct Instance *inst, struct Thread *driverTh, struct Scratc
 void RB_Turtle_LInB(struct Instance *inst);
 
 void RB_Warpball_FadeAway(struct Thread *t);
+void RB_Warpball_Death(struct Thread *t);
 struct CheckpointNode *RB_Warpball_NewPathNode(struct CheckpointNode *cn, struct Driver *d);
 void RB_Warpball_Start(struct TrackerWeapon *tw);
 struct Driver *RB_Warpball_GetDriverTarget(struct TrackerWeapon *tw, struct Instance *inst);

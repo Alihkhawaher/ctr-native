@@ -24,6 +24,7 @@
 #define GAME_TOKEN                         ctr_token
 #define GAME_ADD_CONFIG_0                  ctr_addConfig0
 #define GAME_REMOVE_CONFIG_0               ctr_removeConfig0
+#define GAME_DOOR_ACCESS_FLAGS             ctr_doorAccessFlags
 
 #include <common.h>
 
@@ -44,5 +45,6 @@ extern Color ctr_menuHighlight asm("sdata_static+2528");
 extern struct Instance *ctr_token asm("sdata_static+2660");
 extern u32 ctr_addConfig0 asm(RETAIL_ADD_CONFIG_0_ASM_NAME);
 extern u32 ctr_removeConfig0 asm("sdata_static+408");
+extern u32 ctr_doorAccessFlags asm("sdata_static+1980");
 
 #endif

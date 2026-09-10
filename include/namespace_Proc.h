@@ -56,9 +56,15 @@ typedef u32 ThreadFlags;
 CTR_STATIC_ASSERT(sizeof(ThreadFlags) == 0x4);
 
 typedef void (*ThreadFunc)(struct Thread *self);
-typedef void (*ThreadSimpleCollideFunc)(struct Thread *self);
 typedef int (*ThreadScratchCollideFunc)(struct Thread *self, struct Thread *other, void *funcThCollide, struct ScratchpadStruct *sps);
-typedef int (*ThreadBurstCollideFunc)(struct Thread *self, struct Thread *other, void *funcThCollide, int modelID);
+
+struct ThreadCollisionArgs
+{
+	struct Thread *self;
+	struct Thread *other;
+	void *funcThCollide;
+	struct ScratchpadStruct *sps;
+};
 
 enum
 {

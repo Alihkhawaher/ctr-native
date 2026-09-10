@@ -311,10 +311,10 @@ DamageApplied:
 		worldPosition.y = (s16)attackDriver->instSelf->matrix.t[1];
 		worldPosition.z = (s16)attackDriver->instSelf->matrix.t[2];
 		VehGteSetRotTransMatrix(&GAME_TRACKER->pushBuffer[attackDriver->driverID].matrix_ViewProj);
-		VehGteLoadSVec3V0(&worldPosition);
+		CTR_GteLoadPositionV0(&worldPosition);
 		gte_rtps();
 		screenPosition = CTR_VECTOR_DATA(&posScreen);
-		VehGteStoreSXY(screenPosition);
+		CTR_GteStorePositionXY(screenPosition);
 
 		// screenPosXY
 		attackDriver->BattleHUD.startX = screenPosition[0] + GAME_TRACKER->pushBuffer[attackDriver->driverID].rect.x;

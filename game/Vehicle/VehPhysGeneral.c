@@ -930,7 +930,7 @@ void VehPhysGeneral_PhysAngular(struct Thread *thread, struct Driver *driverArg)
 	}
 
 	VehPhysForce_RotAxisAngle(&driver->matrixMovingDir, CTR_VECTOR_DATA(&driver->AxisAngle1_normalVec), turnResistMinBitshift);
-	VehGteSetRotMatrix(&driver->matrixMovingDir);
+	CTR_GteSetRotMatrix(&driver->matrixMovingDir);
 	VehPhysForce_CounterSteer(driver);
 }
 
@@ -1104,7 +1104,7 @@ void VehPhysGeneral_JumpAndFriction(struct Thread *t, struct Driver *driverArg)
 
 	// NOTE(aalhendi): Retail loads matrixMovingDir once, then reuses the same CP2
 	// rotation registers for every jump/friction impulse in this function.
-	VehGteSetRotMatrix(&d->matrixMovingDir);
+	CTR_GteSetRotMatrix(&d->matrixMovingDir);
 
 	if ((d->kartState != KS_DRIFTING) && ((d->actionsFlagSet & ACTION_MASK_WEAPON) == 0) && (d->reserves == 0))
 	{

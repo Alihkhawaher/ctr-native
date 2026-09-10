@@ -2,6 +2,7 @@
 #define VEH_COMMON_H
 
 #include <common.h>
+#include <ctr_gte_transfer.h>
 
 // NOTE(aalhendi): These defaults use the shared runtime layout. The matching
 // pipeline force-includes a private header that overrides only retail bindings
@@ -221,44 +222,5 @@ static inline void VehGteSetColorMatrix(const MATRIX *matrix)
 	CTC2(matrixWord2, 20);
 }
 
-static inline void VehGteSetRotMatrix(const MATRIX *matrix)
-{
-#if defined(CTR_NATIVE)
-	gte_SetRotMatrix(matrix);
-#else
-	__asm__ volatile("lw $12,0(%0)\n\t"
-	                 "lw $13,4(%0)\n\t"
-	                 "ctc2 $12,$0\n\t"
-	                 "ctc2 $13,$1\n\t"
-	                 "lw $12,8(%0)\n\t"
-	                 "lw $13,12(%0)\n\t"
-	                 "lw $14,16(%0)\n\t"
-	                 "ctc2 $12,$2\n\t"
-	                 "ctc2 $13,$3\n\t"
-	                 "ctc2 $14,$4"
-	                 :
-	                 : "r"(matrix), "m"(*matrix)
-	                 : "$12", "$13", "$14");
-#endif
-}
-
-static inline void VehGteLoadSVec3V0(const SVec4 *worldPosition)
-{
-#if defined(CTR_NATIVE)
-	MTC2(CTR_PackS16Pair(worldPosition->x, worldPosition->y), 0);
-	MTC2(CTR_PackS16Pair(worldPosition->z, 0), 1);
-#else
-	__asm__ volatile("lwc2 $0,0(%0)\n\t"
-	                 "lwc2 $1,4(%0)"
-	                 :
-	                 : "r"(worldPosition), "m"(*worldPosition));
-#endif
-	CTR_PSX_GTE_PIPELINE_DELAY();
-}
-
-static inline void VehGteStoreSXY(s16 *screenPosition)
-{
-	CTR_PSX_STORE_COP2_WORD(screenPosition, 14);
-}
 
 #endif

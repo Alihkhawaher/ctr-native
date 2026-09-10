@@ -2,23 +2,6 @@
 
 typedef s16 VehPickupItemSignedHalfword CTR_MAY_ALIAS;
 
-// NOTE(aalhendi): The PSX forms preserve the PsyQ macro instruction schedule;
-// native builds use the equivalent GTE interface.
-#ifdef CTR_NATIVE
-#define VehPickupItem_GteSetTransMatrix(matrix) gte_SetTransMatrix(matrix)
-#else
-#define VehPickupItem_GteSetTransMatrix(matrix) \
-	__asm__ volatile("lw $12,20(%0)\n\t"        \
-	                 "lw $13,24(%0)\n\t"        \
-	                 "ctc2 $12,$5\n\t"          \
-	                 "lw $14,28(%0)\n\t"        \
-	                 "ctc2 $13,$6\n\t"          \
-	                 "ctc2 $14,$7"              \
-	                 :                          \
-	                 : "r"(matrix)              \
-	                 : "$12", "$13", "$14", "memory")
-#endif
-
 // NOTE(aalhendi): Retail copies matrices as eight words. Native keeps the
 // typed assignment so host compilers retain their normal aliasing guarantees.
 #ifdef CTR_NATIVE
@@ -390,8 +373,8 @@ struct Driver *VehPickupItem_MissileGetTargetDriver(struct Driver *driver)
 	{
 		struct PushBuffer *pushBuffer = &GAME_TRACKER->pushBuffer[driver->driverID];
 
-		VehGteSetRotMatrix(&pushBuffer->matrix_ViewProj);
-		VehPickupItem_GteSetTransMatrix(&pushBuffer->matrix_ViewProj);
+		CTR_GteSetRotMatrix(&pushBuffer->matrix_ViewProj);
+		CTR_GteSetTransMatrix(&pushBuffer->matrix_ViewProj);
 	}
 	else
 	{
@@ -406,8 +389,8 @@ struct Driver *VehPickupItem_MissileGetTargetDriver(struct Driver *driver)
 
 		MATH_HitboxMatrix(&inverseMatrix, &matrix);
 
-		VehGteSetRotMatrix(&matrix);
-		VehPickupItem_GteSetTransMatrix(&matrix);
+		CTR_GteSetRotMatrix(&matrix);
+		CTR_GteSetTransMatrix(&matrix);
 	}
 
 	i = 0;
