@@ -10,6 +10,14 @@ enum STACK_POOL
 	SMALL = 0x300
 };
 
+// Pool record capacities, including the intrusive list header.
+enum ThreadStackSize
+{
+	THREAD_SMALL_STACK_SIZE = 0x48,
+	THREAD_MEDIUM_STACK_SIZE = 0x88,
+	THREAD_LARGE_STACK_SIZE = 0x670,
+};
+
 enum THREAD_RELATIVE
 {
 	// yes, both are zero

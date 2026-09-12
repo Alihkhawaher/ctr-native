@@ -587,14 +587,14 @@ void Particle_RenderList(struct PushBuffer *pb, void *particleList);
 void PickupBots_Init(void);
 void PickupBots_Update(void);
 
-struct Thread *PROC_BirthWithObject(int flags, void *funcThTick, const char *name, struct Thread *relativeTh);
+struct Thread *PROC_BirthWithObject(ThreadFlags flags, void *funcThTick, const char *name, struct Thread *relativeTh);
 void PROC_CheckAllForDead(void);
 void PROC_CheckBloodlineForDead(struct Thread **replaceSelf, struct Thread *th);
 void PROC_CollidePointWithBucket(struct Thread *th, struct BucketSearchParams *buf);
 void PROC_CollidePointWithSelf(struct Thread *th, struct BucketSearchParams *buf);
 void PROC_CollideHitboxWithBucket(struct Thread *collThread, struct ScratchpadStruct *sps, struct Thread *ignoredThread);
 void PROC_DestroyInstance(struct Thread *t);
-void PROC_DestroyObject(void *object, int threadFlags);
+void PROC_DestroyObject(void *object, ThreadFlags threadFlags);
 void PROC_DestroySelf(struct Thread *t);
 void PROC_DestroyTracker(struct Thread *t);
 void PROC_PerBspLeaf_CheckInstances(struct BSP *bspLeaf, struct ScratchpadStruct *sps);

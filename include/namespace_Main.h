@@ -792,7 +792,7 @@ struct GameTracker
 	int arcadeDifficulty;
 
 	// 1ec0
-	u32 numMissiles;
+	s32 numMissiles;
 	// 1ec4
 	int numPlayersWith3Missiles;
 
