@@ -762,6 +762,20 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "list",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "LIST_Clear",
+      "end_symbol": "LOAD_Callback_Overlay_Generic",
+      "symbol_prefix": "LIST_",
+      "source": "game/LIST.c",
+      "include_directories": ["include"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77"
+    },
+    {
       "name": "vehicle",
       "kind": "resident",
       "artifact": "exe",
