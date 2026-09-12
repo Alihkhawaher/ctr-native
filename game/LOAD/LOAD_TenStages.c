@@ -391,7 +391,7 @@ int LOAD_TenStages(struct GameTracker *gGT, int loadingStage, struct BigHeader *
 			}
 
 			// Allocate room for LEV swapping
-			u8 *hubAlloc = MEMPACK_AllocMem(firstSubpackSize + secondSubpackSize); // "HUB ALLOC"
+			u8 *hubAlloc = MEMPACK_AllocMem(firstSubpackSize + secondSubpackSize, NULL); // "HUB ALLOC"
 			sdata->ptrHubAlloc = hubAlloc;
 
 			// Change active allocation system to #2
@@ -436,7 +436,7 @@ int LOAD_TenStages(struct GameTracker *gGT, int loadingStage, struct BigHeader *
 			MEMPACK_SwapPacks(LOAD_MAIN_PACK_INDEX);
 
 			sdata->PatchMem_Size = MEMPACK_GetFreeBytes();
-			sdata->PatchMem_Ptr = MEMPACK_AllocHighMem(sdata->PatchMem_Size); //, "Patch Table Memory");
+			sdata->PatchMem_Ptr = MEMPACK_AllocHighMem(sdata->PatchMem_Size, NULL); // "Patch Table Memory"
 
 			// For Oxide-Intro and Credits, set active pack
 			MEMPACK_SwapPacks(gGT->activeMempackIndex);

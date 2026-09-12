@@ -206,8 +206,8 @@ EndFunc:
 
 	// 0x1000 per player, plus 0x18 for linking
 	size = ((gGT->numPlyrCurrGame) << 0xC) | 0x18;
-	gGT->otSwapchainDB[0] = MEMPACK_AllocMem(size); // "ot1"
-	gGT->otSwapchainDB[1] = MEMPACK_AllocMem(size); // "ot2"
+	gGT->otSwapchainDB[0] = MEMPACK_AllocMem(size, NULL); // "ot1"
+	gGT->otSwapchainDB[1] = MEMPACK_AllocMem(size, NULL); // "ot2"
 }
 
 void MainInit_JitPoolsNew(struct GameTracker *gGT)
@@ -258,7 +258,7 @@ void MainInit_JitPoolsNew(struct GameTracker *gGT)
 	JitPool_Init(&gGT->JitPools.rain, poolScale >> 9, sizeof(struct RainLocal), rdata.s_RainPool);
 
 #ifndef CTR_NATIVE
-	gGT->ptrRenderBucketInstance = MEMPACK_AllocMem(renderBucketSize);
+	gGT->ptrRenderBucketInstance = MEMPACK_AllocMem(renderBucketSize, NULL);
 #else
 	// NOTE(aalhendi): Native reuses static RDATA scratch for existing PC memory headroom.
 	gGT->ptrRenderBucketInstance = (void *)((u32)&rdata.s_STATIC_GNORMALZ[0] + 148);
@@ -277,7 +277,7 @@ void MainInit_JitPoolsNew(struct GameTracker *gGT)
 
 	for (int i = 0; i < gGT->numPlyrCurrGame; i++)
 	{
-		data.PtrClipBuffer[i] = MEMPACK_AllocMem(MainDB_GetClipSize(gGT->levelID, gGT->numPlyrCurrGame) << 2);
+		data.PtrClipBuffer[i] = MEMPACK_AllocMem(MainDB_GetClipSize(gGT->levelID, gGT->numPlyrCurrGame) << 2, NULL);
 	}
 }
 

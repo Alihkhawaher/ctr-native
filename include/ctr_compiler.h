@@ -23,9 +23,16 @@
 
 #if defined(__GNUC__) || defined(__clang__)
 #define CTR_PRINTF_FORMAT(fmtArg, firstVararg) __attribute__((format(printf, fmtArg, firstVararg)))
-#define CTR_TRAP()                             __builtin_trap()
 #else
 #define CTR_PRINTF_FORMAT(fmtArg, firstVararg)
+#endif
+
+#if !defined(CTR_NATIVE)
+// NOTE(aalhendi): ASPSX takes the full 20-bit BREAK code, not GNU as's split fields.
+#define CTR_TRAP() __asm__ volatile("break 0x400")
+#elif defined(__GNUC__) || defined(__clang__)
+#define CTR_TRAP() __builtin_trap()
+#else
 #define CTR_TRAP() abort()
 #endif
 

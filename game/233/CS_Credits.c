@@ -234,7 +234,7 @@ void CS_Credits_Init(void)
 
 	creditsBSS.dancerInst_invisible = NULL;
 
-	creditsDst = MEMPACK_AllocHighMem(CLH->size /* "credits strings" */);
+	creditsDst = MEMPACK_AllocHighMem(CLH->size, NULL /* "credits strings" */);
 
 	memcpy(creditsDst, CLH, CLH->size);
 

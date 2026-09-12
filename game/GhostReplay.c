@@ -334,7 +334,7 @@ void GhostReplay_Init1(void)
 		return;
 	}
 
-	struct GhostHeader *gh = MEMPACK_AllocMem(0x3e00);
+	struct GhostHeader *gh = MEMPACK_AllocMem(0x3e00, NULL);
 	char *recordBuffer = GHOSTHEADER_GETRECORDBUFFER(gh);
 	sdata->GhostRecording.ptrGhost = gh;
 	sdata->GhostRecording.ptrStartOffset = &recordBuffer[0];
@@ -345,7 +345,7 @@ void GhostReplay_Init1(void)
 	// 0: human ghost, 1: N Tropy / Oxide ghost
 	for (s32 i = 0; i < 2; i++)
 	{
-		struct GhostTape *tape = MEMPACK_AllocMem(0x268);
+		struct GhostTape *tape = MEMPACK_AllocMem(0x268, NULL);
 		sdata->ptrGhostTape[i] = tape;
 
 		if (i == 0)

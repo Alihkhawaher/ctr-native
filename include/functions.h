@@ -537,19 +537,19 @@ void SelectProfile_AdvPickMode_MenuProc(struct RectMenu *menu);
 void SelectProfile_AllProfiles_MenuProc(struct RectMenu *menu);
 void SelectProfile_ToggleMode(u32 mode);
 
-void MEMPACK_Init(int ramSize);
-void MEMPACK_SwapPacks(int index);
-void MEMPACK_NewPack(void *start, int size);
-int MEMPACK_GetFreeBytes(void);
-// NOTE(aalhendi): Retail callers may pass an optional allocation label used by debug builds.
-void *MEMPACK_AllocMem(s32 size, ...);
-void *MEMPACK_AllocHighMem(s32 size, ...);
+void MEMPACK_Init(s32 ramSize);
+void MEMPACK_SwapPacks(s32 index);
+void MEMPACK_NewPack(void *start, s32 size);
+s32 MEMPACK_GetFreeBytes(void);
+// NOTE(aalhendi): Retail keeps the allocation label argument but does not use it.
+void *MEMPACK_AllocMem(s32 size, const char *name);
+void *MEMPACK_AllocHighMem(s32 size, const char *name);
 void MEMPACK_ClearHighMem(void);
-void *MEMPACK_ReallocMem(int size);
-int MEMPACK_PushState(void);
+void *MEMPACK_ReallocMem(s32 size);
+s32 MEMPACK_PushState(void);
 void MEMPACK_ClearLowMem(void);
 void MEMPACK_PopState(void);
-void MEMPACK_PopToState(int id);
+void MEMPACK_PopToState(s32 id);
 
 void RECTMENU_DrawQuip(char *comment, s16 startX, int startY, u32 sizeX, s16 fontType, int textFlag, s16 boxFlag);
 void RECTMENU_DrawInnerRect(RECT *r, int x, u32 *ot);

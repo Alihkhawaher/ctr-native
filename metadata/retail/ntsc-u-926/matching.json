@@ -762,6 +762,22 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "mempack",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "MEMPACK_Init",
+      "end_symbol": "MixRNG_Scramble",
+      "symbol_prefix": "MEMPACK_",
+      "source": "game/MEMPACK.c",
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/namespaces/mempack/retail_symbols.h"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77",
+      "link_symbols": {"_gp": "0x8008cf6c", "mempackActive": "0x8008d420"}
+    },
+    {
       "name": "jitpool",
       "kind": "resident",
       "artifact": "exe",
