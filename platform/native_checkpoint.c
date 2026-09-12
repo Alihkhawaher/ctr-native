@@ -1028,9 +1028,9 @@ internal void NativeCheckpoint_RelocateWarpPad(const struct NativeCheckpointHead
 		return;
 	}
 
-	for (u32 i = 0; i < len(warpPad->inst); i++)
+	for (u32 i = 0; i < len(warpPad->slots.inst); i++)
 	{
-		NativeCheckpoint_RelocatePointerSlot(oldHeader, liveHeader, &warpPad->inst[i]);
+		NativeCheckpoint_RelocatePointerSlot(oldHeader, liveHeader, &warpPad->slots.inst[i]);
 	}
 }
 

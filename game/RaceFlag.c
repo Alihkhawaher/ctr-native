@@ -212,7 +212,7 @@ void RaceFlag_SetCanDraw(s16 canDraw)
 }
 
 
-s16 RaceFlag_GetCanDraw(void)
+s32 RaceFlag_GetCanDraw(void)
 {
 	return sdata->RaceFlag_CanDraw;
 }

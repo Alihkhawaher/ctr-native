@@ -110,12 +110,21 @@ typedef u32 ColorCodePacked CTR_MAY_ALIAS;
 
 static inline u32 ColorCode_GetPacked(const ColorCode *color)
 {
+#ifdef CTR_NATIVE
+	// NOTE(aalhendi): Color has byte alignment, including native stack locals.
+	return CTR_ReadU32LE(color);
+#else
 	return *(const ColorCodePacked *)color;
+#endif
 }
 
 static inline void ColorCode_SetPacked(ColorCode *color, u32 packed)
 {
+#ifdef CTR_NATIVE
+	CTR_WriteU32LE(color, packed);
+#else
 	*(ColorCodePacked *)color = packed;
+#endif
 }
 
 #define COLOR_CODE_PACKED_INIT(packed)          \

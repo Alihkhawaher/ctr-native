@@ -3,6 +3,14 @@
 
 #include <ctr_gte.h>
 
+// NOTE(aalhendi): Keep the read delay inside the transfer when writing directly
+// to a signed C destination. The compiler owns the register and final store.
+#ifdef CTR_NATIVE
+#define CTR_GteReadDataDelayed(dst, reg) ((dst) = MFC2_S(reg))
+#else
+#define CTR_GteReadDataDelayed(dst, reg) __asm__ volatile("mfc2 %0,$" CTR_GTE_STRINGIFY(reg) "\n\tnop" : "=r"(dst))
+#endif
+
 // The MAC2 read fills MAC1's CPU load delay. A caller using MAC2 must delay too.
 #ifdef CTR_NATIVE
 #define CTR_GteReadMAC12(mac1, mac2) \

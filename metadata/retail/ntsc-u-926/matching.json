@@ -747,6 +747,21 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "232",
+      "kind": "artifact",
+      "artifact": "232",
+      "sources": {"directory": "game/232", "glob": "*.c"},
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/overlays/232/retail_symbols.h"],
+      "linker_script": "tools/matching/overlays/232/overlay.ld",
+      "linker_flags": ["--no-check-sections"],
+      "output_section": ".overlay",
+      "overlay_id": 18,
+      "compiler_flags": ["-O2", "-ffunction-sections", "-G0", "-msoft-float"],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77"
+    },
+    {
       "name": "vehicle",
       "kind": "resident",
       "artifact": "exe",
@@ -888,7 +903,7 @@
       "region": "exe",
       "address": "0x80044094",
       "size": 12,
-      "compile_prelude": "typedef short s16;\nstruct MatchSData { unsigned char before_RaceFlag_CanDraw[0x4dc]; s16 RaceFlag_CanDraw; };\nregister struct MatchSData *sdata asm(\"$28\");\n",
+      "compile_prelude": "typedef int s32;\ntypedef short s16;\nstruct MatchSData { unsigned char before_RaceFlag_CanDraw[0x4dc]; s16 RaceFlag_CanDraw; };\nregister struct MatchSData *sdata asm(\"$28\");\n",
       "compiler_flags": [
         "-O2",
         "-G8",

@@ -65,7 +65,7 @@ void PSX_BIOS_SetRandSeed(u32 seed);
 int rand(void);
 void srand(unsigned int seed);
 
-void CTR_Box_DrawWirePrims(Point p1, Point p2, Color color, void *ot);
+void CTR_Box_DrawWirePrims(s16 x1, s16 y1, s16 x2, s16 y2, s32 r, s32 g, s32 b, u32 *ot, struct PrimMem *primMem);
 void CTR_Box_DrawWireBox(RECT *r, const Color *color, void *ot, struct PrimMem *primMem);
 void CTR_Box_DrawClearBox(const RECT *r, const Color *color, s32 transparency, u32 *ot, struct PrimMem *primMem);
 void CTR_Box_DrawSolidBox(RECT *r, const Color *color, u32 *ot, struct PrimMem *primMem);
@@ -665,9 +665,9 @@ void UI_WeaponBG_AnimateShine(void);
 void UI_WeaponBG_DrawShine(struct Icon *icon, s16 posX, s16 posY, struct PrimMem *primMem, u32 *ot, char transparency, s16 angleX, s16 angleY, int unusedColor);
 void UI_TrackerBG(struct Icon *targetIcon, s16 centerX, s16 centerY, struct PrimMem *primMem, u32 *ot, char transparency, s16 angleX, s16 angleY, int color);
 void UI_DrawNumWumpa(s16 param_1, s16 param_2, struct Driver *d);
-void UI_DrawNumKey(s16 posX, s16 posY);
-void UI_DrawNumRelic(s16 posX, s16 posY);
-void UI_DrawNumTrophy(s16 posX, s16 posY);
+void UI_DrawNumKey(s16 posX, s16 posY, struct Driver *driver);
+void UI_DrawNumRelic(s16 posX, s16 posY, struct Driver *driver);
+void UI_DrawNumTrophy(s16 posX, s16 posY, struct Driver *driver);
 void UI_DrawNumCrystal(s16 posX, s16 posY, struct Driver *d);
 void UI_DrawNumTimebox(s16 posX, s16 posY, struct Driver *d);
 void UI_DrawSpeedBG(void);
@@ -1017,10 +1017,9 @@ void RB_Follower_ProcessBucket(struct Thread *thread);
 // 232
 s16 *AH_WarpPad_GetSpawnPosRot(s16 *posData);
 void AH_WarpPad_AllWarppadNum(void);
-void AH_WarpPad_SetNumModelData(struct Instance *inst, struct ModelHeader *mh);
 void AH_WarpPad_MenuProc(struct RectMenu *menu);
 
-void AH_WarpPad_SpinRewards(struct Instance *prizeInst, struct WarpPad *warppadObj, int index, int x, int y, int z);
+void AH_WarpPad_SpinRewards(struct Instance *prizeInst, struct WarpPad *warppadObj, s16 index, Vec3 position);
 
 void AH_WarpPad_ThTick(struct Thread *t);
 void AH_WarpPad_ThDestroy(struct Thread *t);
@@ -1039,9 +1038,9 @@ void AH_Sign_LInB(struct Instance *inst);
 
 void AH_Map_LoadSave_Prim(const SVec2 *vertPos, char *vertCol, void *ot, struct PrimMem *primMem);
 
-void AH_Map_LoadSave_Full(int posX, int posY, const SVec2 *vertPos, char *vertCol, int scale, int angle);
+void AH_Map_LoadSave_Full(s32 posX, s32 posY, const SVec2 *vertPos, char *vertCol, s16 scale, s32 angle);
 
-void AH_Map_HubArrow(int posX, int posY, const SVec2 *vertPos, char *vertCol, int scale, int angle);
+void AH_Map_HubArrow(s32 posX, s32 posY, const SVec2 *vertPos, char *vertCol, s16 scale, s32 angle);
 
 void AH_Map_HubArrowOuter(struct UIMap *map, int arrowIndex, int posX, int posY, int inputAngle, int type);
 
@@ -1214,7 +1213,7 @@ void GAMEPAD_ShockFreq(struct Driver *d, int frame, int val);
 b32 RaceFlag_IsTransitioning(void);
 void LOAD_Robots1P(int characterID);
 void UI_Map_DrawRawIcon(struct UIMap *map, const s32 worldPos[3], int iconID, int colorID, int unused, s16 scale);
-s16 RaceFlag_GetCanDraw(void);
+s32 RaceFlag_GetCanDraw(void);
 void UI_Map_DrawDrivers(struct UIMap *map, struct Thread *bucket, s16 *driverIconCounter);
 b32 VehTalkMask_boolNoXA(void);
 void VehTalkMask_End(void);
@@ -1297,8 +1296,6 @@ void AnimateWater4P(int timer, int numWaterVertices, struct WaterVert *waterVert
 int RenderLists_Init1P2P(struct BSP *bspRoot, int *visLeafList, struct PushBuffer *pb, u32 LevRenderList, void *bspList, u8 numPlyr);
 int RenderLists_Init3P4P(struct BSP *bspRoot, int *visLeafList, struct PushBuffer *pb, u32 LevRenderList, void *bspList);
 // TODO:
-// CTR_Box_DrawWirePrims change void* ot to u32* ot
-
 void MainLoadVLC(void);
 void MainKillGame_StopCTR(void);
 void VehStuckProc_MaskGrab_Particles(struct Driver *d);

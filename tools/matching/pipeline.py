@@ -1008,6 +1008,29 @@ def build_object(
     return object_file, dependency_inputs(dependency_file)
 
 
+def verify_shared_sections(
+    toolchain: Toolchain, linked: Path, output_section: str, load_address: int, actual: bytes,
+) -> list[dict[str, Any]]:
+    """Every additional initialized section must agree with its artifact view."""
+    headers = command_output([str(toolchain.binutils["objdump"]), "-h", str(linked)])
+    views = []
+    pattern = r"^\s*\d+\s+(\S+)\s+([0-9a-fA-F]+)\s+([0-9a-fA-F]+)[^\n]*\n\s+([^\n]+)"
+    for name, size_hex, address_hex, flags in re.findall(pattern, headers, re.MULTILINE):
+        size, address = int(size_hex, 16), int(address_hex, 16)
+        attributes = {flag.strip() for flag in flags.split(",")}
+        if name == output_section or not size or not {"CONTENTS", "ALLOC"} <= attributes:
+            continue
+        offset = address - load_address
+        if offset < 0 or offset + size > len(actual):
+            raise MatchError(f"initialized section {name} lies outside {output_section}")
+        section_binary = linked.with_name(f"shared-{len(views)}.bin")
+        extract_binary_section(toolchain, linked, name, section_binary)
+        if section_binary.read_bytes() != actual[offset:offset + size]:
+            raise MatchError(f"shared section {name} disagrees with {output_section} at 0x{offset:x}")
+        views.append({"section": name, "offset": offset, "size": size})
+    return views
+
+
 def build_artifact(
     manifest: dict[str, Any],
     toolchain: Toolchain,
@@ -1066,11 +1089,12 @@ def build_artifact(
     expected_path = references / artifact["path"]
     expected = expected_path.read_bytes()
     actual = candidate_binary.read_bytes()
+    load_address = parse_int(artifact["load_address"])
+    shared_sections = verify_shared_sections(toolchain, linked_object, build["output_section"], load_address, actual)
     reconstructed = BUILD / "reconstructed" / artifact["path"]
     reconstructed.parent.mkdir(parents=True, exist_ok=True)
     reconstructed.write_bytes(actual)
 
-    load_address = parse_int(artifact["load_address"])
     symbols = linked_symbols(toolchain.binutils["objdump"], linked_object, load_address)
     comparison = compare_binary_files(
         toolchain,
@@ -1086,6 +1110,7 @@ def build_artifact(
     result = {
         **build_evidence(manifest, toolchain, build, dependencies),
         "artifact": artifact["id"],
+        "shared_sections": shared_sections,
         **comparison,
         "first_mismatch_offset": first_mismatch[0] if first_mismatch else None,
         "first_mismatch_location": (

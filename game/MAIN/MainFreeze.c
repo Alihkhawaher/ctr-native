@@ -108,7 +108,7 @@ void MainFreeze_ConfigDrawArrows(s16 offsetX, s16 offsetY, char *str)
 
 static inline void MainFreeze_ConfigDrawWire(s16 x1, s16 y1, s16 x2, s16 y2, u8 r, u8 g, u8 b, void *ot)
 {
-	CTR_Box_DrawWirePrims(MakePoint(x1, y1), MakePoint(x2, y2), MakeColor(r, g, b), ot);
+	CTR_Box_DrawWirePrims(x1, y1, x2, y2, r, g, b, ot, &sdata->gGT->backBuffer->primMem);
 }
 
 static inline void MainFreeze_ConfigDrawRaceWheel(int value, struct GameTracker *gGT)

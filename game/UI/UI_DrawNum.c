@@ -67,9 +67,12 @@ void UI_DrawNumTimebox(s16 posX, s16 posY, struct Driver *d)
 	DecalFont_DrawLine(string, posX + UI_DRAWNUM_TIMEBOX_TEXT_OFFSET_X, posY + UI_DRAWNUM_TIMEBOX_TEXT_OFFSET_Y, FONT_BIG, ORANGE);
 }
 
-void UI_DrawNumRelic(s16 posX, s16 posY)
+// NOTE(aalhendi): Retail callers pass the driver through the shared HUD
+// interface, but these three counters read the adventure profile instead.
+void UI_DrawNumRelic(s16 posX, s16 posY, struct Driver *driver)
 {
 	char string[UI_DRAWNUM_COUNTER_TEXT_BUFFER_SIZE];
+	(void)driver;
 
 	DecalFont_DrawLine(&sdata->s_x[0], posX, posY + UI_DRAWNUM_SMALL_X_OFFSET_Y, FONT_SMALL, ORANGE);
 
@@ -84,9 +87,10 @@ void UI_DrawNumRelic(s16 posX, s16 posY)
 	DecalFont_DrawLine(string, posX + UI_DRAWNUM_BIG_TEXT_OFFSET_X, posY, FONT_BIG, ORANGE);
 }
 
-void UI_DrawNumKey(s16 posX, s16 posY)
+void UI_DrawNumKey(s16 posX, s16 posY, struct Driver *driver)
 {
 	char string[UI_DRAWNUM_COUNTER_TEXT_BUFFER_SIZE];
+	(void)driver;
 
 	DecalFont_DrawLine(&sdata->s_x[0], posX, posY + UI_DRAWNUM_SMALL_X_OFFSET_Y, FONT_SMALL, ORANGE);
 
@@ -101,9 +105,10 @@ void UI_DrawNumKey(s16 posX, s16 posY)
 	DecalFont_DrawLine(string, posX + UI_DRAWNUM_BIG_TEXT_OFFSET_X, posY, FONT_BIG, ORANGE);
 }
 
-void UI_DrawNumTrophy(s16 posX, s16 posY)
+void UI_DrawNumTrophy(s16 posX, s16 posY, struct Driver *driver)
 {
 	char string[UI_DRAWNUM_COUNTER_TEXT_BUFFER_SIZE];
+	(void)driver;
 
 	DecalFont_DrawLine(&sdata->s_x[0], posX, posY + UI_DRAWNUM_SMALL_X_OFFSET_Y, FONT_SMALL, ORANGE);
 

@@ -56,7 +56,8 @@ typedef struct Vec2
 	s32 y;
 } Vec2;
 
-typedef struct Vec3
+// NOTE(aalhendi): Vec3 can also view the SDK's three contiguous translation words.
+typedef struct CTR_MAY_ALIAS Vec3
 {
 	s32 x;
 	s32 y;

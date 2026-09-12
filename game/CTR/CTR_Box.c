@@ -1,19 +1,20 @@
 #include <common.h>
 
-void CTR_Box_DrawWirePrims(Point p1, Point p2, Color color, void *ot)
+void CTR_Box_DrawWirePrims(s16 x1, s16 y1, s16 x2, s16 y2, s32 r, s32 g, s32 b, u32 *ot, struct PrimMem *primMem)
 {
-	LineF2 *p;
-	GetPrimMem(p);
-	if (p == nullptr)
+	LineF2 *p = primMem->cursor;
+	const PrimCode primCode = {.kind.line = {.renderCode = RenderCode_Line}};
+	if (p == NULL || p > (LineF2 *)primMem->guardEnd)
 	{
 		return;
 	}
+	primMem->cursor = p + 1;
 
-	const PrimCode primCode = {.kind.line = {.renderCode = RenderCode_Line}};
-	color.code = primCode;
-	p->colorCode = color;
-	p->v[0].pos = p1;
-	p->v[1].pos = p2;
+	p->tag.bits.size = (sizeof(*p) - sizeof(p->tag)) / sizeof(u32);
+	p->colorCode = MakeColor(r, g, b);
+	p->colorCode.code = primCode;
+	p->v[0].pos = MakePoint(x1, y1);
+	p->v[1].pos = MakePoint(x2, y2);
 
 	AddPrimitive(p, ot);
 }

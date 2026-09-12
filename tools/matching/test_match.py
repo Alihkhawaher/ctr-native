@@ -46,6 +46,37 @@ void after(void) {}
             self.assertIn(probe["symbol"], extracted)
 
 
+class SharedSectionsTests(unittest.TestCase):
+    def test_generated_tables_must_agree_with_the_emitted_artifact(self) -> None:
+        toolchain = SimpleNamespace(binutils={"objdump": "objdump"})
+        with tempfile.TemporaryDirectory() as directory:
+            linked = Path(directory) / "overlay.elf"
+            for address, table, accepted in ((0x80001004, b"KEY!", True),
+                                             (0x80001004, b"BAD!", False),
+                                             (0x80001004, b"KEY", False),
+                                             (0x80000FFC, b"KEY!", False),
+                                             (0x80001008, b"KEY!", False)):
+                headers = (
+                    "  0 .overlay 00000008 80001000 80001000 00001000 2**2\n"
+                    "                  CONTENTS, ALLOC, LOAD, CODE\n"
+                    f"  1 .table 00000004 {address:08x} {address:08x} 00002000 2**2\n"
+                    "                  CONTENTS, ALLOC, LOAD, READONLY, DATA\n"
+                    "  2 .bss 00000004 80001008 80001008 00003000 2**2\n"
+                    "                  ALLOC\n"
+                    "  3 .comment 00000004 00000000 00000000 00004000 2**0\n"
+                    "                  CONTENTS, READONLY\n"
+                )
+                with self.subTest(address=address, table=table), \
+                     mock.patch.object(ctr_match, "command_output", return_value=headers), \
+                     mock.patch.object(ctr_match, "extract_binary_section", side_effect=lambda *args: args[-1].write_bytes(table)):
+                    if accepted:
+                        self.assertEqual(ctr_match.verify_shared_sections(toolchain, linked, ".overlay", 0x80001000, b"HEADKEY!"),
+                                         [{"section": ".table", "offset": 4, "size": 4}])
+                    else:
+                        with self.assertRaises(ctr_match.MatchError):
+                            ctr_match.verify_shared_sections(toolchain, linked, ".overlay", 0x80001000, b"HEADKEY!")
+
+
 class ComparisonTests(unittest.TestCase):
     def test_rejects_unknown_artifact_selection(self) -> None:
         manifest = {"artifacts": [{"id": "exe"}]}
