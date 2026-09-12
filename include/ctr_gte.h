@@ -162,6 +162,30 @@ static inline s32 CTR_GteReadMAC1(void)
 	return MFC2_S(25);
 }
 
+#ifdef CTR_NATIVE
+#define CTR_GteLoadLightMatrix(matrix) gte_SetLightMatrix(matrix)
+#else
+// NOTE(aalhendi): Preserve retail's paired loads and scratch-register
+// clobbers when transferring the five lighting-matrix words to the GTE.
+#define CTR_GteLoadLightMatrix(matrix)                               \
+	({                                                               \
+		const MATRIX *ctrLightMatrix = (matrix);                     \
+		__asm__ volatile("lw $12,0(%0)\n\t"                          \
+		                 "lw $13,4(%0)\n\t"                          \
+		                 "ctc2 $12,$8\n\t"                           \
+		                 "ctc2 $13,$9\n\t"                           \
+		                 "lw $12,8(%0)\n\t"                          \
+		                 "lw $13,12(%0)\n\t"                         \
+		                 "lw $14,16(%0)\n\t"                         \
+		                 "ctc2 $12,$10\n\t"                          \
+		                 "ctc2 $13,$11\n\t"                          \
+		                 "ctc2 $14,$12"                              \
+		                 :                                           \
+		                 : "r"(ctrLightMatrix), "m"(*ctrLightMatrix) \
+		                 : "$12", "$13", "$14");                     \
+	})
+#endif
+
 static inline void CTR_GteStoreMAC(s32 *out)
 {
 #if defined(CTR_NATIVE)

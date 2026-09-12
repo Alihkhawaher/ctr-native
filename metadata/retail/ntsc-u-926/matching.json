@@ -762,6 +762,20 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "233",
+      "kind": "artifact",
+      "artifact": "233",
+      "sources": {"directory": "game/233", "glob": "*.c"},
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/overlays/233/retail_symbols.h"],
+      "linker_script": "tools/matching/overlays/233/overlay.ld",
+      "output_section": ".overlay",
+      "overlay_id": 19,
+      "compiler_flags": ["-O2", "-ffunction-sections", "-G0", "-msoft-float"],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77"
+    },
+    {
       "name": "instance-lifecycle",
       "kind": "resident",
       "artifact": "exe",

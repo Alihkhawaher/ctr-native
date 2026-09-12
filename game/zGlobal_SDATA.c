@@ -125,7 +125,6 @@ struct sData sdata_static = {.langBufferSize = 0x3F04,
                              .queueReady = 1,
                              .queueRetry = 0,
                              .queueLength = 0,
-                             .UnusedPadding1 = 0,
 
                              .load_inProgress = 0,
                              .frameFinishedVRAM = 0,

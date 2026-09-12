@@ -112,7 +112,7 @@ static inline void CTR_GteStorePositionXY(s16 *screenPosition)
 	} while (0)
 #endif
 
-static inline void CTR_GteStoreLineXY(s16 *screenPositions)
+static inline void CTR_GteStoreLineXY(void *screenPositions)
 {
 #ifdef CTR_NATIVE
 	CTR_WriteU32LE(screenPositions, (u32)MFC2(12));
@@ -121,6 +121,24 @@ static inline void CTR_GteStoreLineXY(s16 *screenPositions)
 	__asm__ volatile("swc2 $12,0(%0)\n\tswc2 $13,4(%0)" : : "r"(screenPositions) : "memory");
 #endif
 }
+
+// Word-aligned XYZ vectors; the GTE ignores the upper half of each Z word.
+#ifdef CTR_NATIVE
+#define CTR_GteLoadPositionsV0V1(first, second) \
+	do                                          \
+	{                                           \
+		CTR_GteLoadSVec3V0(first);              \
+		CTR_GteLoadSVec3V1(second);             \
+	} while (0)
+#else
+#define CTR_GteLoadPositionsV0V1(first, second)           \
+	__asm__ volatile("lwc2 $0,0(%0)\n\tlwc2 $1,4(%0)\n\t" \
+	                 "lwc2 $2,0(%1)\n\tlwc2 $3,4(%1)\n\t" \
+	                 "nop\n\tnop"                         \
+	                 :                                    \
+	                 : "r"(first), "r"(second)            \
+	                 : "memory")
+#endif
 
 static inline s32 CTR_GteReadDepthZ1(void)
 {

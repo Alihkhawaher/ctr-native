@@ -1341,6 +1341,13 @@ struct Difficulty
 // Last PsyQ function?
 // 80080990 FlushCache
 
+struct AdventureCup
+{
+	s16 lngIndex_CupName;
+	// color of gem and token in portals
+	s16 color[3];
+};
+
 // 800809a0
 struct Data
 {
@@ -1618,14 +1625,7 @@ struct Data
 	s16 advHubTrackIDs[16];
 
 	// 80084114
-	struct
-	{
-		s16 lngIndex_CupName;
-
-		// color of gem and token in portals
-		s16 color[3];
-
-	} AdvCups[5];
+	struct AdventureCup AdvCups[5];
 
 	// 8008413C
 	// 0 - ripper roo's challenge
@@ -2546,10 +2546,7 @@ struct sData
 	char queueRetry;
 
 	// 8008d0a2
-	char queueLength;
-
-	// 8008d0a3
-	char UnusedPadding1;
+	s16 queueLength;
 
 	// 8008d0a4
 	// Original Naughty Dog name
@@ -3616,13 +3613,15 @@ struct sData
 	int unk_8008d910;
 
 	// 8008d914
-	int advCharSelectIndex_curr;
+	s16 advCharSelectIndex_curr;
+	s16 padding_8008d916;
 
 	// 8008d918
 	int boolSaveCupProgress;
 
 	// 8008d91c
-	int advCharSelectIndex_prev;
+	s16 advCharSelectIndex_prev;
+	s16 padding_8008d91e;
 
 	// 8008d920
 	u16 uselessLapRowCopy;
