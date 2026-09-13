@@ -776,6 +776,20 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "library-of-models",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "LibraryOfModels_Store",
+      "end_symbol": "LinkedCollide_Radius",
+      "symbol_prefix": "LibraryOfModels_",
+      "source": "game/LibraryOfModels.c",
+      "include_directories": ["include"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77"
+    },
+    {
       "name": "levinstdef",
       "kind": "resident",
       "artifact": "exe",
