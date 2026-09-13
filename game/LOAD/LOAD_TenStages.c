@@ -488,12 +488,12 @@ int LOAD_TenStages(struct GameTracker *gGT, int loadingStage, struct BigHeader *
 		// if linked list of icons exists
 		if (gGT->mpkIcons != 0)
 		{
-			u32 *mpkIconList = (u32 *)*(u32 *)(gGT->mpkIcons + 4);
+			struct Icon *mpkIconList = (struct Icon *)*(u32 *)(gGT->mpkIcons + 4);
 
-			gGT->trafficLightIcon[0] = (struct Icon *)DecalGlobal_FindInMPK(mpkIconList, rdata.s_lightredoff);
-			gGT->trafficLightIcon[1] = (struct Icon *)DecalGlobal_FindInMPK(mpkIconList, rdata.s_lightredon);
-			gGT->trafficLightIcon[2] = (struct Icon *)DecalGlobal_FindInMPK(mpkIconList, rdata.s_lightgreenoff);
-			gGT->trafficLightIcon[3] = (struct Icon *)DecalGlobal_FindInMPK(mpkIconList, rdata.s_lightgreenon);
+			gGT->trafficLightIcon[0] = DecalGlobal_FindInMPK(mpkIconList, rdata.s_lightredoff);
+			gGT->trafficLightIcon[1] = DecalGlobal_FindInMPK(mpkIconList, rdata.s_lightredon);
+			gGT->trafficLightIcon[2] = DecalGlobal_FindInMPK(mpkIconList, rdata.s_lightgreenoff);
+			gGT->trafficLightIcon[3] = DecalGlobal_FindInMPK(mpkIconList, rdata.s_lightgreenon);
 		}
 
 		gGT->gameMode1_prevFrame = 1;

@@ -78,8 +78,9 @@ int DecalFont_DrawMultiLine(char *str, int posX, int posY, int maxPixLen, s16 fo
 void DecalGlobal_EmptyFunc_MainFrame_ResetDB(void);
 void DecalGlobal_Clear(struct GameTracker *gGT);
 void DecalGlobal_Store(struct GameTracker *gGT, struct LevTexLookup *LTL);
-int *DecalGlobal_FindInLEV(struct Level *level, char *str);
-int *DecalGlobal_FindInMPK(u32 *icons, char *str);
+// Lookup keys contain 16 readable bytes (including padding), word-aligned on PSX.
+struct IconGroup *DecalGlobal_FindInLEV(struct Level *level, const char *name);
+struct Icon *DecalGlobal_FindInMPK(struct Icon *icons, const char *name);
 void DecalHUD_DrawPolyFT4(struct Icon *icon, s32 posX, s32 posY, struct PrimMem *primMem, u32 *ot, u8 transparency, s16 scale);
 void DecalHUD_DrawPolyGT4(struct Icon *icon, s16 posX, s16 posY, struct PrimMem *primMem, u32 *ot, u32 color0, u32 color1, u32 color2, u32 color3,
                           u8 transparency, s16 scale);
