@@ -572,10 +572,10 @@ void RECTMENU_GetWidth(struct RectMenu *m, s16 *width, b32 boolCheckSubmenu);
 void RECTMENU_Hide(struct RectMenu *m);
 void RECTMENU_Show(struct RectMenu *m);
 
-int MixRNG_Scramble(void);
-int MixRNG_Particles(int param_1);
-u32 MixRNG_GetValue(int param_1);
-int RngDeadCoed(struct RngDeadCoedState *state);
+s32 MixRNG_Scramble(void);
+s32 MixRNG_Particles(s32 range);
+u32 MixRNG_GetValue(s32 seed);
+s32 RngDeadCoed(struct RngDeadCoedState *state);
 
 void MainStats_ClearBattleVS(void);
 void MainStats_RestartRaceCountLoss(void);
