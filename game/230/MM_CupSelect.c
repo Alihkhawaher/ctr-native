@@ -246,8 +246,8 @@ void MM_CupSelect_MenuProc(struct RectMenu *menu)
 		cupIndex = 0;
 		{
 			register u32 symbolPage CTR_PSX_REGISTER("$2");
-			CTR_PSX_LOAD_SYMBOL_PAGE(symbolPage, RETAIL_GAME_PROGRESS_ASM_NAME);
-			CTR_PSX_ADD_SYMBOL_LOW(gameUnlocksBase, symbolPage, RETAIL_GAME_PROGRESS_ASM_NAME, (u32)MM_GAME_UNLOCKS - sizeof(u32));
+			CTR_PSX_LOAD_SYMBOL_PAGE(symbolPage, RETAIL_GAME_SAVE_ASM_NAME);
+			CTR_PSX_ADD_SYMBOL_LOW(gameUnlocksBase, symbolPage, RETAIL_GAME_SAVE_ASM_NAME, (u32)MM_GAME_UNLOCKS - sizeof(u32));
 			CTR_PSX_KEEP_VALUE(gameUnlocksBase);
 		}
 		CTR_PSX_ZERO_VALUE(starIndex);

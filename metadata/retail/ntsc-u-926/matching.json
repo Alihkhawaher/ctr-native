@@ -776,6 +776,22 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "raceconfig",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "RaceConfig_LoadGameOptions",
+      "end_symbol": "RaceFlag_MoveModels",
+      "symbol_prefix": "RaceConfig_",
+      "source": "game/RaceConfig.c",
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/namespaces/raceconfig/retail_symbols.h"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77",
+      "link_symbols": {"_gp": "0x8008cf6c", "raceConfigOptionsLoaded": "0x8008d8f0"}
+    },
+    {
       "name": "mixrng",
       "kind": "resident",
       "artifact": "exe",

@@ -3585,7 +3585,7 @@ struct sData
 	char data10_aaaaa[4];
 
 	// 8008d8f0
-	u16 boolHasLoadedOptions;
+	b16 boolHasLoadedOptions;
 
 	u16 typeTimer;
 
@@ -3848,14 +3848,8 @@ struct sData
 	DISPENV blank_debug_DispEnv;
 
 
-	// size 0x1494
-	// High Score System
-	// 8008e6e8
-	struct GameProgress gameProgress;
-
-	// Placed before advProgress
-	// 8008FB7C
-	struct GameOptions gameOptions;
+	// 8008e6e8: progress (0x1494 bytes), then options at 8008fb7c.
+	struct GameSave gameSave;
 
 	// double-check these, address starts
 	// 0x18 bytes from "name", not 0x20

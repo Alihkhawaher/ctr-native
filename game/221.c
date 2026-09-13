@@ -109,17 +109,17 @@ static u32 CC_EndEvent_GetRewardBitMask(s32 rewardBit)
 	return 1u << ((u32)rewardBit & 0x1f);
 }
 
-CTR_STATIC_ASSERT(OFFSETOF(struct sData, gameOptions) + sizeof(struct GameOptions) == OFFSETOF(struct sData, advProgress));
+CTR_STATIC_ASSERT(OFFSETOF(struct sData, gameSave.options) + sizeof(struct GameOptions) == OFFSETOF(struct sData, advProgress));
 
 static u8 *CC_EndEvent_GetNativeRewardWordBytes(s32 rewardBit)
 {
 	s32 wordIndex = CTR_MipsSra(rewardBit, 5);
 	s64 rewardByteOffset = (s64)OFFSETOF(struct sData, advProgress.rewards) + (s64)wordIndex * (s64)sizeof(u32);
-	s64 windowStart = (s64)OFFSETOF(struct sData, gameOptions);
+	s64 windowStart = (s64)OFFSETOF(struct sData, gameSave.options);
 	s64 windowEnd = (s64)OFFSETOF(struct sData, advProgress) + (s64)sizeof(struct AdvProgress);
 
 	// NOTE(aalhendi): Retail applies the unchecked residue index to
-	// advProgress.rewards, so Dingo Bingo can touch adjacent gameOptions words.
+	// advProgress.rewards, so Dingo Bingo can touch adjacent saved options words.
 	// Native bounds that retail window without doing host out-of-bounds access.
 	if ((rewardByteOffset < windowStart) || (rewardByteOffset > windowEnd - (s32)sizeof(u32)))
 	{

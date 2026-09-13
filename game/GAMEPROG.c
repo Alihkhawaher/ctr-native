@@ -168,7 +168,7 @@ b32 GAMEPROG_CheckGhostsBeaten(int ghostID)
 
 		if (result)
 		{
-			u32 *timeTrialFlags = &sdata->gameProgress.highScoreTracks[gGT->levelID].timeTrialFlags;
+			u32 *timeTrialFlags = &sdata->gameSave.progress.highScoreTracks[gGT->levelID].timeTrialFlags;
 			result = (timeTrialFlags[flagWordIndex] >> (ghostID & 0x1f)) & 1;
 		}
 	}
@@ -180,15 +180,10 @@ b32 GAMEPROG_CheckGhostsBeaten(int ghostID)
 }
 
 
-void GAMEPROG_NewProfile_OutsideAdv(struct GameProgress *gameProg)
+void GAMEPROG_NewProfile_OutsideAdv(struct GameSave *save)
 {
-	// GameOptions is probably a struct "inside"
-	// of GameProgress, still working on it
-
-	// GameProgress and GameOptions
-	memset(gameProg, 0, sizeof(struct GameProgress) + sizeof(struct GameOptions));
-
-	GAMEPROG_ResetHighScores(gameProg);
+	memset(save, 0, sizeof(*save));
+	GAMEPROG_ResetHighScores(&save->progress);
 }
 
 
@@ -202,7 +197,7 @@ void GAMEPROG_InitFullMemcard(struct MemcardProfile *mcp)
 	mcp->header[1] = sizeof(struct MemcardProfile);
 
 	// GameProgress and GameOptions
-	GAMEPROG_NewProfile_OutsideAdv(&mcp->gameProgress);
+	GAMEPROG_NewProfile_OutsideAdv(&mcp->gameSave);
 
 	// 4 profiles
 	for (s32 i = 0; i < MEMCARD_ADV_PROFILE_COUNT; i++)
@@ -231,7 +226,7 @@ void GAMEPROG_NewProfile_InsideAdv(struct AdvProgress *adv)
 
 void GAMEPROG_SaveCupProgress(void)
 {
-	u32 *prog = &sdata->gameProgress.unlocks[0];
+	u32 *prog = &sdata->gameSave.progress.unlocks[0];
 
 	// 4 cups, 3 difficulties
 	for (s32 i = 0; i < GAME_PROGRESS_CUP_WIN_COUNT; i++)
@@ -289,7 +284,7 @@ void GAMEPROG_SyncGameAndCard(struct GameProgress *memcardProg, struct GameProgr
 
 void GAMEPROG_NewGame_OnBoot()
 {
-	GAMEPROG_NewProfile_OutsideAdv(&sdata->gameProgress);
+	GAMEPROG_NewProfile_OutsideAdv(&sdata->gameSave);
 	GAMEPROG_NewProfile_InsideAdv(&sdata->advProgress);
 	GAMEPROG_GetPtrHighScoreTrack();
 }
@@ -301,5 +296,5 @@ void GAMEPROG_GetPtrHighScoreTrack(void)
 	s32 gameMode1 = gGT->gameMode1;
 
 	sdata->ptrActiveHighScoreEntry =
-	    &sdata->gameProgress.highScoreTracks[gGT->levelID].scoreEntry[MEMCARD_HIGH_SCORE_ENTRIES_PER_MODE * ((gameMode1 & RELIC_RACE) != 0)];
+	    &sdata->gameSave.progress.highScoreTracks[gGT->levelID].scoreEntry[MEMCARD_HIGH_SCORE_ENTRIES_PER_MODE * ((gameMode1 & RELIC_RACE) != 0)];
 }

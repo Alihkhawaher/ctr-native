@@ -421,8 +421,8 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 		ghostStarIndex = 0;
 		CTR_PSX_KEEP_VALUE_RELAXED(ghostStarIndex);
 		CTR_PSX_LOAD_SYMBOL_PAGE(sharedS1, RETAIL_GAME_TRACKER_ASM_NAME);
-		CTR_PSX_LOAD_SYMBOL_PAGE(ghostV0, RETAIL_GAME_PROGRESS_ASM_NAME);
-		CTR_PSX_ADD_SYMBOL_LOW(sharedS5, ghostV0, RETAIL_GAME_PROGRESS_ASM_NAME, (u32)&GAME_PROGRESS);
+		CTR_PSX_LOAD_SYMBOL_PAGE(ghostV0, RETAIL_GAME_SAVE_ASM_NAME);
+		CTR_PSX_ADD_SYMBOL_LOW(sharedS5, ghostV0, RETAIL_GAME_SAVE_ASM_NAME, (u32)&GAME_PROGRESS);
 		CTR_PSX_LOAD_SYMBOL_PAGE(ghostV0, MM_HIGHSCORE_GHOST_STAR_FLAGS_ASM_NAME);
 		CTR_PSX_ADD_SYMBOL_LOW(displayData, ghostV0, MM_HIGHSCORE_GHOST_STAR_FLAGS_ASM_NAME, (void *)MM_HIGHSCORE_GHOST_STAR_FLAGS);
 		ghostV0 = (u32)CTR_PSX_PAGE_LVALUE(struct GameTracker *, sharedS1, MM_GAME_TRACKER_PAGE_OFFSET, GAME_TRACKER);
@@ -643,8 +643,8 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "\tmove\t$16,$0\n"
 	             " #APP\n"
 	             "\tlui $17,%%hi(" RETAIL_GAME_TRACKER_ASM_NAME ")\n"
-	             "\tlui $2,%%hi(" RETAIL_GAME_PROGRESS_ASM_NAME ")\n"
-	             "\taddiu $21,$2,%%lo(" RETAIL_GAME_PROGRESS_ASM_NAME ")\n"
+	             "\tlui $2,%%hi(" RETAIL_GAME_SAVE_ASM_NAME ")\n"
+	             "\taddiu $21,$2,%%lo(" RETAIL_GAME_SAVE_ASM_NAME ")\n"
 	             "\tlui $2,%%hi(" MM_HIGHSCORE_GHOST_STAR_FLAGS_ASM_NAME ")\n"
 	             "\taddiu $20,$2,%%lo(" MM_HIGHSCORE_GHOST_STAR_FLAGS_ASM_NAME ")\n"
 	             " #NO_APP\n"
@@ -825,8 +825,8 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 	             "\tsll\t$2,$16,3\n"
 	             "\taddu\t$2,$2,$16\n"
 	             "\tsll\t$2,$2,4\n"
-	             "\tlui\t$3,%%hi(" RETAIL_GAME_PROGRESS_ASM_NAME "+12)\n"
-	             "\taddiu\t$3,$3,%%lo(" RETAIL_GAME_PROGRESS_ASM_NAME "+12)\n"
+	             "\tlui\t$3,%%hi(" RETAIL_GAME_SAVE_ASM_NAME "+12)\n"
+	             "\taddiu\t$3,$3,%%lo(" RETAIL_GAME_SAVE_ASM_NAME "+12)\n"
 	             "\taddu\t$2,$2,$3\n"
 	             "\t.set\tnoreorder\n"
 	             "\t.set\tnomacro\n"

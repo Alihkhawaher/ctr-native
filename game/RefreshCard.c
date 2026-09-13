@@ -274,8 +274,8 @@ void RefreshCard_GameProgressAndOptions(void)
 
 	memcard = (struct MemcardProfile *)sdata->ptrToMemcardBuffer1;
 
-	GAMEPROG_SyncGameAndCard(&memcard->gameProgress, &sdata->gameProgress);
-	memcpy(&sdata->gameProgress, &memcard->gameProgress, sizeof(struct GameProgress) + sizeof(struct GameOptions));
+	GAMEPROG_SyncGameAndCard(&memcard->gameSave.progress, &sdata->gameSave.progress);
+	memcpy(&sdata->gameSave, &memcard->gameSave, sizeof(struct GameSave));
 	RaceConfig_LoadGameOptions();
 }
 

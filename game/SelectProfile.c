@@ -646,8 +646,8 @@ static void SelectProfile_CopyGameProgressToCard(void)
 
 	RaceConfig_SaveGameOptions();
 	GAMEPROG_SaveCupProgress();
-	GAMEPROG_SyncGameAndCard(&memcard->gameProgress, &sdata->gameProgress);
-	memcpy(&memcard->gameProgress, &sdata->gameProgress, sizeof(struct GameProgress) + sizeof(struct GameOptions));
+	GAMEPROG_SyncGameAndCard(&memcard->gameSave.progress, &sdata->gameSave.progress);
+	memcpy(&memcard->gameSave, &sdata->gameSave, sizeof(struct GameSave));
 }
 
 static void SelectProfile_LoadAdvProfile(int slot)
@@ -655,7 +655,7 @@ static void SelectProfile_LoadAdvProfile(int slot)
 	struct GameTracker *gGT = sdata->gGT;
 	struct MemcardProfile *memcard = SelectProfile_MemcardProfile();
 
-	GAMEPROG_SyncGameAndCard(&memcard->gameProgress, &sdata->gameProgress);
+	GAMEPROG_SyncGameAndCard(&memcard->gameSave.progress, &sdata->gameSave.progress);
 	sdata->advProgress = memcard->advProgress[slot];
 	data.characterIDs[0] = sdata->advProgress.characterID;
 	memmove(gGT->prevNameEntered, sdata->advProgress.name, sizeof(gGT->prevNameEntered));

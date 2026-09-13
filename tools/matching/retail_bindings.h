@@ -7,7 +7,7 @@
 #define RETAIL_LANGUAGE_STRINGS_ASM_NAME   "sdata_static+2316"
 #define RETAIL_CHARACTER_METADATA_ASM_NAME "data+25572"
 #define RETAIL_CHARACTER_IDS_ASM_NAME      "data+25828"
-#define RETAIL_GAME_PROGRESS_ASM_NAME      "sdata_static+6012"
+#define RETAIL_GAME_SAVE_ASM_NAME          "sdata_static+6012"
 #define RETAIL_ADD_CONFIG_0_ASM_NAME       "sdata_static+404"
 
 #define GAME_TRACKER                       ctr_gameTrackerPtr
@@ -18,7 +18,8 @@
 #define GAME_MENU_READY                    ctr_menuReady
 #define GAME_ANY_PLAYER_TAP                ctr_anyPlayerTap
 #define GAME_ADV_PROGRESS                  ctr_advProgress
-#define GAME_PROGRESS                      ctr_gameProgress
+#define GAME_SAVE                          ctr_gameSave
+#define GAME_PROGRESS                      (GAME_SAVE.progress)
 #define GAMEPADS                           ctr_gamepads
 #define GAME_MENU_HIGHLIGHT                ctr_menuHighlight
 #define GAME_TOKEN                         ctr_token
@@ -39,7 +40,7 @@ extern s32 ctr_framesSinceRaceEnded asm("sdata_static+1472");
 extern s32 ctr_menuReady asm("sdata_static+1360");
 extern s32 ctr_anyPlayerTap asm("sdata_static+2532");
 extern struct AdvProgress ctr_advProgress asm("sdata_static+11320");
-extern struct GameProgress ctr_gameProgress asm(RETAIL_GAME_PROGRESS_ASM_NAME);
+extern struct GameSave ctr_gameSave asm(RETAIL_GAME_SAVE_ASM_NAME);
 extern struct GamepadSystem *ctr_gamepads asm("sdata_static+836");
 extern Color ctr_menuHighlight asm("sdata_static+2528");
 extern struct Instance *ctr_token asm("sdata_static+2660");

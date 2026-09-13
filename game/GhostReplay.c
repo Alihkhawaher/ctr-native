@@ -354,7 +354,7 @@ void GhostReplay_Init1(void)
 		}
 		else
 		{
-			s32 timeTrialFlags = sdata->gameProgress.highScoreTracks[gGT->levelID].timeTrialFlags;
+			s32 timeTrialFlags = sdata->gameSave.progress.highScoreTracks[gGT->levelID].timeTrialFlags;
 			void **pointers = ST1_GETPOINTERS(gGT->level1->ptrSpawnType1);
 
 			gh = ((timeTrialFlags & TT_NTROPY_BEATEN) != 0) ? pointers[ST1_NOXIDE] : pointers[ST1_NTROPY];
@@ -452,7 +452,7 @@ void GhostReplay_Init2(void)
 				continue;
 			}
 
-			s32 timeTrialFlags = sdata->gameProgress.highScoreTracks[gGT->levelID].timeTrialFlags;
+			s32 timeTrialFlags = sdata->gameSave.progress.highScoreTracks[gGT->levelID].timeTrialFlags;
 			if ((timeTrialFlags & TT_NTROPY_OPEN) == 0)
 			{
 				continue;
@@ -473,7 +473,7 @@ void GhostReplay_Init2(void)
 		s32 characterIndex = ghostID + 1;
 		if (ghostID != 0)
 		{
-			s32 timeTrialFlags = sdata->gameProgress.highScoreTracks[gGT->levelID].timeTrialFlags;
+			s32 timeTrialFlags = sdata->gameSave.progress.highScoreTracks[gGT->levelID].timeTrialFlags;
 			if ((timeTrialFlags & TT_NTROPY_BEATEN) != 0)
 			{
 				characterIndex = ghostID + 2;

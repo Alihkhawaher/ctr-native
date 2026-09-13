@@ -1049,8 +1049,8 @@ trackSelectionMenuDone:
 						asm("lui %0,%%hi(" MM_TIME_TRIAL_STAR_FLAGS_ASM_NAME ")" : "=r"(starFlagsAddress));
 						asm("addiu %0,%0,%%lo(" MM_TIME_TRIAL_STAR_FLAGS_ASM_NAME ")" : "+r"(starFlagsAddress));
 						starFlagsAddress = (starIndex << 1) + starFlagsAddress;
-						asm("lui %0,%%hi(" RETAIL_GAME_PROGRESS_ASM_NAME ")" : "=r"(gameProgressBase) : "r"(starFlagsAddress));
-						asm("addiu %0,%0,%%lo(" RETAIL_GAME_PROGRESS_ASM_NAME ")" : "+r"(gameProgressBase));
+						asm("lui %0,%%hi(" RETAIL_GAME_SAVE_ASM_NAME ")" : "=r"(gameProgressBase) : "r"(starFlagsAddress));
+						asm("addiu %0,%0,%%lo(" RETAIL_GAME_SAVE_ASM_NAME ")" : "+r"(gameProgressBase));
 						beatenFlagBit = *((u16 *)starFlagsAddress);
 						timeTrialFlags = ((u32 *)(gameProgressBase + MM_TRACK_SELECT_TIME_TRIAL_FLAGS_OFFSET))
 						    [((*((struct GameTracker **)(((u32)gameTrackerPage) + MM_GAME_TRACKER_PAGE_OFFSET)))->levelID *

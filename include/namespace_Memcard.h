@@ -555,17 +555,19 @@ struct GhostProfile
 	// 0x34 -- size of struct
 };
 
+enum GameOptionsVolume
+{
+	GAME_OPTIONS_VOLUME_FX,
+	GAME_OPTIONS_VOLUME_MUSIC,
+	GAME_OPTIONS_VOLUME_VOICE,
+	GAME_OPTIONS_VOLUME_COUNT,
+};
+
 // 8008FB7C
 struct GameOptions
 {
 	// 8008fb7c
-	s16 volFx;
-
-	// 8008fb7e
-	s16 volMusic;
-
-	// 8008fb80
-	s16 volVoice;
+	s16 volumes[GAME_OPTIONS_VOLUME_COUNT];
 
 	// 8008fb82  24 bytes total (0x18)
 	struct RacingWheelData rwd[4];
@@ -576,17 +578,16 @@ struct GameOptions
 	// 8008fb9c
 	u32 gameMode1_vibrationFlags;
 
-	// 8008fba0
-	// audio mode (mono/stereo)
-	int audioMode;
+	// 8008fba0: mono/stereo; retail writes only the low halfword.
+	b16 audioMode;
+	s16 _pad_audioMode;
 };
 
-enum GameOptionsVolume
+// Progress and options are transferred together; adventure profiles are separate.
+struct GameSave
 {
-	GAME_OPTIONS_VOLUME_FX,
-	GAME_OPTIONS_VOLUME_MUSIC,
-	GAME_OPTIONS_VOLUME_VOICE,
-	GAME_OPTIONS_VOLUME_COUNT,
+	struct GameProgress progress;
+	struct GameOptions options;
 };
 
 struct MemcardProfile
@@ -598,10 +599,7 @@ struct MemcardProfile
 	struct AdvProgress advProgress[MEMCARD_ADV_PROFILE_COUNT];
 
 	// 0x144
-	struct GameProgress gameProgress;
-
-	// 0x15D8
-	struct GameOptions gameOptions;
+	struct GameSave gameSave;
 
 	// 0x1600 - size of profile
 };
@@ -620,8 +618,9 @@ CTR_STATIC_ASSERT(CTR_OFFSET_OF_ARRAY(struct AdvProgress, rewards, 5) == 0x14);
 CTR_STATIC_ASSERT(OFFSETOF(struct AdvProgress, name) == 0x18);
 CTR_STATIC_ASSERT(sizeof(struct AdvProgress) == 0x50);
 CTR_STATIC_ASSERT(sizeof(struct GhostProfile) == 0x34);
-CTR_STATIC_ASSERT(OFFSETOF(struct GameOptions, volMusic) == OFFSETOF(struct GameOptions, volFx) + sizeof(s16));
-CTR_STATIC_ASSERT(OFFSETOF(struct GameOptions, volVoice) == OFFSETOF(struct GameOptions, volFx) + sizeof(s16) * 2);
+CTR_STATIC_ASSERT(OFFSETOF(struct GameOptions, rwd) == 0x6);
+CTR_STATIC_ASSERT(OFFSETOF(struct GameOptions, audioMode) == 0x24);
 CTR_STATIC_ASSERT(sizeof(struct GameOptions) == 0x28);
+CTR_STATIC_ASSERT(OFFSETOF(struct GameSave, options) == 0x1494);
 
 #endif
