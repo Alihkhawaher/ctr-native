@@ -776,6 +776,22 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "timer",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "Timer_Init",
+      "end_symbol": "Torch_Main",
+      "symbol_prefix": "Timer_",
+      "source": "game/Timer.c",
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/namespaces/timer/retail_symbols.h"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77",
+      "link_symbols": {"_gp": "0x8008cf6c", "timerTotalUnits": "0x8008d988"}
+    },
+    {
       "name": "library-of-models",
       "kind": "resident",
       "artifact": "exe",

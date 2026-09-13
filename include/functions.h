@@ -639,8 +639,8 @@ void SubmitName_UseKeyboard(int key);
 
 void Timer_Init(void);
 void Timer_Destroy(void);
-int Timer_GetTime_Total();
-int Timer_GetTime_Elapsed(int, int *);
+s32 Timer_GetTime_Total(void);
+s32 Timer_GetTime_Elapsed(s32 oldVal, s32 *retVal);
 
 // UI
 void UI_ThTick_CountPickup(struct Thread *bucket);
