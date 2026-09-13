@@ -288,8 +288,8 @@ struct Instance *INSTANCE_Birth3D(struct Model *model, const char *name, struct 
 struct Instance *INSTANCE_BirthWithThread(s32 modelID, const char *name, s32 poolType, s32 bucket, void *funcThTick, s32 objSize, struct Thread *parent);
 struct Instance *INSTANCE_BirthWithThread_Stack(const struct InstanceBirthParams *params);
 void INSTANCE_Death(struct Instance *inst);
-s32 INSTANCE_GetNumAnimFrames(struct Instance *pInstance, int animIndex);
-void INSTANCE_LevInitAll(struct InstDef *levInstDef, int numInst);
+s32 INSTANCE_GetNumAnimFrames(struct Instance *pInstance, s32 animIndex);
+void INSTANCE_LevInitAll(struct InstDef *definitions, s32 count);
 
 // JitPool
 int JitPool_Add(struct JitPool *AP);
@@ -1273,7 +1273,7 @@ void VehBirth_NullThread(struct Thread *t);
 void ElimBG_SaveScreenshot_Chunk(u16 *packedStrip, u16 *rawStrip, int rawPixelCount);
 void ElimBG_ToggleInstance(struct Instance *inst, b32 boolGameIsPaused);
 void ElimBG_ToggleAllInstances(struct GameTracker *gGT, b32 boolGameIsPaused);
-void INSTANCE_LevDelayedLInBs(struct InstDef *instDef, int numInstances);
+void INSTANCE_LevDelayedLInBs(struct InstDef *instDef, s32 numInstances);
 void CAM_ThTick(struct Thread *t);
 void FLARE_ThTick(struct Thread *th);
 void FLARE_Init(s16 *pos);

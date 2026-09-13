@@ -776,12 +776,12 @@
       "aspsx_version": "2.77"
     },
     {
-      "name": "instance-lifecycle",
+      "name": "instance",
       "kind": "resident",
       "artifact": "exe",
       "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
       "start_symbol": "INSTANCE_Birth",
-      "end_symbol": "INSTANCE_LevInitAll",
+      "end_symbol": "JitPool_Clear",
       "symbol_prefix": "INSTANCE_",
       "source": "game/INSTANCE.c",
       "include_directories": ["include"],
