@@ -839,6 +839,35 @@
       }
     },
     {
+      "name": "decal-font",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "DecalFont_GetLineWidthStrlen",
+      "end_symbol": "DecalGlobal_EmptyFunc_MainFrame_ResetDB",
+      "symbol_prefix": "DecalFont_",
+      "source": "game/DecalFont.c",
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/namespaces/decal-font/retail_symbols.h"],
+      "compiler_flags": ["-O2", "-G4", "-msoft-float"],
+      "small_data_limit": 4,
+      "aspsx_version": "2.77",
+      "link_symbols": {
+        "_gp": "0x8008cf6c",
+        "fontIconGroup": "0x80082358",
+        "fontCharWidth": "0x80082360",
+        "fontCharHeight": "0x80082368",
+        "fontPunctWidth": "0x80082370",
+        "fontCharacterIcons": "0x80082378",
+        "fontButtonScale": "0x80082458",
+        "fontButtonWidth": "0x80082460",
+        "fontButtonHeight": "0x80082468",
+        "fontIndentIcons": "0x80082470",
+        "fontIndentDimensions": "0x80082478",
+        "fontColors": "0x80081d70"
+      }
+    },
+    {
       "name": "decal-global",
       "kind": "resident",
       "artifact": "exe",
@@ -1078,34 +1107,6 @@
         "2.81"
       ],
       "purpose": "Smoke-test the source extraction, old GCC, maspsx, GNU assembler, object extraction, and retail-byte oracle. This trivial function cannot identify the original compiler."
-    },
-    {
-      "name": "DecalFont_DrawLine",
-      "kind": "probe",
-      "symbol": "DecalFont_DrawLine",
-      "source": "game/DecalFont.c",
-      "region": "exe",
-      "address": "0x80022878",
-      "size": 76,
-      "compile_prelude": "typedef short s16;\nvoid DecalFont_DrawLineStrlen(char *str, s16 len, int posX, s16 posY, s16 fontType, int flags);\n",
-      "compiler_flags": [
-        "-O2",
-        "-G8",
-        "-msoft-float"
-      ],
-      "small_data_limit": 8,
-      "aspsx_versions": [
-        "2.67",
-        "2.77",
-        "2.81"
-      ],
-      "link": {
-        "text_address": "0x80022878",
-        "symbols": {
-          "DecalFont_DrawLineStrlen": "0x800224fc"
-        }
-      },
-      "purpose": "Verify the production wrapper's signed 16-bit position, font, and style contract, including its stack argument load, sign extension, call scheduling, and exact link address."
     },
     {
       "name": "UI_ConvertX_2",

@@ -73,8 +73,8 @@ void CTR_Box_DrawSolidBox(RECT *r, const Color *color, u32 *ot, struct PrimMem *
 // decal
 u32 DecalFont_boolRacingWheel(void);
 void DecalFont_DrawLine(char *str, s16 posX, s16 posY, s16 fontType, s16 flags);
-void DecalFont_DrawLineStrlen(char *str, s16 len, int posX, s16 posY, s16 fontType, int flags);
-int DecalFont_DrawMultiLine(char *str, int posX, int posY, int maxPixLen, s16 fontType, int flags);
+void DecalFont_DrawLineStrlen(char *str, s16 len, s16 posX, s16 posY, s16 fontType, s16 flags);
+s32 DecalFont_DrawMultiLine(char *str, s16 posX, s16 posY, s16 maxPixLen, s16 fontType, s16 flags);
 void DecalGlobal_EmptyFunc_MainFrame_ResetDB(void);
 void DecalGlobal_Clear(struct GameTracker *gGT);
 void DecalGlobal_Store(struct GameTracker *gGT, struct LevTexLookup *LTL);
@@ -1175,14 +1175,14 @@ void UI_DrawLimitClock(s16 posX, s16 posY, s16 fontType);
 void AA_EndEvent_DisplayTime(s16 driverId, s16 timeOffsetFrames);
 void UI_DrawPosSuffix(s16 posX, s16 posY, struct Driver *d, s16 flags);
 void UI_DrawRaceClock(s16 labelPosX, s16 labelPosY, u32 flags, struct Driver *driver);
-int DecalFont_GetLineWidth(char *str, s16 fontType);
+s32 DecalFont_GetLineWidth(char *str, s16 fontType);
 void RR_EndEvent_UnlockAward(void);
 void RR_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode);
 b32 LOAD_IsOpen_RacingOrBattle(void);
 void GAMEPROG_NewProfile_InsideAdv(struct AdvProgress *adv);
 int RaceFlag_MoveModels(int frameIndex, int numFrames);
 void MainKillGame_LaunchSpyro2(void);
-void DecalFont_DrawLineOT(char *str, int posX, int posY, s16 fontType, int flags, u32 *ot);
+void DecalFont_DrawLineOT(char *str, s16 posX, s16 posY, s16 fontType, s16 flags, u32 *ot);
 void DecalHUD_Arrow2D(struct Icon *icon, s16 posX, s16 posY, struct PrimMem *primMem, u32 *otMemPtr, u32 color1, u32 color2, u32 color3, u32 color4,
                       char transparency, int scale, u16 rot);
 void RaceFlag_SetDrawOrder(b32 drawAfterFlag);
@@ -1213,7 +1213,7 @@ void VehGroundSkids_Subset2(struct VehGroundSkidsScratch *scratch, const SVECTOR
 void GAMEPAD_ShockForce1(struct Driver *d, int frame, int val);
 u32 *RaceFlag_GetOT(void);
 void RaceFlag_DrawLoadingString(void);
-int DecalFont_GetLineWidthStrlen(char *character, int len, int fontType);
+s32 DecalFont_GetLineWidthStrlen(char *str, s16 len, s16 fontType);
 void RB_Burst_Init(struct Instance *weaponInst);
 void GAMEPAD_ShockFreq(struct Driver *d, int frame, int val);
 b32 RaceFlag_IsTransitioning(void);
@@ -1236,7 +1236,7 @@ int MainDB_GetClipSize(u32 levelID, int numPlyrCurrGame);
 void MainFreeze_ConfigDrawArrows(s16 offsetX, s16 offsetY, char *str);
 void CAM_StartOfRace(struct CameraDC *cDC);
 void CAM_SkyboxGlow(struct SkyboxGlowGradient *grad, struct PushBuffer *pb, struct PrimMem *primMem, u32 *ptrOT);
-int DecalFont_DrawMultiLineStrlen(char *str, s16 len, s16 posX, s16 posY, s16 maxPixLen, s16 fontType, s16 flags);
+s32 DecalFont_DrawMultiLineStrlen(char *str, s16 len, s16 posX, s16 posY, s16 maxPixLen, s16 fontType, s16 flags);
 void GAMEPROG_ResetHighScores(struct GameProgress *gameProg);
 void GAMEPROG_NewProfile_OutsideAdv(struct GameSave *save);
 int LOAD_FindFile(char *filename, CdlFILE *cdlFile);
