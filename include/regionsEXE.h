@@ -2495,7 +2495,8 @@ struct sData
 	u32 audioRNG;
 
 	// 8008D05C
-	int boolAudioEnabled;
+	u8 boolAudioEnabled;
+	u8 _pad_boolAudioEnabled[3];
 
 	// 8008D060
 	char s_HOWL[8];
@@ -3322,7 +3323,8 @@ struct sData
 	int songSectorOffset;
 
 	// 8008d7ac
-	int vol_FX;
+	u8 vol_FX;
+	u8 _pad_vol_FX[3];
 
 	// 8008d7b0
 	struct CseqHeader *ptrCseqHeader;
@@ -3335,7 +3337,8 @@ struct sData
 	u8 padding_afterVolMusic[3];
 
 	// 8008d7bc
-	int vol_Voice;
+	u8 vol_Voice;
+	u8 _pad_vol_Voice[3];
 
 	// 8008d7c0
 	struct HowlHeader *ptrHowlHeader;
@@ -3349,7 +3352,8 @@ struct sData
 	char *ptrCseqSongData;
 
 	// 8008d7cc
-	int boolStereoEnabled;
+	u8 boolStereoEnabled;
+	u8 _pad_boolStereoEnabled[3];
 
 	// 8008d7d0
 	struct EngineFX *howl_metaEngineFX;

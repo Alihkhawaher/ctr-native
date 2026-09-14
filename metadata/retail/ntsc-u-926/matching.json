@@ -808,6 +808,37 @@
       "link_symbols": {"_gp": "0x8008cf6c", "cupProgressString": "0x8008d938", "cupProgressSave": "0x8008d918"}
     },
     {
+      "name": "howl-settings",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "howl_Disable",
+      "end_symbol": "Smart_EnterCriticalSection",
+      "symbol_prefix": "",
+      "source": "game/HOWL/HOWL_Settings.c",
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/namespaces/howl-settings/retail_symbols.h"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77",
+      "link_symbols": {
+        "_gp": "0x8008cf6c",
+        "howlEnabled": "0x8008d05c",
+        "howlStereo": "0x8008d7cc",
+        "howlVolumeFX": "0x8008d7ac",
+        "howlVolumeMusic": "0x8008d7b8",
+        "howlVolumeVoice": "0x8008d7bc",
+        "howlChannels": "0x8009056c",
+        "howlChannelUpdates": "0x8008fc6c",
+        "howlChannelAttrs": "0x8008fccc",
+        "howlSongSequences": "0x800902cc",
+        "howlSongs": "0x80095d84",
+        "howlSliderPlaying": "0x8008d794",
+        "howlSliderRow": "0x8008d798",
+        "howlSliderSound": "0x8008d7a0"
+      }
+    },
+    {
       "name": "decal-global",
       "kind": "resident",
       "artifact": "exe",
