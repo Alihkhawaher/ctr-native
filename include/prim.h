@@ -127,6 +127,19 @@ static inline void ColorCode_SetPacked(ColorCode *color, u32 packed)
 #endif
 }
 
+#ifdef CTR_NATIVE
+// NOTE(aalhendi): Native palettes also live in u32 arrays. Copy their bytes into
+// a real Color before passing it by value; a cast alone violates strict aliasing.
+static inline Color ColorCode_Load(const void *packed)
+{
+	Color color;
+	ColorCode_SetPacked(&color, CTR_ReadU32LE(packed));
+	return color;
+}
+#else
+#define ColorCode_Load(packed) (*(const Color *)(packed))
+#endif
+
 #define COLOR_CODE_PACKED_INIT(packed)          \
 	{                                           \
 	    .r = (u8)(packed),                      \

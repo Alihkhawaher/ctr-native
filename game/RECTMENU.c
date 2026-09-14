@@ -9,8 +9,7 @@ void RECTMENU_DrawPolyGT4(struct Icon *icon, s32 posX, s32 posY, struct PrimMem 
 		return;
 	}
 
-	DecalHUD_DrawPolyGT4(icon, posX, posY, primMem, ot, ColorCode_GetPacked(&color0), ColorCode_GetPacked(&color1), ColorCode_GetPacked(&color2),
-	                     ColorCode_GetPacked(&color3), (s8)transparency, (s16)scale);
+	DecalHUD_DrawPolyGT4(icon, posX, posY, primMem, ot, color0, color1, color2, color3, (u8)transparency, (s16)scale);
 }
 
 

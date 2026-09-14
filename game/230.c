@@ -302,12 +302,12 @@
 #define MM_GHOST_TAPE_PLAYING                            (sdata_static.ptrGhostTapePlaying)
 #define MM_USELESS_LAP_ROW_COPY                          (sdata_static.uselessLapRowCopy)
 #define MM_MENU_ROW_HIGHLIGHT_NORMAL_PAGE_OFFSET         0
-#define MM_DECALHUD_DRAW_POLY_GT4(icon, posX, posY, primMem, ot, color0, color1, color2, color3, transparency, scale)             \
-	DecalHUD_DrawPolyGT4((icon), (posX), (posY), (primMem), (ot), ColorCode_GetPacked(&(color0)), ColorCode_GetPacked(&(color1)), \
-	                     ColorCode_GetPacked(&(color2)), ColorCode_GetPacked(&(color3)), (transparency), (scale))
-#define MM_DECALHUD_ARROW_2D(icon, posX, posY, primMem, ot, color0, color1, color2, color3, transparency, scale, rotation)                                    \
-	DecalHUD_Arrow2D((icon), (posX), (posY), (primMem), (ot), ColorCode_GetPacked(&(color0)), ColorCode_GetPacked(&(color1)), ColorCode_GetPacked(&(color2)), \
-	                 ColorCode_GetPacked(&(color3)), (transparency), (scale), (rotation))
+#define MM_DECALHUD_DRAW_POLY_GT4(icon, x, y, primMem, ot, c0, c1, c2, c3, transparency, scale)                                                         \
+	DecalHUD_DrawPolyGT4((icon), (x), (y), (primMem), (ot), ColorCode_Load(&(c0)), ColorCode_Load(&(c1)), ColorCode_Load(&(c2)), ColorCode_Load(&(c3)), \
+	                     (transparency), (scale))
+#define MM_DECALHUD_ARROW_2D(icon, posX, posY, primMem, ot, color0, color1, color2, color3, transparency, scale, rotation)                     \
+	DecalHUD_Arrow2D((icon), (posX), (posY), (primMem), (ot), ColorCode_Load(&(color0)), ColorCode_Load(&(color1)), ColorCode_Load(&(color2)), \
+	                 ColorCode_Load(&(color3)), (transparency), (scale), (rotation))
 
 #define MM_DRAW_CLEAR_BOX               CTR_Box_DrawClearBox
 #define MM_DRAW_SOLID_BOX_WITH_PRIM_MEM CTR_Box_DrawSolidBox

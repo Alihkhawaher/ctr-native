@@ -15,9 +15,9 @@
 #endif
 
 #ifndef FONT_DRAW_POLY_GT4
-#define FONT_DRAW_POLY_GT4(icon, x, y, prim, ot, c0, c1, c2, c3, transparency, scale)                                                        \
-	DecalHUD_DrawPolyGT4((icon), (x), (y), (prim), (ot), ColorCode_GetPacked(&(c0)), ColorCode_GetPacked(&(c1)), ColorCode_GetPacked(&(c2)), \
-	                     ColorCode_GetPacked(&(c3)), (transparency), (scale))
+#define FONT_DRAW_POLY_GT4(icon, x, y, primMem, ot, c0, c1, c2, c3, transparency, scale)                                                                \
+	DecalHUD_DrawPolyGT4((icon), (x), (y), (primMem), (ot), ColorCode_Load(&(c0)), ColorCode_Load(&(c1)), ColorCode_Load(&(c2)), ColorCode_Load(&(c3)), \
+	                     (transparency), (scale))
 #endif
 
 s32 DecalFont_GetLineWidthStrlen(char *str, s16 len, s16 fontType)

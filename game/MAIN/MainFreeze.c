@@ -81,7 +81,7 @@ void MainFreeze_ConfigDrawArrows(s16 offsetX, s16 offsetY, char *str)
 	    gGT->pushBuffer_UI.ptrOT,
 
 	    // color data
-	    colorPtr[0], colorPtr[1], colorPtr[2], colorPtr[3],
+	    ColorCode_Load(&colorPtr[0]), ColorCode_Load(&colorPtr[1]), ColorCode_Load(&colorPtr[2]), ColorCode_Load(&colorPtr[3]),
 
 	    0, FP(1.0), 0x800);
 
@@ -99,7 +99,7 @@ void MainFreeze_ConfigDrawArrows(s16 offsetX, s16 offsetY, char *str)
 	    gGT->pushBuffer_UI.ptrOT,
 
 	    // color data
-	    colorPtr[0], colorPtr[1], colorPtr[2], colorPtr[3],
+	    ColorCode_Load(&colorPtr[0]), ColorCode_Load(&colorPtr[1]), ColorCode_Load(&colorPtr[2]), ColorCode_Load(&colorPtr[3]),
 
 	    0, FP(1.0), 0);
 

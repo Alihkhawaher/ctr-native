@@ -82,7 +82,7 @@ void DecalGlobal_Store(struct GameTracker *gGT, struct LevTexLookup *LTL);
 struct IconGroup *DecalGlobal_FindInLEV(struct Level *level, const char *name);
 struct Icon *DecalGlobal_FindInMPK(struct Icon *icons, const char *name);
 void DecalHUD_DrawPolyFT4(struct Icon *icon, s32 posX, s32 posY, struct PrimMem *primMem, u32 *ot, u8 transparency, s16 scale);
-void DecalHUD_DrawPolyGT4(struct Icon *icon, s16 posX, s16 posY, struct PrimMem *primMem, u32 *ot, u32 color0, u32 color1, u32 color2, u32 color3,
+void DecalHUD_DrawPolyGT4(struct Icon *icon, s32 posX, s32 posY, struct PrimMem *primMem, u32 *ot, Color color0, Color color1, Color color2, Color color3,
                           u8 transparency, s16 scale);
 void DecalMP_01(struct GameTracker *gGT);
 void DecalMP_02(struct GameTracker *gGT);
@@ -1183,8 +1183,8 @@ void GAMEPROG_NewProfile_InsideAdv(struct AdvProgress *adv);
 int RaceFlag_MoveModels(int frameIndex, int numFrames);
 void MainKillGame_LaunchSpyro2(void);
 void DecalFont_DrawLineOT(char *str, s16 posX, s16 posY, s16 fontType, s16 flags, u32 *ot);
-void DecalHUD_Arrow2D(struct Icon *icon, s16 posX, s16 posY, struct PrimMem *primMem, u32 *otMemPtr, u32 color1, u32 color2, u32 color3, u32 color4,
-                      char transparency, int scale, u16 rot);
+void DecalHUD_Arrow2D(struct Icon *icon, s32 posX, s32 posY, struct PrimMem *primMem, u32 *ot, Color color0, Color color1, Color color2, Color color3,
+                      u8 transparency, s16 scale, u16 rot);
 void RaceFlag_SetDrawOrder(b32 drawAfterFlag);
 b32 RaceFlag_IsFullyOnScreen(void);
 b32 RaceFlag_IsFullyOffScreen(void);
@@ -1260,7 +1260,7 @@ int Particle_BitwiseClampByte(int *value);
 void PROC_DestroyBloodline(struct Thread *t);
 void RECTMENU_DrawFullRect(struct RectMenu *menu, RECT *inner);
 void UI_Map_DrawAdvPlayer(struct UIMap *map, const s32 worldPos[3], int unused1, int unused2, s16 rot, s16 scale);
-void DecalHUD_DrawWeapon(struct Icon *icon, s16 posX, s16 posY, struct PrimMem *primMem, u32 *ot, char transparency, s16 scale, char rot);
+void DecalHUD_DrawWeapon(struct Icon *icon, s32 posX, s32 posY, struct PrimMem *primMem, u32 *ot, u8 transparency, s16 scale, s16 rot);
 void DebugFont_DrawNumbers(int index, int screenPosX, int screenPosY);
 void UI_RenderFrame_CrystChall(void);
 void UI_Map_DrawGhosts(struct UIMap *map, struct Thread *bucket);

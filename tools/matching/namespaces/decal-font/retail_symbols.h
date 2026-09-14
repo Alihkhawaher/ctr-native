@@ -26,6 +26,6 @@ extern s16 fontIndentDimensions[FONT_NUM * 2];
 extern u32 *fontColors[NUM_COLORS];
 
 // NOTE(aalhendi): Retail copies byte-aligned colors into the outgoing arguments.
-// Native packs the same four bytes for the canonical HUD entry point.
+// This call site also keeps full-word blending and scale arguments.
 extern void fontDrawPolyGT4(struct Icon *icon, s32 x, s32 y, struct PrimMem *prim, u32 *ot, Color color0, Color color1, Color color2, Color color3,
                             s32 transparency, s32 scale) asm("DecalHUD_DrawPolyGT4");

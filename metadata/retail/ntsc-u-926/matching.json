@@ -882,6 +882,20 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "decal-hud",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "DecalHUD_DrawPolyFT4",
+      "end_symbol": "DecalMP_01",
+      "symbol_prefix": "DecalHUD_",
+      "source": "game/DecalHUD.c",
+      "include_directories": ["include"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77"
+    },
+    {
       "name": "decal-global",
       "kind": "resident",
       "artifact": "exe",

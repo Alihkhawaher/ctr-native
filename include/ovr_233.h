@@ -1051,9 +1051,9 @@ extern struct Ovr233_Credits_BSS creditsBSS;
 extern const Color csGarageWhite;
 
 #ifndef CS_DECALHUD_ARROW_2D
-#define CS_DECALHUD_ARROW_2D(icon, x, y, prim, ot, c0, c1, c2, c3, transparency, scale, rotation)                                        \
-	DecalHUD_Arrow2D((icon), (x), (y), (prim), (ot), ColorCode_GetPacked(&(c0)), ColorCode_GetPacked(&(c1)), ColorCode_GetPacked(&(c2)), \
-	                 ColorCode_GetPacked(&(c3)), (transparency), (scale), (rotation))
+#define CS_DECALHUD_ARROW_2D(icon, x, y, prim, ot, c0, c1, c2, c3, transparency, scale, rotation)                                                \
+	DecalHUD_Arrow2D((icon), (x), (y), (prim), (ot), ColorCode_Load(&(c0)), ColorCode_Load(&(c1)), ColorCode_Load(&(c2)), ColorCode_Load(&(c3)), \
+	                 (transparency), (scale), (rotation))
 #endif
 
 #endif
