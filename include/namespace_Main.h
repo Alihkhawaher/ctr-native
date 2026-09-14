@@ -740,12 +740,9 @@ struct GameTracker
 		// 1e3c
 		struct
 		{
-			int total;
-			int red;
-			int green;
-			int blue;
-			int yellow;
-			int purple;
+			s32 total;
+			// Red, green, blue, yellow, purple; indexed by level token group.
+			s32 color[5];
 		} numCtrTokens;
 
 		// 1e54

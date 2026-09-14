@@ -121,7 +121,7 @@ int GAMEPAD_ProcessAnyoneVars(struct GamepadSystem *gGamepads);
 void GAMEPAD_ProcessState(struct GamepadBuffer *pad, int padState, s16 id);
 void GAMEPAD_ShockForce2(struct Driver *d, int frame, int val);
 
-b32 GAMEPROG_CheckGhostsBeaten(int ghostID);
+b32 GAMEPROG_CheckGhostsBeaten(s32 ghostID);
 void GAMEPROG_AdvPercent(struct AdvProgress *adv);
 void GAMEPROG_NewGame_OnBoot(void);
 void GAMEPROG_GetPtrHighScoreTrack(void);

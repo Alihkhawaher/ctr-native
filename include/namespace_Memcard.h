@@ -95,7 +95,6 @@ enum HighScoreConstants
 	MEMCARD_HIGH_SCORE_TRACK_COUNT = 0x12,
 	MEMCARD_HIGH_SCORE_MODE_COUNT = 2,
 	MEMCARD_HIGH_SCORE_ENTRIES_PER_MODE = 6,
-	MEMCARD_HIGH_SCORE_ENTRIES_PER_TRACK = MEMCARD_HIGH_SCORE_MODE_COUNT * MEMCARD_HIGH_SCORE_ENTRIES_PER_MODE,
 	MEMCARD_HIGH_SCORE_NAME_LENGTH = 18,
 	MEMCARD_HIGH_SCORE_DEFAULT_TIME = 0x8c640,
 };
@@ -124,11 +123,9 @@ struct HighScoreEntry
 // 0x124 bytes each
 struct HighScoreTrack
 {
-	// Time Trial Best Lap
-	// Time Trial Best Race (5)
-	// Relic Race Best Lap -- unused
-	// Relic Race Best Race (5)
-	struct HighScoreEntry scoreEntry[MEMCARD_HIGH_SCORE_ENTRIES_PER_TRACK];
+	// Time Trial, then Relic Race: best lap followed by five best race times.
+	// The Relic Race lap entry is initialized but not displayed.
+	struct HighScoreEntry scoreEntry[MEMCARD_HIGH_SCORE_MODE_COUNT][MEMCARD_HIGH_SCORE_ENTRIES_PER_MODE];
 
 #define TT_NTROPY_OPEN   0x1
 #define TT_NTROPY_BEATEN 0x2

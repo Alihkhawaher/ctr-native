@@ -776,6 +776,38 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "gameprog",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "GAMEPROG_AdvPercent",
+      "end_symbol": "GhostReplay_ThTick",
+      "symbol_prefix": "GAMEPROG_",
+      "source": "game/GAMEPROG.c",
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/retail_bindings.h"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77",
+      "link_symbols": {"_gp": "0x8008cf6c"}
+    },
+    {
+      "name": "take-cup-progress",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "TakeCupProgress_Activate",
+      "end_symbol": "Timer_Init",
+      "symbol_prefix": "TakeCupProgress_",
+      "source": "game/TakeCupProgress.c",
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/namespaces/take-cup-progress/retail_symbols.h"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77",
+      "link_symbols": {"_gp": "0x8008cf6c", "cupProgressString": "0x8008d938", "cupProgressSave": "0x8008d918"}
+    },
+    {
       "name": "decal-global",
       "kind": "resident",
       "artifact": "exe",

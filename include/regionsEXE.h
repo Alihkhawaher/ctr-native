@@ -3617,7 +3617,8 @@ struct sData
 	s16 padding_8008d916;
 
 	// 8008d918
-	int boolSaveCupProgress;
+	b16 boolSaveCupProgress;
+	s16 _pad_boolSaveCupProgress;
 
 	// 8008d91c
 	s16 advCharSelectIndex_prev;
@@ -3648,7 +3649,8 @@ struct sData
 	// Must be some unused placeholder,
 	// both 0x236 and 0x237 are the same
 	// "Save your cup progress?"
-	int stringIndexSaveCupProgress;
+	s16 stringIndexSaveCupProgress;
+	s16 _pad_stringIndexSaveCupProgress;
 
 	// 8008d93c
 	int unk_lala[2];

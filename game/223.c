@@ -40,7 +40,6 @@ enum RelicRaceEndMenuConstants
 	RR_MENU_READY_FLAG = 1,
 	RR_SCORE_MODE_TIME_TRIAL = 0,
 	RR_SCORE_MODE_RELIC_RACE = 1,
-	RR_HIGH_SCORE_ENTRIES_PER_MODE = 6,
 	RR_HIGH_SCORE_VISIBLE_ROWS = 5,
 	RR_HIGH_SCORE_FIRST_VISIBLE_ENTRY = 1,
 	RR_HIGH_SCORE_ROW_SPACING = 0x1a,
@@ -59,14 +58,14 @@ global_variable const char s_countdownFormat223[4] = "-%d";
 global_variable Color s_highScoreIconColor223;
 
 #ifndef RR_RELIC
-#define RR_RELIC                   (sdata->ptrRelic)
-#define RR_TIMEBOX1                (sdata->ptrTimebox1)
-#define RR_RELIC_TIMES             ((s32(*)[RR_RELIC_TIERS])data.RelicTime)
-#define RR_RELIC_TIME_1MIN         (sdata->relicTime_1min)
-#define RR_RELIC_TIME_10SEC        (sdata->relicTime_10sec)
-#define RR_RELIC_TIME_1SEC         (sdata->relicTime_1sec)
-#define RR_RELIC_TIME_10MS         (sdata->relicTime_10ms)
-#define RR_RELIC_TIME_1MS          (sdata->relicTime_1ms)
+#define RR_RELIC            (sdata->ptrRelic)
+#define RR_TIMEBOX1         (sdata->ptrTimebox1)
+#define RR_RELIC_TIMES      ((s32(*)[RR_RELIC_TIERS])data.RelicTime)
+#define RR_RELIC_TIME_1MIN  (sdata->relicTime_1min)
+#define RR_RELIC_TIME_10SEC (sdata->relicTime_10sec)
+#define RR_RELIC_TIME_1SEC  (sdata->relicTime_1sec)
+#define RR_RELIC_TIME_10MS  (sdata->relicTime_10ms)
+#define RR_RELIC_TIME_1MS   (sdata->relicTime_1ms)
 #endif
 
 #ifndef RR_DRAW_POLY_GT4
@@ -221,7 +220,7 @@ void RR_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 		scoreModeCopy = scoreMode;
 
 		// 12 entries per track, 6 for Time Trial and 6 for Relic Race
-		scoreEntries = &GAME_PROGRESS.highScoreTracks[GAME_TRACKER->levelID].scoreEntry[RR_HIGH_SCORE_ENTRIES_PER_MODE * scoreModeCopy];
+		scoreEntries = GAME_PROGRESS.highScoreTracks[GAME_TRACKER->levelID].scoreEntry[scoreModeCopy];
 
 		// NOTE(aalhendi): Retail passes identical start and end points.
 		UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), startX, startYCopy, startX, startYCopy, GAME_FRAMES_SINCE_RACE_ENDED, RR_LERP_FRAMES);

@@ -520,8 +520,7 @@ void MM_HighScore_Draw(s16 trackIndex, s32 rowIndex, s32 posX, s32 posY)
 		CTR_PSX_KEEP_VALUE(sharedS5);
 
 		// first entry: Time Trial or Relic
-		displayData = (struct MainMenu_LevelRow *)&GAME_PROGRESS.highScoreTracks[MM_ARCADE_TRACKS[(s16)draw.trackIndex].levID]
-		                  .scoreEntry[selectedScoreMode * MEMCARD_HIGH_SCORE_ENTRIES_PER_MODE];
+		displayData = (struct MainMenu_LevelRow *)&GAME_PROGRESS.highScoreTracks[MM_ARCADE_TRACKS[(s16)draw.trackIndex].levID].scoreEntry[selectedScoreMode][0];
 		CTR_PSX_KEEP_VALUE_RELAXED(displayData);
 
 		MM_HighScore_Text3D(

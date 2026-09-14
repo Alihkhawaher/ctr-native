@@ -20,7 +20,6 @@ enum TimeTrialEndMenuConstants
 	TT_CONFIRM_BUTTON_MASK = BTN_CROSS_one | BTN_CIRCLE,
 	TT_MENU_READY_SHOW_MENU = 1,
 	TT_MENU_READY_HIGH_SCORE_EXIT = 0x10,
-	TT_HIGH_SCORE_ENTRIES_PER_MODE = 6,
 	TT_HIGH_SCORE_VISIBLE_ROWS = 5,
 	TT_HIGH_SCORE_FIRST_VISIBLE_ENTRY = 1,
 	TT_HIGH_SCORE_ROW_SPACING = 0x1a,
@@ -40,8 +39,8 @@ extern struct RectMenu menu224;
 extern struct RectMenu menu224NoSave;
 
 #ifndef TT_FLAGS
-#define TT_FLAGS                   (sdata->flags_timeTrialEndOfRace)
-#define TT_GHOST_TOO_BIG           (sdata->boolGhostTooBigToSave)
+#define TT_FLAGS         (sdata->flags_timeTrialEndOfRace)
+#define TT_GHOST_TOO_BIG (sdata->boolGhostTooBigToSave)
 #endif
 
 #ifndef TT_DRAW_POLY_GT4
@@ -140,7 +139,7 @@ void TT_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode)
 		scoreModeCopy = scoreMode;
 
 		// 12 entries per track, 6 for Time Trial and 6 for Relic Race
-		scoreEntries = &GAME_PROGRESS.highScoreTracks[GAME_TRACKER->levelID].scoreEntry[TT_HIGH_SCORE_ENTRIES_PER_MODE * scoreModeCopy];
+		scoreEntries = GAME_PROGRESS.highScoreTracks[GAME_TRACKER->levelID].scoreEntry[scoreModeCopy];
 
 		// NOTE(aalhendi): Retail passes identical start and end points.
 		UI_Lerp2D_Linear(CTR_VECTOR_DATA(&(pos)), startX, startYCopy, startX, startYCopy, GAME_FRAMES_SINCE_RACE_ENDED, TT_LERP_FRAMES);
