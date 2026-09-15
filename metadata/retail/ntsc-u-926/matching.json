@@ -882,6 +882,21 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "ui-draw-num",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "UI_DrawNumWumpa",
+      "end_symbol": "UI_DrawSpeedNeedle",
+      "symbol_prefix": "UI_DrawNum",
+      "source": "game/UI/UI_DrawNum.c",
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/namespaces/ui-draw-num/retail_symbols.h"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float"],
+      "small_data_limit": 0,
+      "aspsx_version": "2.77"
+    },
+    {
       "name": "decal-hud",
       "kind": "resident",
       "artifact": "exe",
