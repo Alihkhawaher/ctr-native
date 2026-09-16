@@ -925,6 +925,22 @@
       "aspsx_version": "2.77"
     },
     {
+      "name": "raceflag",
+      "kind": "resident",
+      "artifact": "exe",
+      "symbol_file": "metadata/retail/ntsc-u-926/symbols/syms926.txt",
+      "start_symbol": "RaceFlag_MoveModels",
+      "end_symbol": "RECTMENU_DrawPolyGT4",
+      "symbol_prefix": "RaceFlag_",
+      "source": "game/RaceFlag.c",
+      "include_directories": ["include"],
+      "forced_includes": ["tools/matching/namespaces/raceflag/retail_symbols.h"],
+      "compiler_flags": ["-O2", "-G8", "-msoft-float", "-fno-cse-skip-blocks"],
+      "small_data_limit": 8,
+      "aspsx_version": "2.77",
+      "link_symbols": {"_gp": "0x8008cf6c", "raceFlagCanDraw": "0x8008d448"}
+    },
+    {
       "name": "raceconfig",
       "kind": "resident",
       "artifact": "exe",

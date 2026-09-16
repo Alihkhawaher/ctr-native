@@ -247,15 +247,8 @@ void UI_Map_DrawRawIcon(struct UIMap *map, const s32 worldPos[3], int iconID, in
 
 	struct Icon **iconPtrArray = ICONGROUP_GETICONS(sdata->gGT->iconGroup[UI_MAP_ICON_GROUP]);
 
-	{
-		Color colors[4];
-		ColorCode_SetPacked(&colors[0], ptrColor[0]);
-		ColorCode_SetPacked(&colors[1], ptrColor[1]);
-		ColorCode_SetPacked(&colors[2], ptrColor[2]);
-		ColorCode_SetPacked(&colors[3], ptrColor[3]);
-		DecalHUD_DrawPolyGT4(iconPtrArray[iconID], posX, posY, &gGT->backBuffer->primMem, gGT->pushBuffer_UI.ptrOT, colors[0], colors[1], colors[2], colors[3],
-		                     0, (int)scale);
-	}
+	DecalHUD_DrawPolyGT4(iconPtrArray[iconID], posX, posY, &gGT->backBuffer->primMem, gGT->pushBuffer_UI.ptrOT, ColorCode_Load(&ptrColor[0]),
+	                     ColorCode_Load(&ptrColor[1]), ColorCode_Load(&ptrColor[2]), ColorCode_Load(&ptrColor[3]), 0, (int)scale);
 
 	return;
 }

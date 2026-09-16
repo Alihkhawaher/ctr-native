@@ -23,6 +23,24 @@
 #define CTR_GteReadMAC12(mac1, mac2) __asm__ volatile("mfc2 %0,$25\n\tmfc2 %1,$26" : "=r"(mac1), "=r"(mac2))
 #endif
 
+// NOTE(aalhendi): Three word-aligned SDK vectors; native does not read VZ padding.
+#ifdef CTR_NATIVE
+#define CTR_GteLoadPositionsV0V1V2(first, second, third) CTR_GteLoadSV3(first, second, third)
+#define CTR_GteStorePositionsXY(first, second, third)    CTR_GteStoreSXY3(first, second, third)
+#define CTR_GteSetGeomOffset(x, y)                       gte_SetGeomOffset(x, y)
+#else
+#define CTR_GteLoadPositionsV0V1V2(first, second, third)  \
+	__asm__ volatile("lwc2 $0,0(%0)\n\tlwc2 $1,4(%0)\n\t" \
+	                 "lwc2 $2,0(%1)\n\tlwc2 $3,4(%1)\n\t" \
+	                 "lwc2 $4,0(%2)\n\tlwc2 $5,4(%2)\n\t" \
+	                 "nop\n\tnop"                         \
+	                 :                                    \
+	                 : "r"(first), "r"(second), "r"(third), "m"(*(first)), "m"(*(second)), "m"(*(third)))
+#define CTR_GteStorePositionsXY(first, second, third) \
+	__asm__ volatile("swc2 $12,0(%0)\n\tswc2 $13,0(%1)\n\tswc2 $14,0(%2)" : : "r"(first), "r"(second), "r"(third) : "memory")
+#define CTR_GteSetGeomOffset(x, y) __asm__ volatile("sll $12,%0,16\n\tsll $13,%1,16\n\tctc2 $12,$24\n\tctc2 $13,$25" : : "r"(x), "r"(y) : "$12", "$13")
+#endif
+
 // Word-aligned vectors. LH also sign-extends the row's Z into R21's upper half.
 static inline void CTR_GteLoadDotProduct(const SVec3 *row, const SVec3 *vector)
 {

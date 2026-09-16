@@ -625,7 +625,7 @@ void TakeCupProgress_MenuProc(struct RectMenu *menu);
 void TakeCupProgress_Activate(s16 stringIndex);
 
 void RaceFlag_SetCanDraw(s16 canDraw);
-void RaceFlag_BeginTransition(int direction);
+void RaceFlag_BeginTransition(s32 direction);
 void RaceFlag_SetFullyOnScreen(void);
 void RaceFlag_SetFullyOffScreen(void);
 void RaceFlag_ResetTextAnim(void);
@@ -1180,7 +1180,7 @@ void RR_EndEvent_UnlockAward(void);
 void RR_EndEvent_DrawHighScore(s16 startX, s32 startY, s16 scoreMode);
 b32 LOAD_IsOpen_RacingOrBattle(void);
 void GAMEPROG_NewProfile_InsideAdv(struct AdvProgress *adv);
-int RaceFlag_MoveModels(int frameIndex, int numFrames);
+s32 RaceFlag_MoveModels(s32 frameIndex, s32 numFrames);
 void MainKillGame_LaunchSpyro2(void);
 void DecalFont_DrawLineOT(char *str, s16 posX, s16 posY, s16 fontType, s16 flags, u32 *ot);
 void DecalHUD_Arrow2D(struct Icon *icon, s32 posX, s32 posY, struct PrimMem *primMem, u32 *ot, Color color0, Color color1, Color color2, Color color3,

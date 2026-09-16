@@ -475,12 +475,6 @@ void UI_RenderFrame_Racing()
 					iconPtr = gGT->ptrIcons[(int)playerStruct->driverRank + 0x19];
 
 				LAB_80053aec:
-				{
-					Color colors[4];
-					ColorCode_SetPacked(&colors[0], ptrColor[0]);
-					ColorCode_SetPacked(&colors[1], ptrColor[1]);
-					ColorCode_SetPacked(&colors[2], ptrColor[2]);
-					ColorCode_SetPacked(&colors[3], ptrColor[3]);
 					DecalHUD_DrawPolyGT4(
 					    // icon pointer
 					    iconPtr,
@@ -491,10 +485,9 @@ void UI_RenderFrame_Racing()
 					    &gGT->backBuffer->primMem, gGT->pushBuffer_UI.ptrOT,
 
 					    // color data
-					    colors[0], colors[1], colors[2], colors[3],
+					    ColorCode_Load(&ptrColor[0]), ColorCode_Load(&ptrColor[1]), ColorCode_Load(&ptrColor[2]), ColorCode_Load(&ptrColor[3]),
 
 					    0, FP(1.0));
-				}
 				}
 			}
 
