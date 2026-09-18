@@ -142,6 +142,92 @@ void NativeGpu_ResetFrameDraws(void)
 	s_frameHadDraws = 0;
 }
 
+//------------------------------------------------------------------------------------------------------------------------
+// PGXP (Perspective Geometry eXPerience Project): the GTE keeps a high-
+// precision side channel of every transformed vertex (see native_gte_core.c).
+// The game copies the clamped s16 screen position into its primitives, so we
+// match those back by their exact (sx, sy) pair and hand the renderer the
+// unclamped float screen position + view depth for perspective-correct
+// interpolation. 3D primitives only (s_gpu.primIs2D); 2D stays PSX-exact.
+//------------------------------------------------------------------------------------------------------------------------
+
+typedef struct
+{
+	s16 sx, sy;
+	u8 valid;
+	float px, py, w;
+} PgxpCachedVertex;
+
+#define PGXP_CACHE_SIZE (4096)
+
+internal PgxpCachedVertex s_pgxpCache[PGXP_CACHE_SIZE];
+internal float s_pgxpVertexData[MAX_VERTEX_BUFFER_SIZE * 3]; // px, py, w per vertex, parallel to the vertex buffer
+
+void Pgxp_ClearCache(void)
+{
+	memset(s_pgxpCache, 0, sizeof(s_pgxpCache));
+}
+
+void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
+{
+	// NOTE(aalhendi): w is the view-space depth (must stay positive for the
+	// renderer's perspective divide); vertices behind the camera are dropped.
+	if (w <= 0.0f)
+	{
+		return;
+	}
+
+	const u32 hash = ((u32)(u16)sx * 73856093u) ^ ((u32)(u16)sy * 19349663u);
+	PgxpCachedVertex *v = &s_pgxpCache[hash & (PGXP_CACHE_SIZE - 1)];
+
+	v->sx = (s16)sx;
+	v->sy = (s16)sy;
+	v->valid = 1;
+	v->px = px;
+	v->py = py;
+	v->w = w;
+}
+
+internal int Pgxp_LookupVertex(int x, int y, float *out)
+{
+	const u32 hash = ((u32)(u16)x * 73856093u) ^ ((u32)(u16)y * 19349663u);
+	const PgxpCachedVertex *v = &s_pgxpCache[hash & (PGXP_CACHE_SIZE - 1)];
+
+	if ((v->valid != 0) && (v->sx == (s16)x) && (v->sy == (s16)y))
+	{
+		out[0] = v->px;
+		out[1] = v->py;
+		out[2] = v->w;
+		return 1;
+	}
+
+	return 0;
+}
+
+internal void Pgxp_FillVertex(int index, VERTTYPE *p)
+{
+	float *dst = &s_pgxpVertexData[index * 3];
+
+	if ((s_gpu.primIs2D == false) && (Pgxp_LookupVertex(p[0], p[1], dst) != 0))
+	{
+		return;
+	}
+
+	// No high-precision source (2D elements, procedural coords, or a
+	// coordinate that never went through the GTE): fall back to the exact PSX
+	// vertex (affine, w = 1) by leaving the fragment's z at 0.
+	dst[0] = 0.0f;
+	dst[1] = 0.0f;
+	dst[2] = 0.0f;
+}
+
+internal void Pgxp_CopyVertex(int dstIndex, int srcIndex)
+{
+	s_pgxpVertexData[dstIndex * 3 + 0] = s_pgxpVertexData[srcIndex * 3 + 0];
+	s_pgxpVertexData[dstIndex * 3 + 1] = s_pgxpVertexData[srcIndex * 3 + 1];
+	s_pgxpVertexData[dstIndex * 3 + 2] = s_pgxpVertexData[srcIndex * 3 + 2];
+}
+
 void ClearSplits(void)
 {
 	s_gpu.currentSplitDebugText = NULL;
@@ -321,6 +407,11 @@ void MakeVertexTriangle(GrVertex *vertex, VERTTYPE *p0, VERTTYPE *p1, VERTTYPE *
 
 	memset(vertex, 0, sizeof(GrVertex) * 3);
 
+	const int pgxpBase = s_gpu.vertexIndex;
+	Pgxp_FillVertex(pgxpBase + 0, p0);
+	Pgxp_FillVertex(pgxpBase + 1, p1);
+	Pgxp_FillVertex(pgxpBase + 2, p2);
+
 	vertex[0].x = p0[0] + ofsX;
 	vertex[0].y = p0[1] + ofsY;
 
@@ -342,6 +433,12 @@ void MakeVertexQuad(GrVertex *vertex, VERTTYPE *p0, VERTTYPE *p1, VERTTYPE *p2, 
 	DrawEnvOffset(&ofsX, &ofsY);
 
 	memset(vertex, 0, sizeof(GrVertex) * 4);
+
+	const int pgxpBase = s_gpu.vertexIndex;
+	Pgxp_FillVertex(pgxpBase + 0, p0);
+	Pgxp_FillVertex(pgxpBase + 1, p1);
+	Pgxp_FillVertex(pgxpBase + 2, p2);
+	Pgxp_FillVertex(pgxpBase + 3, p3);
 
 	vertex[0].x = p0[0] + ofsX;
 	vertex[0].y = p0[1] + ofsY;
@@ -756,6 +853,11 @@ void TriangulateQuad()
 	s_gpu.vertexBuffer[s_gpu.vertexIndex + 5] = s_gpu.vertexBuffer[s_gpu.vertexIndex + 2];
 	s_gpu.vertexBuffer[s_gpu.vertexIndex + 2] = s_gpu.vertexBuffer[s_gpu.vertexIndex + 3];
 	s_gpu.vertexBuffer[s_gpu.vertexIndex + 3] = s_gpu.vertexBuffer[s_gpu.vertexIndex + 1];
+
+	Pgxp_CopyVertex(s_gpu.vertexIndex + 4, s_gpu.vertexIndex + 3);
+	Pgxp_CopyVertex(s_gpu.vertexIndex + 5, s_gpu.vertexIndex + 2);
+	Pgxp_CopyVertex(s_gpu.vertexIndex + 2, s_gpu.vertexIndex + 3);
+	Pgxp_CopyVertex(s_gpu.vertexIndex + 3, s_gpu.vertexIndex + 1);
 }
 
 //------------------------------------------------------------------------------------------------------------------------
@@ -990,7 +1092,7 @@ void DrawAllSplits()
 #endif
 
 	// next code ideally should be called before EndScene
-	NativeRenderer_UpdateVertexBuffer(s_gpu.vertexBuffer, s_gpu.vertexIndex);
+	NativeRenderer_UpdateVertexBuffer(s_gpu.vertexBuffer, s_gpu.vertexIndex, s_pgxpVertexData);
 
 	for (int i = 1; i <= s_gpu.splitIndex; i++)
 	{

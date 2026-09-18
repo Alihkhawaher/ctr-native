@@ -126,9 +126,10 @@ Debug workflow that worked:
   Home aspect, End window size, F11 / Alt+Enter fullscreen, Insert FPS counter,
   **Tab anti-aliasing** (smooth/color-space-filtered presentation; NOTE: F4 and
   F6 never reach the option switch — the port's pre-existing "assign keyboard/
-  gamepad to player" handlers consume them). The overlay panel lists every
-  option with live values plus the full control reference (save/load state,
-  screenshot, VRAM dump, replay, pad assignment, debug keys).
+  gamepad to player" handlers consume them), **P PGXP** (perspective-correct 3D).
+  The overlay panel lists every option with live values plus the full control
+  reference (save/load state, screenshot, VRAM dump, replay, pad assignment,
+  debug keys).
 - **Anti-aliasing internals:** `g_cfg_antialiasing` sets the `smoothPresent`
   uniform; the present shader does an **edge-directed** blend: a luminance-
   contrast mask (smoothstep 0.06..0.22 over ±1-texel deltas) gates a manual
@@ -180,6 +181,26 @@ Debug workflow that worked:
   Commits: `f1f8edd1a` (crash fix, tooling, graphics options, icon) and
   `236830796` (true-resolution presentation). Launcher is tracked at
   `tools/ctr_config_launcher.py`.
+- **PGXP (perspective-correct 3D; `P` key / `pgxp` config / launcher checkbox):**
+  `GTE_RotTransPers` (native_gte_core.c) publishes every transformed vertex's
+  unclamped float screen x/y (from the full-precision MACs — no 16-bit
+  truncation, no IR saturation) + view depth `mac3f/4096` via `Pgxp_PushVertex`
+  into a 4096-slot hash cache keyed by the exact (SX2, SY2) the game copies
+  into its primitives. `MakeVertexTriangle`/`MakeVertexQuad` (native_gpu.c) match
+  polygon vertices back with `Pgxp_FillVertex` (2D excluded via `s_gpu.primIs2D`;
+  misses store `(0,0,0)` = PSX-exact fallback). Data rides a second VBO
+  (`s_glPgxpBuffer`, attribute `a_pgxp` vec3 float) uploaded with the GrVertex
+  buffer in `NativeRenderer_UpdateVertexBuffer`; `TriangulateQuad` mirrors the
+  vertex copies. Vertex shader (`pgxpMode`): position = `a_pgxp.xy`,
+  `gl_Position.w = a_pgxp.z` → the GPU interpolates UV/color perspective-
+  correctly. `v_z` still comes from the non-PGXP `grOrtho` position so
+  semi-transparency is unchanged. Pitfalls: each `glVertexAttribPointer` must
+  be captured while its own VBO is bound; the GTE hook must run AFTER
+  `C2_SX2`/`C2_SY2` are stored; the cache is cleared per frame in
+  `NativeRenderer_BeginScene` (stale matches otherwise). Runtime toggle like
+  the bilinear filter (`u_pgxpModeLoc` set in `NativeRenderer_SetTexture`);
+  verified clean in-game (menu + intro at Auto 5x, 30 fps, no artifacts),
+  effect is most visible in-motion (road/ground texture swim disappears).
 - **The "sandy" look (solved):** the fine grain over gradients was the PSX's
   4x4 ordered dither carried at *PSX-pixel* period (`v_ditherCoord = a_position.xy`
   in `native_renderer.c`). Because one PSX pixel = one dither cell, supersampling
@@ -205,6 +226,8 @@ Debug workflow that worked:
       perspective-correct texture mapping + subpixel vertex precision — the
       Beetle PSX / DuckStation approach. The port carries PSX fixed-point
       screen-space coords; would need W carried from the GTE into the shaders.
+      → **DONE**: implemented as the `P` toggle (see section 4); keep an eye on
+      Adventure-mode cutscenes + heavy traffic scenes for edge cases.
 - [x] Debug instrumentation is **permanent** (user requirement: never remove
       debug/verbose). Control it with `--quiet` / `--verbose` CLI flags — the
       `[CTR Debug]` lines stay in the code.

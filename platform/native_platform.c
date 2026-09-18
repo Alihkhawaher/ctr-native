@@ -26,6 +26,7 @@ int g_dbg_polygonSelected = 0;
 extern int g_cfg_aspectRatio;
 extern int g_cfg_antialiasing;
 extern int g_cfg_bilinearFiltering;
+extern int g_cfg_pgxp;
 extern int g_cfg_internalResolutionScale;
 extern int g_cfg_internalResolutionAuto;
 extern int g_cfg_showFps;
@@ -354,6 +355,14 @@ internal void Platform_HandleKey(int key, char down)
 		else if (key == SDL_SCANCODE_END)
 		{
 			Platform_CycleWindowSize();
+		}
+		else if (key == SDL_SCANCODE_P)
+		{
+			g_cfg_pgxp ^= 1;
+			Pgxp_ClearCache();
+			Platform_LogWarn("[CTR Native] PGXP: %s\n", (g_cfg_pgxp != 0) ? "ON (perspective-correct)" : "OFF (PSX-exact)");
+			NativeOverlay_Show();
+			Platform_SaveSettings();
 		}
 		else if (key == SDL_SCANCODE_INSERT)
 		{

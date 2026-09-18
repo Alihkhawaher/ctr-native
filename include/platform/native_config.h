@@ -15,6 +15,7 @@ typedef struct
 	int internalResolutionAuto;  // 1 = match window/display resolution
 	int bilinearFiltering;       // 0/1
 	int antialiasing;            // 0/1 - smooth (linear) presentation filter
+	int pgxp;                    // 0/1 - perspective-correct textures + subpixel 3D geometry
 	int showFps;                 // 0/1
 } NativeConfig;
 

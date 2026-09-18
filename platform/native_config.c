@@ -135,6 +135,7 @@ void NativeConfig_SetDefaults(NativeConfig *config)
 	config->bilinearFiltering = 0;
 	config->showFps = 0;
 	config->antialiasing = 0;
+	config->pgxp = 0;
 	config->internalResolutionAuto = 0;
 }
 
@@ -204,6 +205,11 @@ int NativeConfig_LoadFile(NativeConfig *config, const char *path)
 	if (NativeConfig_ReadBool(text, "antialiasing", &value) != 0)
 	{
 		config->antialiasing = value;
+	}
+
+	if (NativeConfig_ReadBool(text, "pgxp", &value) != 0)
+	{
+		config->pgxp = value;
 	}
 
 	SDL_free(text);
@@ -281,6 +287,7 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  "    \"internal_resolution_scale\": %d,\n"
 	                  "    \"bilinear_filtering\": %s,\n"
 	                  "    \"antialiasing\": %s,\n"
+	                  "    \"pgxp\": %s,\n"
 	                  "    \"show_fps\": %s\n"
 	                  "  },\n"
 	                  "  \"launcher\": {\n"
@@ -294,6 +301,7 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  ((config->internalResolutionAuto != 0) ? 0 : config->internalResolutionScale),
 	                  (config->bilinearFiltering != 0) ? "true" : "false",
 	                  (config->antialiasing != 0) ? "true" : "false",
+	                  (config->pgxp != 0) ? "true" : "false",
 	                  (config->showFps != 0) ? "true" : "false",
 	                  launcherExecutable);
 

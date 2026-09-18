@@ -40,6 +40,7 @@ typedef enum
 	a_texcoord,
 	a_color,
 	a_extra,
+	a_pgxp,
 } ShaderAttrib;
 
 typedef enum

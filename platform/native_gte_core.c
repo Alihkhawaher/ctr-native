@@ -317,6 +317,26 @@ internal int GTE_RotTransPers(int idx, int lm)
 	C2_SX2 = Lm_G1(F((s64)C2_OFX + ((s64)C2_IR1 * h_over_sz3)) >> 16);
 	C2_SY2 = Lm_G2(F((s64)C2_OFY + ((s64)C2_IR2 * h_over_sz3)) >> 16);
 
+	// PGXP: publish the unclamped high-precision version of this vertex on a
+	// side channel (float screen x/y + view-space depth for the perspective
+	// divide). The registers above stay PSX-exact; the renderer matches this
+	// back by the exact (SX2, SY2) pair the game copies into its primitive.
+	{
+		const double mac1f = (double)((s64)C2_TRX << 12) + (double)C2_R11 * (double)VX(idx) + (double)C2_R12 * (double)VY(idx) + (double)C2_R13 * (double)VZ(idx);
+		const double mac2f = (double)((s64)C2_TRY << 12) + (double)C2_R21 * (double)VX(idx) + (double)C2_R22 * (double)VY(idx) + (double)C2_R23 * (double)VZ(idx);
+		const double mac3f = (double)((s64)C2_TRZ << 12) + (double)C2_R31 * (double)VX(idx) + (double)C2_R32 * (double)VY(idx) + (double)C2_R33 * (double)VZ(idx);
+
+		if (mac3f > 0.0)
+		{
+			const double invZ = (double)C2_H / mac3f;
+
+			Pgxp_PushVertex(C2_SX2, C2_SY2,
+			                (float)((double)C2_OFX + mac1f * invZ),
+			                (float)((double)C2_OFY + mac2f * invZ),
+			                (float)(mac3f / 4096.0));
+		}
+	}
+
 	return h_over_sz3;
 }
 

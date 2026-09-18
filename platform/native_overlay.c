@@ -20,6 +20,7 @@
 
 extern int g_cfg_aspectRatio;
 extern int g_cfg_bilinearFiltering;
+extern int g_cfg_pgxp;
 extern int g_cfg_antialiasing;
 extern int g_cfg_internalResolutionAuto;
 extern int g_cfg_internalResolutionScale;
@@ -35,7 +36,7 @@ int g_cfg_showFps = 0;
 #define NATIVE_OVERLAY_LINE_GAP 4
 #define NATIVE_OVERLAY_PADDING  10
 #define NATIVE_OVERLAY_MARGIN   14
-#define NATIVE_OVERLAY_LINES    13
+#define NATIVE_OVERLAY_LINES    14
 
 #define NATIVE_OVERLAY_ATLAS_COLUMNS 16
 #define NATIVE_OVERLAY_ATLAS_ROWS    12
@@ -386,30 +387,34 @@ void NativeOverlay_Draw(void)
 	snprintf(values[6], sizeof(values[6]), "%s", (g_cfg_antialiasing != 0) ? "ON" : "OFF");
 	snprintf(hints[6], sizeof(hints[6]), "Tab");
 
+	snprintf(labels[7], sizeof(labels[7]), "PGXP");
+	snprintf(values[7], sizeof(values[7]), "%s", (g_cfg_pgxp != 0) ? "ON" : "OFF");
+	snprintf(hints[7], sizeof(hints[7]), "P");
+
 	// Complete controls reference (all native buttons).
-	snprintf(labels[7], sizeof(labels[7]), "Save / load state");
-	values[7][0] = '\0';
-	snprintf(hints[7], sizeof(hints[7]), "F5 / F8");
-
-	snprintf(labels[8], sizeof(labels[8]), "Screenshot");
+	snprintf(labels[8], sizeof(labels[8]), "Save / load state");
 	values[8][0] = '\0';
-	snprintf(hints[8], sizeof(hints[8]), "F12");
+	snprintf(hints[8], sizeof(hints[8]), "F5 / F8");
 
-	snprintf(labels[9], sizeof(labels[9]), "VRAM dump");
+	snprintf(labels[9], sizeof(labels[9]), "Screenshot");
 	values[9][0] = '\0';
-	snprintf(hints[9], sizeof(hints[9]), "F7");
+	snprintf(hints[9], sizeof(hints[9]), "F12");
 
-	snprintf(labels[10], sizeof(labels[10]), "Replay rec / stop");
+	snprintf(labels[10], sizeof(labels[10]), "VRAM dump");
 	values[10][0] = '\0';
-	snprintf(hints[10], sizeof(hints[10]), "F9 / F10");
+	snprintf(hints[10], sizeof(hints[10]), "F7");
 
-	snprintf(labels[11], sizeof(labels[11]), "Keyboard / pad assign");
+	snprintf(labels[11], sizeof(labels[11]), "Replay rec / stop");
 	values[11][0] = '\0';
-	snprintf(hints[11], sizeof(hints[11]), "F4 / F6");
+	snprintf(hints[11], sizeof(hints[11]), "F9 / F10");
 
-	snprintf(labels[12], sizeof(labels[12]), "Wireframe / texless");
+	snprintf(labels[12], sizeof(labels[12]), "Keyboard / pad assign");
 	values[12][0] = '\0';
-	snprintf(hints[12], sizeof(hints[12]), "F1 / F2");
+	snprintf(hints[12], sizeof(hints[12]), "F4 / F6");
+
+	snprintf(labels[13], sizeof(labels[13]), "Wireframe / texless");
+	values[13][0] = '\0';
+	snprintf(hints[13], sizeof(hints[13]), "F1 / F2");
 
 	snprintf(fpsText, sizeof(fpsText), "FPS: %.1f", s_overlayFpsValue);
 

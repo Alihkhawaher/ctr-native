@@ -133,6 +133,7 @@ int g_dbg_wireframeMode = 0;
 int g_dbg_texturelessMode = 0;
 
 int g_cfg_bilinearFiltering = 0;
+int g_cfg_pgxp = 0;
 int g_cfg_antialiasing = 0;
 
 // NOTE: Supersample-antialiasing (SSAA) via internal resolution scaling.
@@ -222,6 +223,7 @@ internal void NativeRenderer_ResolveGpuMeasurements(b32 waitForResults);
 
 global_variable GLuint s_glVertexArray[2];
 global_variable GLuint s_glVertexBuffer[2];
+global_variable GLuint s_glPgxpBuffer[2];
 global_variable int s_curVertexBuffer = 0;
 global_variable int s_boundVertexBuffer = -1;
 
@@ -340,6 +342,7 @@ void NativeRenderer_Shutdown(void)
 {
 	glDeleteVertexArrays(2, s_glVertexArray);
 	glDeleteBuffers(2, s_glVertexBuffer);
+	glDeleteBuffers(2, s_glPgxpBuffer);
 
 	NativeRenderer_DestroyRenderTarget(&s_mainRenderTarget);
 	NativeRenderer_DestroyRenderTarget(&s_offscreenRenderTarget);
@@ -411,6 +414,7 @@ void NativeRenderer_BeginScene(void)
 	NativePerf_BeginScope(NATIVE_PERF_BUCKET_RENDERER_BEGIN_SCENE);
 	s_lastBoundTexture = 0;
 	NativeGpu_ResetFrameDraws();
+	Pgxp_ClearCache();
 
 	NativeRenderer_UpdatePresentationViewport();
 	NativeRenderer_ClearPresentationBars();
@@ -891,6 +895,7 @@ typedef struct
 	GLint bilinearFilterLoc;
 	GLint ditherScaleLoc;
 	GLint drawIs2DLoc;
+	GLint pgxpModeLoc;
 	GLint texelSizeLoc;
 	GLint texLoc;
 	GLint lutLoc;
@@ -919,6 +924,7 @@ global_variable GTEShader s_gteShader32Rgba;
 
 GLint u_projectionLoc;
 GLint u_bilinearFilterLoc;
+GLint u_pgxpModeLoc;
 GLint u_ditherScaleLoc;
 GLint u_drawIs2DLoc;
 GLint u_texelSizeLoc;
@@ -1071,14 +1077,21 @@ const char *gte_shader_32_rgba = "	uniform sampler2D s_texture;\n"
                                  "		fragColor.a = float(psxDrawMaskSet);\n"
                                  "	}\n";
 
-#define GTE_PERSPECTIVE_CORRECTION "	gl_Position = Projection * vec4(a_position.xy, 0.0, 1.0);\n"
+#define GTE_PERSPECTIVE_CORRECTION                                                                                      \
+	"	vec2 grPos = a_position.xy;\n"                                                                                   \
+	"	float grW = 1.0;\n"                                                                                              \
+	"	if ((pgxpMode != 0) && (a_pgxp.z > 0.0)) { grPos = a_pgxp.xy; grW = a_pgxp.z; }\n"                               \
+	"	vec4 grOrtho = Projection * vec4(grPos, 0.0, 1.0);\n"                                                            \
+	"	gl_Position = Projection * vec4(grPos, 0.0, grW);\n"
 
 #define GTE_VERTEX_SHADER                                                                                          \
 	"	attribute vec4 a_position;\n"                                                                                \
 	"	attribute vec4 a_texcoord; // uv, color multiplier, dither\n"                                                \
 	"	attribute vec4 a_color;\n"                                                                                   \
 	"	attribute vec4 a_extra; // texcoord.xy ofs, unused.xy\n"                                                     \
+	"	attribute vec3 a_pgxp; // PGXP: float screen x/y + view depth (0 = PSX-exact fallback)\n"                   \
 	"	uniform mat4 Projection;\n"                                                                                  \
+	"	uniform int pgxpMode;\n"                                                                                     \
 	"	const vec2 c_UVFudge = vec2(0.00025, 0.00025);\n"                                                            \
 	"	void main() {\n"                                                                                             \
 	"		v_ditherCoord = a_position.xy;\n"                                                                           \
@@ -1091,7 +1104,7 @@ const char *gte_shader_32_rgba = "	uniform sampler2D s_texture;\n"
 	"		v_page_clut.z = fract(a_position.w / 64.0);\n"                                                              \
 	"		v_page_clut.w = floor(a_position.w / 64.0) / 512.0;\n"                                                      \
 	"		v_page_clut.xy += c_UVFudge;\n"                                                                             \
-	"		v_page_clut.zw += c_UVFudge;\n" GTE_PERSPECTIVE_CORRECTION "		v_z = (gl_Position.z - 40.0) * 0.005;\n" \
+	"		v_page_clut.zw += c_UVFudge;\n" GTE_PERSPECTIVE_CORRECTION "		v_z = (grOrtho.z - 40.0) * 0.005;\n" \
 	"	}\n"
 
 internal int NativeRenderer_Shader_CheckShaderStatus(GLuint shader)
@@ -1220,6 +1233,7 @@ internal ShaderID NativeRenderer_Shader_Compile(const char *source, bool isPsxSh
 	glBindAttribLocation(program, a_texcoord, "a_texcoord");
 	glBindAttribLocation(program, a_color, "a_color");
 	glBindAttribLocation(program, a_extra, "a_extra");
+	glBindAttribLocation(program, a_pgxp, "a_pgxp");
 
 	if (isPsxShader)
 	{
@@ -1290,6 +1304,7 @@ internal void NativeRenderer_CompilePSXShader(GTEShader *sh, const char *source)
 	sh->psxSemiTransPassLoc = glGetUniformLocation(sh->shader, "psxSemiTransPass");
 	sh->psxDrawMaskSetLoc = glGetUniformLocation(sh->shader, "psxDrawMaskSet");
 	sh->psxTextureOutputStpLoc = glGetUniformLocation(sh->shader, "psxTextureOutputStp");
+	sh->pgxpModeLoc = glGetUniformLocation(sh->shader, "pgxpMode");
 }
 
 internal void NativeRenderer_InitialisePSXShaders(void)
@@ -1542,6 +1557,7 @@ int NativeRenderer_InitialisePSX(void)
 	{
 		glGenBuffers(MAX_NUM_VERTEX_BUFFERS, s_glVertexBuffer);
 		glGenVertexArrays(MAX_NUM_VERTEX_BUFFERS, s_glVertexArray);
+		glGenBuffers(MAX_NUM_VERTEX_BUFFERS, s_glPgxpBuffer);
 
 		for (int i = 0; i < MAX_NUM_VERTEX_BUFFERS; i++)
 		{
@@ -1550,15 +1566,23 @@ int NativeRenderer_InitialisePSX(void)
 			glBindBuffer(GL_ARRAY_BUFFER, s_glVertexBuffer[i]);
 			glBufferData(GL_ARRAY_BUFFER, sizeof(GrVertex) * MAX_VERTEX_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
 
+			glBindBuffer(GL_ARRAY_BUFFER, s_glPgxpBuffer[i]);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * MAX_VERTEX_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
+
 			glEnableVertexAttribArray(a_position);
 			glEnableVertexAttribArray(a_texcoord);
 			glEnableVertexAttribArray(a_color);
 			glEnableVertexAttribArray(a_extra);
+			glEnableVertexAttribArray(a_pgxp);
 
+			glBindBuffer(GL_ARRAY_BUFFER, s_glVertexBuffer[i]);
 			glVertexAttribPointer(a_position, 4, GL_SHORT, GL_FALSE, sizeof(GrVertex), &((GrVertex *)NULL)->x);
 			glVertexAttribPointer(a_texcoord, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(GrVertex), &((GrVertex *)NULL)->u);
 			glVertexAttribPointer(a_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(GrVertex), &((GrVertex *)NULL)->r);
 			glVertexAttribPointer(a_extra, 4, GL_BYTE, GL_FALSE, sizeof(GrVertex), &((GrVertex *)NULL)->tcx);
+
+			glBindBuffer(GL_ARRAY_BUFFER, s_glPgxpBuffer[i]);
+			glVertexAttribPointer(a_pgxp, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void *)0);
 		}
 
 		glBindVertexArray(0);
@@ -1684,6 +1708,7 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 		u_bilinearFilterLoc = s_gteShader4.bilinearFilterLoc;
 		u_ditherScaleLoc = s_gteShader4.ditherScaleLoc;
 		u_drawIs2DLoc = s_gteShader4.drawIs2DLoc;
+		u_pgxpModeLoc = s_gteShader4.pgxpModeLoc;
 		u_projectionLoc = s_gteShader4.projectionLoc;
 		u_texelSizeLoc = -1;
 		u_psxSemiTransPassLoc = s_gteShader4.psxSemiTransPassLoc;
@@ -1695,6 +1720,7 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 		u_bilinearFilterLoc = s_gteShader8.bilinearFilterLoc;
 		u_ditherScaleLoc = s_gteShader8.ditherScaleLoc;
 		u_drawIs2DLoc = s_gteShader8.drawIs2DLoc;
+		u_pgxpModeLoc = s_gteShader8.pgxpModeLoc;
 		u_projectionLoc = s_gteShader8.projectionLoc;
 		u_texelSizeLoc = -1;
 		u_psxSemiTransPassLoc = s_gteShader8.psxSemiTransPassLoc;
@@ -1706,6 +1732,7 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 		u_bilinearFilterLoc = s_gteShader16.bilinearFilterLoc;
 		u_ditherScaleLoc = s_gteShader16.ditherScaleLoc;
 		u_drawIs2DLoc = s_gteShader16.drawIs2DLoc;
+		u_pgxpModeLoc = s_gteShader16.pgxpModeLoc;
 		u_projectionLoc = s_gteShader16.projectionLoc;
 		u_texelSizeLoc = -1;
 		u_psxSemiTransPassLoc = s_gteShader16.psxSemiTransPassLoc;
@@ -1717,6 +1744,7 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 		u_bilinearFilterLoc = s_gteShader32Rgba.bilinearFilterLoc;
 		u_ditherScaleLoc = s_gteShader32Rgba.ditherScaleLoc;
 		u_drawIs2DLoc = s_gteShader32Rgba.drawIs2DLoc;
+		u_pgxpModeLoc = s_gteShader32Rgba.pgxpModeLoc;
 		u_projectionLoc = s_gteShader32Rgba.projectionLoc;
 		u_texelSizeLoc = s_gteShader32Rgba.texelSizeLoc;
 		u_psxSemiTransPassLoc = s_gteShader32Rgba.psxSemiTransPassLoc;
@@ -1737,6 +1765,11 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 	if (u_bilinearFilterLoc >= 0)
 	{
 		glUniform1i(u_bilinearFilterLoc, g_cfg_bilinearFiltering);
+	}
+
+	if (u_pgxpModeLoc >= 0)
+	{
+		glUniform1i(u_pgxpModeLoc, (g_cfg_pgxp != 0) ? 1 : 0);
 	}
 
 	// Scale the PSX dither pattern with the internal resolution ("scaled
@@ -2661,7 +2694,7 @@ internal void NativeRenderer_SetWireframe(int enable)
 	glPolygonMode(GL_FRONT_AND_BACK, enable ? GL_LINE : GL_FILL);
 }
 
-void NativeRenderer_UpdateVertexBuffer(const GrVertex *vertices, int num_vertices)
+void NativeRenderer_UpdateVertexBuffer(const GrVertex *vertices, int num_vertices, const float *pgxpVertices)
 {
 	NativePerf_BeginScope(NATIVE_PERF_BUCKET_RENDERER_VERTEX_UPLOAD);
 	if ((u32)num_vertices >= MAX_VERTEX_BUFFER_SIZE)
@@ -2676,6 +2709,8 @@ void NativeRenderer_UpdateVertexBuffer(const GrVertex *vertices, int num_vertice
 	glBindVertexArray(s_glVertexArray[bufferIndex]);
 	glBindBuffer(GL_ARRAY_BUFFER, s_glVertexBuffer[bufferIndex]);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, num_vertices * sizeof(GrVertex), vertices);
+	glBindBuffer(GL_ARRAY_BUFFER, s_glPgxpBuffer[bufferIndex]);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, num_vertices * sizeof(float) * 3, pgxpVertices);
 	NativePerf_EndScope(NATIVE_PERF_BUCKET_RENDERER_VERTEX_UPLOAD);
 }
 

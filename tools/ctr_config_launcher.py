@@ -58,6 +58,7 @@ def default_config():
             "internal_resolution_scale": 1,
             "bilinear_filtering": False,
             "antialiasing": False,
+            "pgxp": False,
         },
         "launcher": {
             "game_executable": DEFAULT_GAME_EXE,
@@ -146,6 +147,11 @@ class ConfigApp:
             row=5, column=0, columnspan=2, sticky="w", **pad
         )
 
+        self.pgxp_var = tk.BooleanVar()
+        ttk.Checkbutton(gfx, text="PGXP (perspective-correct 3D textures)", variable=self.pgxp_var).grid(
+            row=6, column=0, columnspan=2, sticky="w", **pad
+        )
+
         # Launcher group
         launch = ttk.LabelFrame(main, text="Game executable")
         launch.grid(row=1, column=0, sticky="ew", pady=(0, 8))
@@ -201,6 +207,7 @@ class ConfigApp:
         self.fullscreen_var.set(bool(g.get("fullscreen", False)))
         self.bilinear_var.set(bool(g.get("bilinear_filtering", False)))
         self.aa_var.set(bool(g.get("antialiasing", False)))
+        self.pgxp_var.set(bool(g.get("pgxp", False)))
 
         game = self.config.get("launcher", {}).get("game_executable", DEFAULT_GAME_EXE)
         if not os.path.isabs(game):
@@ -222,6 +229,7 @@ class ConfigApp:
             "internal_resolution_scale": scale,
             "bilinear_filtering": self.bilinear_var.get(),
             "antialiasing": self.aa_var.get(),
+            "pgxp": self.pgxp_var.get(),
         })
         self.config["launcher"]["game_executable"] = self.game_path_var.get()
 
