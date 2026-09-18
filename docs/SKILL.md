@@ -74,18 +74,22 @@ panel (top-left) lists everything with live values.
   multitap bus is presented from startup AND empty slots report as connected
   idle pads, so the game always sees 4 controllers and pad drops/reconnects
   are invisible to it; 0 = auto, latch reality at boot; 2 = 2 pads),
-  `gamepad_deadzone` (percent 0-50, default 5 — the old fixed 1.5% left Xbox
-  stick drift active), `gamepad_analog` (new pads start analog),
-  `gamepad_rumble`. The bus layout is FIXED for the session (per-frame
-  multitap switching broke the game's boot-time pad detection when a flaky pad
-  dropped). Pads attach into slots as they connect and STICKY-return to the
-  same slot after a battery/cable drop (matched by `SDL_GetGamepadPathForID`,
-  unique per physical device incl. Bluetooth address; stale handles are
-  replaced). The keyboard occupies a slot (default 0) and moves on when a pad
-  takes that slot — with mode 1 the game still always reports 4 controllers.
+  `keyboard_slot` (-2 = **"Pads only"** default — keyboard drives no player;
+  -1 = Auto, moves aside for pads; 0-3 = fixed player, e.g. player 4 =
+  keyboard; F4 assigns at runtime), `gamepad_deadzone` (percent 0-50, default
+  5 — the old fixed 1.5% left Xbox stick drift active; also centers
+  AxisToByte), `gamepad_analog` (new pads start analog), `gamepad_rumble`.
+  The bus layout is FIXED for the session (per-frame multitap switching broke
+  the game's boot-time pad detection when a flaky pad dropped). Pads attach
+  into slots as they connect and STICKY-return to the same slot after a
+  battery/cable drop (matched by `SDL_GetGamepadPathForID`, unique per
+  physical device incl. Bluetooth address; stale handles are replaced).
   Log lines: `gamepad connected/reconnected to pad slot N`, `duplicate gamepad
   add ignored`, `pad slot N disconnected (device remembered for
   auto-reconnect)`.
+- Launcher gotcha: tk grid rows must not collide — the status note and the
+  button row both sat at row=3 and the note (drawn later) hid Save / Save &
+  Play / Quit. When adding a group, renumber EVERYTHING below it.
 - New shader uniform = FOUR wiring points: shader declaration, GTEShader
   struct, glGetUniformLocation, glUniform set. Missing declaration = vertex
   shader compile failure = entire screen WHITE.

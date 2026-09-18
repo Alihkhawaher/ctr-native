@@ -468,3 +468,68 @@ Debug workflow that worked:
   (Auto), `pgxp: false` (experimental), `pgxp_geometry: true` (inert while
   PGXP is off), `show_fps: true`, bilinear/AA off. Launcher and engine share
   these defaults.
+- `input`: `pad_mode: 1` (4 pads always on, even if disconnected),
+  `keyboard_slot: -2` ("Pads only"), `gamepad_deadzone: 5` (percent),
+  `gamepad_analog: true`, `gamepad_rumble: true`.
+
+## 10. Input & gamepads (2026-09-18, later session)
+
+### The one-pad-two-players bug (root cause + fix)
+- Symptom: a single Xbox pad controlled BOTH players; with 2 pads + keyboard
+  the game reported three controllers while the user expected four.
+- Root cause (confirmed against SDL3 docs/examples): `s_controllerToSlotMapping`
+  was read by the dedupe path but NEVER written when a pad opened, and
+  `NativeInput_OpenController` only guarded its TARGET slot. SDL sends
+  `SDL_EVENT_GAMEPAD_ADDED` for pads already connected at startup during
+  `SDL_Init` AND again whenever `gamecontrollerdb.txt` mappings load — and the
+  port loads that file right after init. Each extra ADD re-found a free slot,
+  so the same physical device opened into slots 0 AND 1.
+- Fix: record the device→slot mapping on open (clear on close); refuse any
+  device already open in ANY slot (all-slot dedupe covers every duplicate-ADD
+  path). Logs: `duplicate gamepad add ignored`, `gamepad
+  connected/reconnected to pad slot N`.
+
+### "4 pads always on, even if disconnected" (`pad_mode` 1, default)
+- The bus layout (multitap vs single-tap) is FIXED for the session at init:
+  the old per-frame decision let a flaky pad flip the multitap layout
+  mid-game, which breaks the game's boot-time pad detection. Modes: 1 = 4-pad
+  multitap bus from startup (default), 0 = auto (latch reality at boot),
+  2 = 2-pad single tap.
+- In mode 1, empty slots report as CONNECTED IDLE pads (buttons released,
+  sticks centered) — the game permanently sees 4 controllers, and pad
+  drops/reconnects (battery/cable) never change what it sees. The keyboard is
+  one of the four when assigned (see below).
+
+### Sticky reconnects
+- Each slot remembers its device PATH (`SDL_GetGamepadPathForID` — unique per
+  physical device incl. Bluetooth address; `SDL_GetGamepadPath` on the opened
+  pad). On ADD, a free slot remembering the same path takes the device back —
+  a pad whose battery died returns to the SAME player slot. Slots holding
+  stale handles (pad vanished without a REMOVED event) are reclaimed too
+  (`SDL_GamepadConnected == 0` → close + reuse). Identity memory survives
+  close; only the live mapping is cleared.
+
+### Keyboard mapping (`keyboard_slot`)
+- Values: **-2 = "Pads only" (DEFAULT — the keyboard drives no player)**,
+  -1 = Auto (starts on player 1, moves aside when a pad claims the slot),
+  0..3 = fixed player (e.g. player 4 = keyboard — the "pad 4 uses keyboard"
+  case). A fixed keyboard is never displaced; a pad may share its slot. F4
+  assigns/cycles at runtime (from Pads-only/Auto the first press = player 1).
+
+### Gamepad options (config `input` block + launcher "Gamepad" section)
+- `pad_mode`, `keyboard_slot`, `gamepad_deadzone` (percent 0-50, default 5 —
+  the old fixed constant was 500 raw ≈ 1.5%, too tight for Xbox stick drift;
+  applied to the axis-as-button path, the activity check, and AxisToByte
+  centering so a drifting stick at rest reports neutral), `gamepad_analog`
+  (new pads start in analog mode), `gamepad_rumble`.
+- Launcher fix: Save / Save & Play / Quit were hidden by a grid row collision
+  (the status note and the button row both sat at row=3) — note moved to
+  row=4.
+
+### Diagnostics
+- Log lines: `gamepad connected/reconnected to pad slot N: <name> (instance N)`,
+  `duplicate gamepad add ignored (instance N already in pad slot M)`,
+  `pad slot N disconnected (device remembered for auto-reconnect)`.
+- On-hardware confirmation of the final input build is pending on the user's
+  controller PC (the previous on-pad test found the three-controller issue,
+  now fixed).
