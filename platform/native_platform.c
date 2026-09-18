@@ -31,6 +31,7 @@ extern int g_cfg_internalResolutionScale;
 extern int g_cfg_internalResolutionAuto;
 extern int g_cfg_showFps;
 extern int g_dbg_emulatorPaused;
+extern int g_dbg_pgxpStatusView;
 extern int g_dbg_texturelessMode;
 extern int g_dbg_wireframeMode;
 extern int g_windowHeight;
@@ -364,6 +365,12 @@ internal void Platform_HandleKey(int key, char down)
 			Platform_LogWarn("[CTR Native] PGXP: %s\n", (g_cfg_pgxp != 0) ? "ON (perspective-correct)" : "OFF (PSX-exact)");
 			NativeOverlay_Show();
 			Platform_SaveSettings();
+		}
+		else if (key == SDL_SCANCODE_O)
+		{
+			g_dbg_pgxpStatusView ^= 1;
+			Platform_LogWarn("[CTR Native] PGXP status view: %s\n", (g_dbg_pgxpStatusView != 0) ? "ON (blue=corrected, red=not, magenta=ambiguous, yellow=discarded, cyan=stale, green=2D)" : "OFF");
+			NativeOverlay_Show();
 		}
 		else if (key == SDL_SCANCODE_INSERT)
 		{

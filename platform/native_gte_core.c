@@ -343,10 +343,21 @@ internal int GTE_RotTransPers(int idx, int lm)
 			if (px > 0x3ff) { px = 0x3ff; } else if (px < -0x400) { px = -0x400; }
 			if (py > 0x3ff) { py = 0x3ff; } else if (py < -0x400) { py = -0x400; }
 
+			// Clamp W from below near the camera (PCSXR-PGXP does the same
+			// with max(H/2, Z)): extremely small depths blow up the
+			// perspective term and make close-up textures fling/jitter.
+			double w = mac3f / 4096.0;
+			const double minW = ((double)C2_H * 0.5) / 4096.0;
+
+			if ((minW > 0.0) && (w < minW))
+			{
+				w = minW;
+			}
+
 			Pgxp_PushVertex(C2_SX2, C2_SY2,
 			                (float)px,
 			                (float)py,
-			                (float)(mac3f / 4096.0));
+			                (float)w);
 		}
 	}
 
