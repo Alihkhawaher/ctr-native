@@ -155,6 +155,7 @@ typedef struct
 {
 	s16 sx, sy;
 	u8 valid;
+	u32 gen;
 	float px, py, w;
 } PgxpCachedVertex;
 
@@ -163,9 +164,27 @@ typedef struct
 internal PgxpCachedVertex s_pgxpCache[PGXP_CACHE_SIZE];
 internal float s_pgxpVertexData[MAX_VERTEX_BUFFER_SIZE * 3]; // px, py, w per vertex, parallel to the vertex buffer
 
+// Entries are stamped with a per-frame generation; lookups accept the current
+// or the immediately previous generation (the port parses primitives at draw
+// time, after the game already ran its GTE transforms, and a mid-frame split
+// flush can advance the generation).
+internal u32 s_pgxpEpoch = 1;
+
+// Stats for diagnosing match rates ([CTR Debug] periodic log in DrawAllSplits).
+internal u32 s_pgxpStatPushes = 0;
+internal u32 s_pgxpStatBehind = 0;
+internal u32 s_pgxpStatHits = 0;
+internal u32 s_pgxpStatMisses = 0;
+internal u32 s_pgxpStatFrames = 0;
+
 void Pgxp_ClearCache(void)
 {
 	memset(s_pgxpCache, 0, sizeof(s_pgxpCache));
+}
+
+void Pgxp_AdvanceEpoch(void)
+{
+	s_pgxpEpoch++;
 }
 
 void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
@@ -174,8 +193,11 @@ void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
 	// renderer's perspective divide); vertices behind the camera are dropped.
 	if (w <= 0.0f)
 	{
+		s_pgxpStatBehind++;
 		return;
 	}
+
+	s_pgxpStatPushes++;
 
 	const u32 hash = ((u32)(u16)sx * 73856093u) ^ ((u32)(u16)sy * 19349663u);
 	PgxpCachedVertex *v = &s_pgxpCache[hash & (PGXP_CACHE_SIZE - 1)];
@@ -183,6 +205,7 @@ void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
 	v->sx = (s16)sx;
 	v->sy = (s16)sy;
 	v->valid = 1;
+	v->gen = s_pgxpEpoch;
 	v->px = px;
 	v->py = py;
 	v->w = w;
@@ -193,14 +216,24 @@ internal int Pgxp_LookupVertex(int x, int y, float *out)
 	const u32 hash = ((u32)(u16)x * 73856093u) ^ ((u32)(u16)y * 19349663u);
 	const PgxpCachedVertex *v = &s_pgxpCache[hash & (PGXP_CACHE_SIZE - 1)];
 
+	// NOTE(aalhendi): Match by exact coordinate only. Entries are overwritten
+	// by newer transforms of the same coordinate ("last transform wins"), same
+	// contract as PC emulator PGXP buffers. A generation stamp is kept for
+	// diagnostics but is NOT part of the accept test — frame boundaries in this
+	// port are not tight enough for a strict window (multiple DrawOTag calls
+	// per frame can advance it), and a missed match is far worse than a stale
+	// one (a stale match only slightly mis-warps one vertex; a miss disables
+	// the correction entirely for that vertex).
 	if ((v->valid != 0) && (v->sx == (s16)x) && (v->sy == (s16)y))
 	{
 		out[0] = v->px;
 		out[1] = v->py;
 		out[2] = v->w;
+		s_pgxpStatHits++;
 		return 1;
 	}
 
+	s_pgxpStatMisses++;
 	return 0;
 }
 
@@ -238,6 +271,10 @@ void ClearSplits(void)
 	s_gpu.splits[0].psxTextureOutputSTP = false;
 	s_gpu.splits[0].psxDrawMaskSet = false;
 	s_gpu.framebufferFeedbackRunActive = false;
+
+	// Frame boundary for PGXP matching: all lookups of this frame happened
+	// before this point (draw-time parsing), next frame's pushes come after.
+	Pgxp_AdvanceEpoch();
 }
 
 int NativeGpu_GetStateSize(void)
@@ -1093,6 +1130,14 @@ void DrawAllSplits()
 
 	// next code ideally should be called before EndScene
 	NativeRenderer_UpdateVertexBuffer(s_gpu.vertexBuffer, s_gpu.vertexIndex, s_pgxpVertexData);
+
+	// PGXP diagnostics: periodic push/hit/miss counters ([CTR Debug], suppressed by --quiet).
+	if (++s_pgxpStatFrames >= 300)
+	{
+		s_pgxpStatFrames = 0;
+		Platform_LogWarn("[CTR Debug] PGXP stats: pushed=%u behind=%u hits=%u misses=%u (3D verts)\n",
+		                 s_pgxpStatPushes, s_pgxpStatBehind, s_pgxpStatHits, s_pgxpStatMisses);
+	}
 
 	for (int i = 1; i <= s_gpu.splitIndex; i++)
 	{

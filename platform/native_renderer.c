@@ -414,7 +414,6 @@ void NativeRenderer_BeginScene(void)
 	NativePerf_BeginScope(NATIVE_PERF_BUCKET_RENDERER_BEGIN_SCENE);
 	s_lastBoundTexture = 0;
 	NativeGpu_ResetFrameDraws();
-	Pgxp_ClearCache();
 
 	NativeRenderer_UpdatePresentationViewport();
 	NativeRenderer_ClearPresentationBars();
@@ -1082,7 +1081,7 @@ const char *gte_shader_32_rgba = "	uniform sampler2D s_texture;\n"
 	"	float grW = 1.0;\n"                                                                                              \
 	"	if ((pgxpMode != 0) && (a_pgxp.z > 0.0)) { grPos = a_pgxp.xy; grW = a_pgxp.z; }\n"                               \
 	"	vec4 grOrtho = Projection * vec4(grPos, 0.0, 1.0);\n"                                                            \
-	"	gl_Position = Projection * vec4(grPos, 0.0, grW);\n"
+	"	gl_Position = Projection * vec4(grPos * grW, 0.0, grW);\n"
 
 #define GTE_VERTEX_SHADER                                                                                          \
 	"	attribute vec4 a_position;\n"                                                                                \

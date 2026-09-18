@@ -330,9 +330,11 @@ internal int GTE_RotTransPers(int idx, int lm)
 		{
 			const double invZ = (double)C2_H / mac3f;
 
+			// NOTE: OFX/OFY are 16.16 fixed-point (hardware adds them before
+			// the >>16), so the integer screen offset is (OFX >> 16).
 			Pgxp_PushVertex(C2_SX2, C2_SY2,
-			                (float)((double)C2_OFX + mac1f * invZ),
-			                (float)((double)C2_OFY + mac2f * invZ),
+			                (float)((double)(C2_OFX >> 16) + mac1f * invZ),
+			                (float)((double)(C2_OFY >> 16) + mac2f * invZ),
 			                (float)(mac3f / 4096.0));
 		}
 	}
