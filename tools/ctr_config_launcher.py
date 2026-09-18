@@ -46,6 +46,21 @@ INTERNAL_RES_SCALES = {
 
 ASPECT_RATIOS = ["Auto", "4:3", "16:9"]
 
+PAD_MODES = {
+    "4 pads (always on, even if disconnected)": 1,
+    "Auto (detect at boot)": 0,
+    "2 pads (single tap)": 2,
+}
+
+KEYBOARD_SLOTS = {
+    "Pads only": -2,
+    "Player 1": 0,
+    "Player 2": 1,
+    "Player 3": 2,
+    "Player 4": 3,
+    "Auto (moves aside for pads)": -1,
+}
+
 
 def default_config():
     """Return the default configuration dict."""
@@ -60,6 +75,13 @@ def default_config():
             "antialiasing": False,
             "pgxp": False,
             "pgxp_geometry": True,
+        },
+        "input": {
+            "pad_mode": 1,
+            "keyboard_slot": -2,
+            "gamepad_deadzone": 5,
+            "gamepad_analog": True,
+            "gamepad_rumble": True,
         },
         "launcher": {
             "game_executable": DEFAULT_GAME_EXE,
@@ -158,9 +180,47 @@ class ConfigApp:
             row=7, column=0, columnspan=2, sticky="w", **pad
         )
 
+        # Gamepad group
+        gamepad = ttk.LabelFrame(main, text="Gamepad")
+        gamepad.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+
+        ttk.Label(gamepad, text="Pad layout:").grid(row=0, column=0, sticky="w", **pad)
+        self.pad_mode_var = tk.StringVar()
+        self.pad_mode_combo = ttk.Combobox(gamepad, textvariable=self.pad_mode_var, width=30, state="readonly")
+        self.pad_mode_combo["values"] = list(PAD_MODES.keys())
+        self.pad_mode_combo.grid(row=0, column=1, sticky="w", **pad)
+
+        ttk.Label(gamepad, text="Stick deadzone (%):").grid(row=2, column=0, sticky="w", **pad)
+        self.gp_deadzone_var = tk.IntVar()
+        ttk.Spinbox(gamepad, from_=0, to=50, textvariable=self.gp_deadzone_var, width=6).grid(
+            row=2, column=1, sticky="w", **pad
+        )
+
+        ttk.Label(gamepad, text="Keyboard plays as:").grid(row=1, column=0, sticky="w", **pad)
+        self.kb_slot_var = tk.StringVar()
+        self.kb_slot_combo = ttk.Combobox(gamepad, textvariable=self.kb_slot_var, width=30, state="readonly")
+        self.kb_slot_combo["values"] = list(KEYBOARD_SLOTS.keys())
+        self.kb_slot_combo.grid(row=1, column=1, sticky="w", **pad)
+
+        self.gp_analog_var = tk.BooleanVar()
+        ttk.Checkbutton(gamepad, text="Analog sticks enabled by default", variable=self.gp_analog_var).grid(
+            row=3, column=0, columnspan=2, sticky="w", **pad
+        )
+
+        self.gp_rumble_var = tk.BooleanVar()
+        ttk.Checkbutton(gamepad, text="Rumble", variable=self.gp_rumble_var).grid(
+            row=4, column=0, columnspan=2, sticky="w", **pad
+        )
+
+        ttk.Label(
+            gamepad,
+            text="Pads attach to slots as they connect and return to the same slot\nafter a battery/cable drop. In-game: F6 swaps the active pad between players,\nF4 assigns the keyboard.",
+            justify="left",
+        ).grid(row=5, column=0, columnspan=2, sticky="w", **pad)
+
         # Launcher group
         launch = ttk.LabelFrame(main, text="Game executable")
-        launch.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+        launch.grid(row=2, column=0, sticky="ew", pady=(0, 8))
         self.game_path_var = tk.StringVar()
         ttk.Entry(launch, textvariable=self.game_path_var, width=44).grid(
             row=0, column=0, sticky="ew", padx=10, pady=6
@@ -171,7 +231,7 @@ class ConfigApp:
 
         # Buttons
         btns = ttk.Frame(main)
-        btns.grid(row=2, column=0, sticky="ew")
+        btns.grid(row=3, column=0, sticky="ew")
         ttk.Button(btns, text="Save", command=self._save_only).pack(side="left", padx=4)
         ttk.Button(btns, text="Save & Play", command=self._save_and_play).pack(side="left", padx=4)
         ttk.Button(btns, text="Quit", command=self.root.destroy).pack(side="left", padx=4)
@@ -182,7 +242,7 @@ class ConfigApp:
             "and applied when the game starts."
         )
         ttk.Label(main, text=note, foreground="#666666", justify="left").grid(
-            row=3, column=0, sticky="w", pady=(10, 0)
+            row=4, column=0, sticky="w", pady=(10, 0)
         )
 
     # --- Config <-> UI -----------------------------------------------------
@@ -216,6 +276,13 @@ class ConfigApp:
         self.pgxp_var.set(bool(g.get("pgxp", False)))
         self.pgxp_geo_var.set(bool(g.get("pgxp_geometry", True)))
 
+        inp = self.config.get("input", {})
+        self.pad_mode_var.set(next((k for k, v in PAD_MODES.items() if v == int(inp.get("pad_mode", 1))), "4 pads (always on, even if disconnected)"))
+        self.kb_slot_var.set(next((k for k, v in KEYBOARD_SLOTS.items() if v == int(inp.get("keyboard_slot", -2))), "Pads only"))
+        self.gp_deadzone_var.set(int(inp.get("gamepad_deadzone", 5)))
+        self.gp_analog_var.set(bool(inp.get("gamepad_analog", True)))
+        self.gp_rumble_var.set(bool(inp.get("gamepad_rumble", True)))
+
         game = self.config.get("launcher", {}).get("game_executable", DEFAULT_GAME_EXE)
         if not os.path.isabs(game):
             game = os.path.join(self.launcher_dir, game)
@@ -239,6 +306,13 @@ class ConfigApp:
             "pgxp": self.pgxp_var.get(),
             "pgxp_geometry": self.pgxp_geo_var.get(),
         })
+        self.config["input"] = {
+            "pad_mode": PAD_MODES.get(self.pad_mode_var.get(), 1),
+            "keyboard_slot": KEYBOARD_SLOTS.get(self.kb_slot_var.get(), -2),
+            "gamepad_deadzone": int(self.gp_deadzone_var.get()),
+            "gamepad_analog": self.gp_analog_var.get(),
+            "gamepad_rumble": self.gp_rumble_var.get(),
+        }
         self.config["launcher"]["game_executable"] = self.game_path_var.get()
 
     def _write_config(self):

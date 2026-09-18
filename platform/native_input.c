@@ -98,6 +98,22 @@ global_variable u8 *s_padSlotData[NATIVE_INPUT_PHYSICAL_SLOT_COUNT];
 global_variable const bool *s_keyboardState;
 global_variable s32 s_inputInitialized;
 global_variable s32 s_installedSnapshotsActive;
+
+// Gamepad config (set from ctr-native-config.json by main.c; the initializers
+// are only pre-config fallbacks).
+int g_cfg_gamepadDeadzone = 500;
+int g_cfg_gamepadAnalog = 1;
+int g_cfg_gamepadRumble = 1;
+int g_cfg_padMode = 1; // 0 = auto, 1 = 4 pads (multitap always), 2 = 2 pads
+int g_cfg_keyboardSlot = -1; // -1 = auto; 0..3 = keyboard plays as that player
+
+// Per-slot remembered device path: pads return to the SAME player slot after
+// a battery/cable drop (matched via SDL_GetGamepadPathForID; the path is
+// unique per physical device, including the Bluetooth address).
+global_variable char s_controllerRememberedPath[NATIVE_INPUT_MAX_CONTROLLERS][256];
+
+// Pad-bus layout fixed for the whole session (see Platform_InputInit).
+global_variable s32 s_multitapLatched = 0;
 global_variable s32 s_keyboardControllerSlot = NATIVE_INPUT_DEFAULT_KEYBOARD_SLOT;
 global_variable s32 s_lastActiveControllerSlot = -1;
 
@@ -147,10 +163,38 @@ internal s32 NativeInput_NextControllerSlot(s32 slot)
 
 internal void NativeInput_MoveKeyboardOffControllerSlot(s32 slot)
 {
+	// Only the Auto mode (-1) lets pads displace the keyboard. Fixed (0..3)
+	// keeps it on its player; "Pads only" (-2) has no keyboard player at all.
+	if (g_cfg_keyboardSlot != -1)
+	{
+		return;
+	}
+
 	if (s_keyboardControllerSlot == slot)
 	{
 		s_keyboardControllerSlot = NativeInput_NextControllerSlot(s_keyboardControllerSlot);
 	}
+}
+
+// "4 pads always on even if they do not exist" (pad_mode 1): present an empty
+// slot as a connected, idle pad. A flaky pad dropping or reconnecting then
+// never changes what the game sees on the controller bus.
+internal void NativeInput_MakeIdleConnectedSnapshot(struct PlatformInputPadSnapshot *snapshot)
+{
+	if (snapshot == NULL)
+	{
+		return;
+	}
+
+	snapshot->connected = 1;
+	snapshot->status = 0;
+	snapshot->id = NATIVE_INPUT_PAD_DIGITAL;
+	NativeInput_SetSnapshotButtons(snapshot, 0xffff);
+	snapshot->analog[0] = 0x80;
+	snapshot->analog[1] = 0x80;
+	snapshot->analog[2] = 0x80;
+	snapshot->analog[3] = 0x80;
+	memset(snapshot->reserved, 0, sizeof(snapshot->reserved));
 }
 
 internal void NativeInput_MakeDisconnectedSnapshot(struct PlatformInputPadSnapshot *snapshot)
@@ -190,15 +234,20 @@ internal void NativeInput_WritePadPacket(u8 *dst, const struct PlatformInputPadS
 
 internal s32 NativeInput_UseMultitapBus(void)
 {
-	for (s32 slot = NATIVE_INPUT_PHYSICAL_SLOT_COUNT; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
+	// Session-fixed bus layout (see Platform_InputInit): 1 = always 4 pads
+	// (multitap bus from startup so flaky pads attach into any slot), 2 =
+	// always 2 pads, 0 = auto (latched at boot from what was connected).
+	if (g_cfg_padMode == 1)
 	{
-		if (s_controllers[slot].snapshot.connected != 0)
-		{
-			return 1;
-		}
+		return 1;
 	}
 
-	return 0;
+	if (g_cfg_padMode == 2)
+	{
+		return 0;
+	}
+
+	return s_multitapLatched;
 }
 
 internal void NativeInput_WritePadBus(void)
@@ -313,7 +362,7 @@ internal s32 NativeInput_ControllerButtonState(SDL_Gamepad *controller, s32 butt
 		s32 axis = buttonOrAxis & ~(NATIVE_INPUT_MAP_FLAG_AXIS | NATIVE_INPUT_MAP_FLAG_INVERSE);
 		s32 value = SDL_GetGamepadAxis(controller, (SDL_GamepadAxis)axis);
 
-		if ((abs(value) > NATIVE_INPUT_AXIS_DEADZONE) && ((buttonOrAxis & NATIVE_INPUT_MAP_FLAG_INVERSE) != 0))
+		if ((abs(value) > g_cfg_gamepadDeadzone) && ((buttonOrAxis & NATIVE_INPUT_MAP_FLAG_INVERSE) != 0))
 		{
 			value *= -1;
 		}
@@ -331,6 +380,12 @@ internal s32 NativeInput_ControllerButtonState(SDL_Gamepad *controller, s32 butt
 
 internal u8 NativeInput_AxisToByte(s32 axis)
 {
+	// Center small values: a drifting stick at rest must report neutral.
+	if (abs(axis) <= g_cfg_gamepadDeadzone)
+	{
+		axis = 0;
+	}
+
 	s32 value = (axis / 256) + 128;
 
 	if (value < 0)
@@ -348,7 +403,7 @@ internal u8 NativeInput_AxisToByte(s32 axis)
 
 internal s32 NativeInput_AxisIsActive(s32 axis)
 {
-	return abs(axis) > NATIVE_INPUT_AXIS_DEADZONE;
+	return abs(axis) > g_cfg_gamepadDeadzone;
 }
 
 internal void NativeInput_ApplyController(s32 slot)
@@ -621,14 +676,36 @@ internal s32 NativeInput_FindSlotForDeviceIndex(Sint32 deviceIndex)
 	s32 slot;
 
 	for (slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
-	{
-		if (s_controllerToSlotMapping[slot] == deviceIndex)
 		{
-			return slot;
+			if (s_controllerToSlotMapping[slot] == deviceIndex)
+			{
+				return slot;
+			}
 		}
-	}
 
-	for (slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
+		// Sticky reconnect: a slot that remembers this exact physical device takes
+		// it back — a pad whose battery/cable dropped returns to the SAME player
+		// slot instead of whichever slot happens to be free. A slot holding a
+		// stale handle (pad vanished without a REMOVED event) also qualifies.
+		{
+			const char *path = SDL_GetGamepadPathForID((SDL_JoystickID)deviceIndex);
+
+			if ((path != NULL) && (path[0] != '\0'))
+			{
+				for (slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
+				{
+					const struct NativeInputController *candidate = &s_controllers[slot];
+
+					if (((candidate->controller == NULL) || (SDL_GamepadConnected(candidate->controller) == 0)) &&
+					    (strcmp(s_controllerRememberedPath[slot], path) == 0))
+					{
+						return slot;
+					}
+				}
+			}
+		}
+
+		for (slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
 	{
 		if ((s_controllerToSlotMapping[slot] < 0) && (s_controllers[slot].controller == NULL))
 		{
@@ -647,15 +724,21 @@ internal void NativeInput_CloseController(s32 slot)
 	}
 
 	struct NativeInputController *controller = &s_controllers[slot];
-	if (controller->controller != NULL)
-	{
-		SDL_CloseGamepad(controller->controller);
-	}
+		if (controller->controller != NULL)
+		{
+			if (s_controllerRememberedPath[slot][0] != '\0')
+			{
+				Platform_LogWarn("[CTR Native] pad slot %d disconnected (device remembered for auto-reconnect)\n", slot);
+			}
+
+			SDL_CloseGamepad(controller->controller);
+		}
 
 	controller->controller = NULL;
 	controller->instanceId = -1;
 	controller->analogEnabled = 0;
 	controller->switchingAnalog = 0;
+	s_controllerToSlotMapping[slot] = -1;
 
 	if (s_lastActiveControllerSlot == slot)
 	{
@@ -675,11 +758,33 @@ internal void NativeInput_OpenController(SDL_JoystickID instanceId, s32 slot)
 		return;
 	}
 
-	struct NativeInputController *controller = &s_controllers[slot];
-	if (controller->controller != NULL)
+	// A device already open in ANY slot must never open again. SDL delivers
+	// SDL_EVENT_GAMEPAD_ADDED for pads that were already connected at startup
+	// (in addition to the initial enumeration), and without this guard one
+	// physical pad landed in TWO slots — a single controller then drove both
+	// PSX players at once (reported with Xbox controllers).
+	for (s32 other = 0; other < NATIVE_INPUT_MAX_CONTROLLERS; other++)
 	{
-		return;
+		if ((s_controllers[other].controller != NULL) && (s_controllers[other].instanceId == instanceId))
+		{
+			Platform_LogWarn("[CTR Native] duplicate gamepad add ignored (instance %d already in pad slot %d)\n", (s32)instanceId, other);
+			return;
+		}
 	}
+
+	struct NativeInputController *controller = &s_controllers[slot];
+
+		// Stale handle (pad vanished without a REMOVED event): drop it so the
+		// slot can take the device again.
+		if ((controller->controller != NULL) && (SDL_GamepadConnected(controller->controller) == 0))
+		{
+			NativeInput_CloseController(slot);
+		}
+
+		if (controller->controller != NULL)
+		{
+			return;
+		}
 
 	controller->controller = SDL_OpenGamepad(instanceId);
 	if (controller->controller == NULL)
@@ -689,10 +794,24 @@ internal void NativeInput_OpenController(SDL_JoystickID instanceId, s32 slot)
 
 	SDL_Joystick *joystick = SDL_GetGamepadJoystick(controller->controller);
 	controller->instanceId = joystick != NULL ? SDL_GetJoystickID(joystick) : instanceId;
-	controller->analogEnabled = 1;
+	controller->analogEnabled = (g_cfg_gamepadAnalog != 0) ? 1 : 0;
 	controller->switchingAnalog = 0;
+
+	// Record the device->slot mapping (was never written; the dedupe loop in
+	// NativeInput_FindSlotForDeviceIndex depends on it).
+	s_controllerToSlotMapping[slot] = (s32)controller->instanceId;
+
 	NativeInput_MoveKeyboardOffControllerSlot(slot);
-}
+
+		{
+			const char *padName = SDL_GetGamepadName(controller->controller);
+			const char *padPath = SDL_GetGamepadPath(controller->controller);
+			const bool wasKnown = (padPath != NULL) && (padPath[0] != '\0') && (strcmp(s_controllerRememberedPath[slot], padPath) == 0);
+
+			snprintf(s_controllerRememberedPath[slot], sizeof(s_controllerRememberedPath[slot]), "%s", (padPath != NULL) ? padPath : "");
+			Platform_LogWarn("[CTR Native] gamepad %s to pad slot %d: %s (instance %d)\n", wasKnown ? "reconnected" : "connected", slot, (padName != NULL) ? padName : "unknown", (s32)controller->instanceId);
+		}
+	}
 
 internal void NativeInput_OpenKnownControllers(void)
 {
@@ -728,7 +847,20 @@ int Platform_InputInit(void)
 	}
 
 	NativeInput_DefaultMappings();
-	s_keyboardControllerSlot = NATIVE_INPUT_DEFAULT_KEYBOARD_SLOT;
+
+	if (g_cfg_keyboardSlot >= 0)
+	{
+		s_keyboardControllerSlot = g_cfg_keyboardSlot; // fixed player
+	}
+	else if (g_cfg_keyboardSlot == -1)
+	{
+		s_keyboardControllerSlot = NATIVE_INPUT_DEFAULT_KEYBOARD_SLOT; // auto (movable)
+	}
+	else
+	{
+		s_keyboardControllerSlot = -2; // pads only: keyboard drives no player
+	}
+
 	s_lastActiveControllerSlot = -1;
 	s_installedSnapshotsActive = 0;
 	s_keyboardState = SDL_GetKeyboardState(NULL);
@@ -740,11 +872,33 @@ int Platform_InputInit(void)
 	}
 
 	SDL_AddGamepadMappingsFromFile("gamecontrollerdb.txt");
-	NativeInput_OpenKnownControllers();
+		NativeInput_OpenKnownControllers();
 
-	s_inputInitialized = 1;
-	return 1;
-}
+		// Fix the pad-bus layout for the whole session. Deciding per frame let a
+		// flaky pad (battery/cable) flip the multitap layout mid-game and break
+		// the game's boot-time pad detection. g_cfg_padMode == 1 simulates the
+		// 4-pad bus from startup so pads can attach into any slot as they appear.
+		s_multitapLatched = 0;
+		for (s32 slot = NATIVE_INPUT_PHYSICAL_SLOT_COUNT; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
+		{
+			if (s_controllers[slot].controller != NULL)
+			{
+				s_multitapLatched = 1;
+			}
+		}
+
+		if (g_cfg_padMode == 1)
+		{
+			s_multitapLatched = 1;
+		}
+		else if (g_cfg_padMode == 2)
+		{
+			s_multitapLatched = 0;
+		}
+
+		s_inputInitialized = 1;
+		return 1;
+	}
 
 void Platform_InputShutdown(void)
 {
@@ -790,13 +944,28 @@ void Platform_InputUpdate(void)
 	u16 keyboardButtons = NativeInput_KeyboardSuppressed() ? 0xffff : NativeInput_ReadKeyboard();
 
 	for (s32 slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
-	{
-		NativeInput_ResetSnapshot(slot);
-		NativeInput_ApplyController(slot);
-		NativeInput_ApplyKeyboard(slot, keyboardButtons);
+		{
+			NativeInput_ResetSnapshot(slot);
+			NativeInput_ApplyController(slot);
+			NativeInput_ApplyKeyboard(slot, keyboardButtons);
+		}
+
+		// pad_mode 1 = "4 pads always on, even if they do not exist": present
+		// empty slots as connected idle pads so pad drops/reconnects never change
+		// what the game sees. Default-on per project requirement.
+		if (g_cfg_padMode == 1)
+		{
+			for (s32 slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
+			{
+				if (s_controllers[slot].snapshot.connected == 0)
+				{
+					NativeInput_MakeIdleConnectedSnapshot(&s_controllers[slot].snapshot);
+				}
+			}
+		}
+
+		NativeInput_WritePadBus();
 	}
-	NativeInput_WritePadBus();
-}
 
 void Platform_InputControllerAdded(int deviceIndex)
 {
@@ -826,7 +995,16 @@ void Platform_InputControllerRemoved(int instanceId)
 
 int Platform_InputCycleKeyboardController(void)
 {
-	s_keyboardControllerSlot = NativeInput_NextControllerSlot(s_keyboardControllerSlot);
+	// From "Pads only" (-2) or Auto (-1) the first press assigns player 1.
+	if (s_keyboardControllerSlot < 0)
+	{
+		s_keyboardControllerSlot = 0;
+	}
+	else
+	{
+		s_keyboardControllerSlot = NativeInput_NextControllerSlot(s_keyboardControllerSlot);
+	}
+
 	return s_keyboardControllerSlot + 1;
 }
 
@@ -1063,5 +1241,8 @@ void Platform_InputPadVibrate(int port, unsigned char *table, int len)
 		freqHigh = 4096;
 	}
 
-	SDL_RumbleGamepad(controller->controller, freqLow, freqHigh, 200);
+	if (g_cfg_gamepadRumble != 0)
+	{
+		SDL_RumbleGamepad(controller->controller, freqLow, freqHigh, 200);
+	}
 }

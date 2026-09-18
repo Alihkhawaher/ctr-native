@@ -138,6 +138,11 @@ void NativeConfig_SetDefaults(NativeConfig *config)
 	config->pgxp = 0;         // experimental: OFF by default (tearing)
 	config->pgxpGeometry = 1; // only active when pgxp is on
 	config->internalResolutionAuto = 1; // Auto (match screen height at 240 lines)
+	config->gamepadDeadzone = 5; // percent; wider than the old 1.5% so Xbox sticks at rest stay neutral
+	config->gamepadAnalog = 1;
+	config->gamepadRumble = 1;
+	config->padMode = 1; // 4-pad bus from startup (pads attach into slots as they connect)
+	config->keyboardSlot = -2; // default: "Pads only" — the keyboard drives no player unless assigned
 }
 
 int NativeConfig_LoadFile(NativeConfig *config, const char *path)
@@ -216,6 +221,31 @@ int NativeConfig_LoadFile(NativeConfig *config, const char *path)
 	if (NativeConfig_ReadBool(text, "pgxp_geometry", &value) != 0)
 	{
 		config->pgxpGeometry = value;
+	}
+
+	if ((NativeConfig_ReadInt(text, "gamepad_deadzone", &value) != 0) && (value >= 0) && (value <= 50))
+	{
+		config->gamepadDeadzone = value;
+	}
+
+	if (NativeConfig_ReadBool(text, "gamepad_analog", &value) != 0)
+	{
+		config->gamepadAnalog = value;
+	}
+
+	if (NativeConfig_ReadBool(text, "gamepad_rumble", &value) != 0)
+	{
+		config->gamepadRumble = value;
+	}
+
+	if ((NativeConfig_ReadInt(text, "pad_mode", &value) != 0) && (value >= 0) && (value <= 2))
+	{
+		config->padMode = value;
+	}
+
+	if ((NativeConfig_ReadInt(text, "keyboard_slot", &value) != 0) && (value >= -2) && (value <= 3))
+	{
+		config->keyboardSlot = value;
 	}
 
 	SDL_free(text);
@@ -297,6 +327,13 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  "    \"pgxp_geometry\": %s,\n"
 	                  "    \"show_fps\": %s\n"
 	                  "  },\n"
+	                  "  \"input\": {\n"
+	                  "    \"pad_mode\": %d,\n"
+	                  "    \"keyboard_slot\": %d,\n"
+	                  "    \"gamepad_deadzone\": %d,\n"
+	                  "    \"gamepad_analog\": %s,\n"
+	                  "    \"gamepad_rumble\": %s\n"
+	                  "  },\n"
 	                  "  \"launcher\": {\n"
 	                  "    \"game_executable\": \"%s\"\n"
 	                  "  }\n"
@@ -311,6 +348,11 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  (config->pgxp != 0) ? "true" : "false",
 	                  (config->pgxpGeometry != 0) ? "true" : "false",
 	                  (config->showFps != 0) ? "true" : "false",
+	                  config->padMode,
+	                  config->keyboardSlot,
+	                  config->gamepadDeadzone,
+	                  (config->gamepadAnalog != 0) ? "true" : "false",
+	                  (config->gamepadRumble != 0) ? "true" : "false",
 	                  launcherExecutable);
 
 	fclose(file);

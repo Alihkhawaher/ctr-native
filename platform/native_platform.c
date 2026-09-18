@@ -155,6 +155,11 @@ internal void Platform_SaveSettings(void)
 	config.pgxp = g_cfg_pgxp;
 	config.pgxpGeometry = g_cfg_pgxpGeometry;
 	config.showFps = g_cfg_showFps;
+	config.gamepadDeadzone = (g_cfg_gamepadDeadzone * 100 + 16384) / 32768;
+	config.gamepadAnalog = g_cfg_gamepadAnalog;
+	config.gamepadRumble = g_cfg_gamepadRumble;
+	config.padMode = g_cfg_padMode;
+	config.keyboardSlot = g_cfg_keyboardSlot;
 
 	NativeConfig_SaveDefaultLocation(&config);
 }

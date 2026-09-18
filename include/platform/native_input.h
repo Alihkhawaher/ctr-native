@@ -5,6 +5,13 @@
 
 #define PLATFORM_INPUT_PAD_COUNT 4
 
+// Gamepad configuration (loaded from ctr-native-config.json; applied by main.c).
+extern int g_cfg_gamepadDeadzone; // raw SDL axis units (percent * 32768 / 100)
+extern int g_cfg_gamepadAnalog;   // 1 = new pads start in analog mode
+extern int g_cfg_gamepadRumble;   // 1 = allow pad vibration
+extern int g_cfg_padMode;         // 0 = auto (detect at boot), 1 = 4 pads (always multitap), 2 = 2 pads
+extern int g_cfg_keyboardSlot;    // -1 = auto, 0..3 = the keyboard plays as that player
+
 struct PlatformInputPadSnapshot
 {
 	u8 status;

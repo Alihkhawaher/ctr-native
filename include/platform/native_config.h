@@ -17,6 +17,11 @@ typedef struct
 	int antialiasing;            // 0/1 - smooth (linear) presentation filter
 	int pgxp;                    // 0/1 - EXPERIMENTAL: perspective-correct textures + subpixel geometry; may tear; OFF by default
 	int pgxpGeometry;            // 0/1 - EXPERIMENTAL: subpixel vertex positions (clamped to 0.5px); active only with pgxp
+	int gamepadDeadzone;         // percent 0..50 applied to stick axes
+	int gamepadAnalog;           // 0/1 - new pads start in analog mode
+	int gamepadRumble;           // 0/1 - allow pad vibration
+	int padMode;                 // 0 = auto, 1 = 4 pads (multitap always), 2 = 2 pads
+	int keyboardSlot;            // -1 = auto (keyboard moves aside for pads), 0..3 = fixed player
 	int showFps;                 // 0/1
 } NativeConfig;
 

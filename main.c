@@ -342,6 +342,12 @@ int main(int argc, char *argv[])
 		g_cfg_pgxpGeometry = nativeConfig.pgxpGeometry;
 		g_cfg_showFps = nativeConfig.showFps;
 
+		g_cfg_gamepadDeadzone = nativeConfig.gamepadDeadzone * 32768 / 100;
+		g_cfg_gamepadAnalog = nativeConfig.gamepadAnalog;
+		g_cfg_gamepadRumble = nativeConfig.gamepadRumble;
+		g_cfg_padMode = nativeConfig.padMode;
+		g_cfg_keyboardSlot = nativeConfig.keyboardSlot;
+
 #ifdef USE_16BY9
 		printf("[CTR Native] Widescreen\n");
 		windowWidth = (nativeConfig.windowWidth > 0) ? nativeConfig.windowWidth : 1280;
