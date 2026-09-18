@@ -533,3 +533,54 @@ Debug workflow that worked:
 - On-hardware confirmation of the final input build is pending on the user's
   controller PC (the previous on-pad test found the three-controller issue,
   now fixed).
+
+## 11. Disc images: the user's collection, conversions, and the voices verdict (2026-09-18, evening)
+
+### The voices blocker: RESOLVED
+- A complete NTSC-U dump was found in the user's own collection:
+  `CTR - Crash Team Racing.bin` / the `(USA)` `.iso` / the USA CHD all decode
+  to the SAME bytes (md5 `ab95bfca8a4bb3d90daa6519acf6e944`), SCUS-94426 with
+  53,428 XA audio sectors. With it the engine streams XA — `PlayXATrack OK`
+  for the EXTRA voice tracks and MUSIC tracks. Voices/music work.
+- The old `assets/ctr-u.bin` (257,675 sectors, **0** XA audio sectors) stays
+  as the audio-gutted fallback: it boots but has no voice data.
+
+### Per-image findings (`tools/disc_probe.py`)
+| image | region | XA audio sectors | engine verdict |
+|---|---|---|---|
+| NTSC-U complete (.bin/.iso/CHD-extract) | SCUS-94426 | 53,428 | runs; voices OK |
+| ctr-u.bin (old) | SCUS-94426 | 0 | runs; no voices |
+| EUROPE EDC `.bin` | SCES-021.05 | 115,094 | mounts; PAL data → segfault |
+| EUROPE (No EDC) `.ecm` → decoded | SCES-021.05 | 115,094 | same (PAL segfault) |
+| Crash Bandicoot Racing (JP) `.chd` → decoded | SCPS-10118 | 64,452 | runs/renders; XA lookups fail |
+
+PAL/JP notes: the port is NTSC-U-only by design (retail metadata is
+`metadata/retail/ntsc-u-926/`); PAL data segfaults the build and JP XA
+manifest ids differ, so voice lookups fail there. Neither is fixable without
+per-region game builds (upstream territory).
+
+### Conversions (new tools + gotchas)
+- `tools/unecm.py`: ECM → raw 2352. Port of Neill Corlett's unecm.c with the
+  documented variant detail: **type 2/3 records carry only the 2336-byte
+  Mode2 body** — sync/address/mode arrive as separate literal (type 0)
+  records. Writing 2352 for a type-2/3 record desyncs the image by exactly
+  16 B/sector (the first attempt came out 3,193,664 bytes over). Fixed: the
+  decoded PAL image is byte-exact (740,179,104 B, identical structure to the
+  independent EDC dump: same BOOT id, same BIGFILE size, same XA census).
+  ECC/EDC areas are zero-filled (never read by the engine; source was a
+  No-EDC dump).
+- **chdman 0.289 gotcha**: `extractcd -i x.chd -ob x.bin -o x.cue` — `-o` is
+  the TOC (cue) and `-ob` the data (bin), reversed from older docs; passing
+  the bin to `-o` opens the same file twice and fails "Permission denied".
+  The extracted NTSC-U CHD is md5-identical to the raw dump — extraction is
+  trustworthy.
+
+### Engine: explicit disc image (`disc_image`)
+- New config key `game_data.disc_image` (launcher "Game data" row + Browse):
+  absolute, or relative to the game folder. Config now loads BEFORE
+  `NativeAssets_Init` so validation sees the chosen image; the override wins
+  over `assets/ctr-u.bin` and logs `[CTR Native] Disc image (config): <path>`
+  (warning + default fallback when unusable).
+- Launcher: stores paths relative when inside the game folder (portable
+  installs); fixed a merge bug where `input`/`game_data` sections were not
+  merged on load (gamepad settings could silently reset).

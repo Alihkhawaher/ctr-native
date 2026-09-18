@@ -234,6 +234,10 @@ static BOOL WINAPI NativeConsole_ControlHandler(DWORD controlType)
 #endif
 
 
+// Config loaded before asset init so `disc_image` can choose the game data
+// source before validation; the graphics setup below reuses the same struct.
+static NativeConfig g_nativeConfig;
+
 int main(int argc, char *argv[])
 {
 #if defined(_WIN32)
@@ -282,6 +286,27 @@ int main(int argc, char *argv[])
 	printf("[CTR Native] SDL base path: %s\n", sdlBasePath ? sdlBasePath : "(null)");
 	fflush(stdout);
 
+	// Load the config before asset init: `disc_image` chooses the game data
+	// source, and asset validation must see the same file the launcher picked.
+	NativeConfig_SetDefaults(&g_nativeConfig);
+	{
+		char configPath[512];
+
+		if ((sdlBasePath != NULL) && (snprintf(configPath, sizeof(configPath), "%sctr-native-config.json", sdlBasePath) > 0))
+		{
+			if (NativeConfig_LoadFile(&g_nativeConfig, configPath) != 0)
+			{
+				printf("[CTR Native] Config: %s\n", configPath);
+			}
+			else
+			{
+				printf("[CTR Native] Config: %s (not found; using defaults)\n", configPath);
+			}
+		}
+	}
+
+	snprintf(g_cfg_discImage, sizeof(g_cfg_discImage), "%s", g_nativeConfig.discImage);
+
 	if (!NativeAssets_Init(sdlBasePath))
 	{
 		fprintf(stderr, "[CTR Native] Failed to initialize asset paths.\n");
@@ -313,25 +338,9 @@ int main(int argc, char *argv[])
 #endif
 
 	{
-		NativeConfig nativeConfig;
-		const char *basePath = SDL_GetBasePath();
-		char configPath[512];
+		NativeConfig nativeConfig = g_nativeConfig;
 		int windowWidth;
 		int windowHeight;
-
-		NativeConfig_SetDefaults(&nativeConfig);
-
-		if ((basePath != NULL) && (snprintf(configPath, sizeof(configPath), "%sctr-native-config.json", basePath) > 0))
-		{
-			if (NativeConfig_LoadFile(&nativeConfig, configPath) != 0)
-			{
-				printf("[CTR Native] Config: %s\n", configPath);
-			}
-			else
-			{
-				printf("[CTR Native] Config: %s (not found; using defaults)\n", configPath);
-			}
-		}
 
 		g_cfg_aspectRatio = nativeConfig.aspectRatio;
 		g_cfg_internalResolutionScale = nativeConfig.internalResolutionScale;

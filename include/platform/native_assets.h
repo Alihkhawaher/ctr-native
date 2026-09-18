@@ -21,6 +21,8 @@ struct NativeAssetsByteBuffer
 int NativeAssets_Init(const char *executableBasePath);
 const char *NativeAssets_GetBaseDir(void);
 const char *NativeAssets_GetAssetDir(void);
+// Note: the config `disc_image` override lives in native_assets.c as
+// g_cfg_discImage (unity build: visible to main.c via the include chain).
 int NativeAssets_BuildPathStr8(NativeStr8 relativePath, char *dst, size_t dstSize);
 int NativeAssets_BuildPath(const char *relativePath, char *dst, size_t dstSize);
 int NativeAssets_ResolvePathStr8(NativeStr8 relativePath, char *dst, size_t dstSize);

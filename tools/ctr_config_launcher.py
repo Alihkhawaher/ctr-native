@@ -83,6 +83,9 @@ def default_config():
             "gamepad_analog": True,
             "gamepad_rumble": True,
         },
+        "game_data": {
+            "disc_image": "",
+        },
         "launcher": {
             "game_executable": DEFAULT_GAME_EXE,
         },
@@ -105,7 +108,7 @@ def load_config(config_path):
             disk = json.load(f)
         # Shallow merge of known sections/keys so new fields don't clobber.
         if isinstance(disk, dict):
-            for section in ("graphics", "launcher"):
+            for section in ("graphics", "input", "game_data", "launcher"):
                 if isinstance(disk.get(section), dict):
                     cfg.setdefault(section, {}).update(disk[section])
     except (OSError, ValueError):
@@ -218,9 +221,22 @@ class ConfigApp:
             justify="left",
         ).grid(row=5, column=0, columnspan=2, sticky="w", **pad)
 
+        # Game data group
+        data = ttk.LabelFrame(main, text="Game data")
+        data.grid(row=2, column=0, sticky="ew", pady=(0, 8))
+        ttk.Label(data, text="Disc image (ctr-u.bin / ISO):").grid(row=0, column=0, sticky="w", **pad)
+        self.disc_var = tk.StringVar()
+        ttk.Entry(data, textvariable=self.disc_var, width=44).grid(row=0, column=1, sticky="ew", padx=10, pady=6)
+        ttk.Button(data, text="Browse...", command=self._browse_disc).grid(row=0, column=2, padx=(0, 10), pady=6)
+        ttk.Label(
+            data,
+            text="Pick your ctr-u.bin / ISO anywhere on disk, or leave empty to use\nassets/ctr-u.bin next to the game.",
+            justify="left",
+        ).grid(row=1, column=0, columnspan=3, sticky="w", **pad)
+
         # Launcher group
         launch = ttk.LabelFrame(main, text="Game executable")
-        launch.grid(row=2, column=0, sticky="ew", pady=(0, 8))
+        launch.grid(row=3, column=0, sticky="ew", pady=(0, 8))
         self.game_path_var = tk.StringVar()
         ttk.Entry(launch, textvariable=self.game_path_var, width=44).grid(
             row=0, column=0, sticky="ew", padx=10, pady=6
@@ -231,7 +247,7 @@ class ConfigApp:
 
         # Buttons
         btns = ttk.Frame(main)
-        btns.grid(row=3, column=0, sticky="ew")
+        btns.grid(row=4, column=0, sticky="ew")
         ttk.Button(btns, text="Save", command=self._save_only).pack(side="left", padx=4)
         ttk.Button(btns, text="Save & Play", command=self._save_and_play).pack(side="left", padx=4)
         ttk.Button(btns, text="Quit", command=self.root.destroy).pack(side="left", padx=4)
@@ -239,10 +255,11 @@ class ConfigApp:
         # Status note
         note = (
             "Settings are written to ctr-native-config.json next to the game\n"
-            "and applied when the game starts."
+            "and applied when the game starts. The game data picker accepts any\n"
+            "BIN/ISO on disk; relative paths keep the install folder movable."
         )
         ttk.Label(main, text=note, foreground="#666666", justify="left").grid(
-            row=4, column=0, sticky="w", pady=(10, 0)
+            row=5, column=0, sticky="w", pady=(10, 0)
         )
 
     # --- Config <-> UI -----------------------------------------------------
@@ -284,9 +301,28 @@ class ConfigApp:
         self.gp_rumble_var.set(bool(inp.get("gamepad_rumble", True)))
 
         game = self.config.get("launcher", {}).get("game_executable", DEFAULT_GAME_EXE)
-        if not os.path.isabs(game):
-            game = os.path.join(self.launcher_dir, game)
-        self.game_path_var.set(game)
+        self.game_path_var.set(self._portable_path(game))
+
+        disc = self.config.get("game_data", {}).get("disc_image", "")
+        if not disc and os.path.isfile(os.path.join(self.launcher_dir, "assets", "ctr-u.bin")):
+            disc = os.path.join("assets", "ctr-u.bin")
+        self.disc_var.set(self._portable_path(disc))
+
+    # --- Path helpers ------------------------------------------------------
+    def _portable_path(self, path):
+        """Relative when the file lives inside the launcher folder (keeps the
+        install movable), otherwise the path unchanged."""
+        path = (path or "").strip()
+        if not path:
+            return ""
+        full = path if os.path.isabs(path) else os.path.join(self.launcher_dir, path)
+        try:
+            rel = os.path.relpath(full, self.launcher_dir)
+        except ValueError:
+            return path  # different drive: keep as-is
+        if rel.startswith(".."):
+            return path
+        return rel
 
     def _save_config_from_ui(self):
         res_label = self.res_var.get()
@@ -313,7 +349,8 @@ class ConfigApp:
             "gamepad_analog": self.gp_analog_var.get(),
             "gamepad_rumble": self.gp_rumble_var.get(),
         }
-        self.config["launcher"]["game_executable"] = self.game_path_var.get()
+        self.config["launcher"]["game_executable"] = self._portable_path(self.game_path_var.get()) or DEFAULT_GAME_EXE
+        self.config["game_data"] = {"disc_image": self._portable_path(self.disc_var.get())}
 
     def _write_config(self):
         self._save_config_from_ui()
@@ -331,6 +368,15 @@ class ConfigApp:
         if path:
             self.game_path_var.set(path)
 
+    def _browse_disc(self):
+        from tkinter import filedialog
+        path = filedialog.askopenfilename(
+            title="Select the game disc image (ctr-u.bin / ISO)",
+            filetypes=[("Disc image", "*.bin *.iso *.img"), ("All files", "*.*")],
+        )
+        if path:
+            self.disc_var.set(path)
+
     def _save_only(self):
         path = self._write_config()
         messagebox.showinfo(APP_NAME, f"Configuration saved to:\n{path}")
@@ -346,6 +392,17 @@ class ConfigApp:
                 "Use Browse... to select ctr_native.exe.",
             )
             return
+
+        disc = self.config.get("game_data", {}).get("disc_image", "")
+        if disc:
+            disc_full = disc if os.path.isabs(disc) else os.path.join(self.launcher_dir, disc)
+            if not os.path.isfile(disc_full):
+                if not messagebox.askyesno(
+                    APP_NAME,
+                    f"Disc image not found:\n{disc_full}\n\n"
+                    "The game will fall back to assets/ctr-u.bin if present.\nLaunch anyway?",
+                ):
+                    return
 
         if messagebox.askyesno(APP_NAME, "Launch the game now?"):
             try:

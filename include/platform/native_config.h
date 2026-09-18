@@ -21,7 +21,8 @@ typedef struct
 	int gamepadAnalog;           // 0/1 - new pads start in analog mode
 	int gamepadRumble;           // 0/1 - allow pad vibration
 	int padMode;                 // 0 = auto, 1 = 4 pads (multitap always), 2 = 2 pads
-	int keyboardSlot;            // -1 = auto (keyboard moves aside for pads), 0..3 = fixed player
+	int keyboardSlot;            // -2 = "Pads only" (keyboard drives no player), -1 = auto (moves aside for pads), 0..3 = fixed player
+	char discImage[512];         // optional disc image path (BIN/ISO); empty = assets/ctr-u.bin next to the executable
 	int showFps;                 // 0/1
 } NativeConfig;
 

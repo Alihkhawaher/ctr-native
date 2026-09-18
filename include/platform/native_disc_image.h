@@ -12,6 +12,8 @@ struct NativeDiscImageFile
 };
 
 int NativeDiscImage_Init(const char *assetsDir);
+// Opens a specific disc image file directly (config `disc_image` override).
+int NativeDiscImage_InitImage(const char *imagePath);
 int NativeDiscImage_FindFile(const char *path, struct NativeDiscImageFile *fileOut);
 int NativeDiscImage_ReadDataSectors(const struct NativeDiscImageFile *file, u32 sector, u32 sectorCount, void *dst);
 int NativeDiscImage_ReadRawSectors(const struct NativeDiscImageFile *file, u32 sector, u32 sectorCount, void *dst);

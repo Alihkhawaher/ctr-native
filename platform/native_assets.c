@@ -40,6 +40,10 @@ struct NativeAssetIndexEntry
 
 global_variable char s_nativeAssetsBaseDir[NATIVE_ASSETS_PATH_MAX] = ".";
 global_variable char s_nativeAssetsDir[NATIVE_ASSETS_PATH_MAX] = NATIVE_ASSETS_DIR_NAME;
+
+// Optional disc image override from the config (`disc_image`); set before
+// NativeAssets_Init. Empty = default assets/ctr-u.bin next to the executable.
+global_variable char g_cfg_discImage[NATIVE_ASSETS_PATH_MAX];
 global_variable int s_nativeAssetsInitialized;
 global_variable struct NativeAssetIndexEntry *s_nativeAssetIndex;
 global_variable int s_nativeAssetIndexCount;
@@ -447,10 +451,37 @@ internal void NativeAssets_BuildIndex(void)
 	NativeAssets_IndexScanDir(s_nativeAssetsDir, (NativeStr8){0}, 0);
 }
 
+// Resolves the config `disc_image` override against a candidate base dir:
+// absolute paths are used as-is, relative ones join the base. Returns 0 when
+// the override is unset or the join fails.
+internal int NativeAssets_ResolveConfiguredDisc(NativeStr8 baseDir, char *out, size_t outSize)
+{
+	if (g_cfg_discImage[0] == '\0')
+	{
+		return 0;
+	}
+
+	if ((g_cfg_discImage[0] == '/') || (g_cfg_discImage[0] == '\\') || (g_cfg_discImage[1] == ':'))
+	{
+		return NativePath_NormalizeSlashes(out, outSize, NativeStr8_FromCString(g_cfg_discImage));
+	}
+
+	return NativePath_Join(out, outSize, baseDir, NativeStr8_FromCString(g_cfg_discImage));
+}
+
 internal int NativeAssets_BaseHasRequiredFile(NativeStr8 baseDir)
 {
 	char assetsDir[NATIVE_ASSETS_PATH_MAX];
 	char path[NATIVE_ASSETS_PATH_MAX];
+
+	{
+		char imagePath[NATIVE_ASSETS_PATH_MAX];
+
+		if (NativeAssets_ResolveConfiguredDisc(baseDir, imagePath, sizeof(imagePath)) && NativeAssets_FileExistsHost(imagePath))
+		{
+			return 1;
+		}
+	}
 
 	if (!NativeAssets_FindAssetsDir(baseDir, assetsDir, sizeof(assetsDir)))
 	{
@@ -508,7 +539,28 @@ internal int NativeAssets_SetBaseDir(NativeStr8 baseDir)
 		return 0;
 	}
 
-	NativeDiscImage_Init(s_nativeAssetsDir);
+	{
+		char imagePath[NATIVE_ASSETS_PATH_MAX];
+
+		// Config `disc_image` override wins over the default assets/ctr-u.bin.
+		if (NativeAssets_ResolveConfiguredDisc(NativeStr8_FromCString(s_nativeAssetsBaseDir), imagePath, sizeof(imagePath)))
+		{
+			if (NativeDiscImage_InitImage(imagePath))
+			{
+				printf("[CTR Native] Disc image (config): %s\n", imagePath);
+			}
+			else
+			{
+				fprintf(stderr, "[CTR Native] configured disc image could not be opened: %s (using default)\n", imagePath);
+				NativeDiscImage_Init(s_nativeAssetsDir);
+			}
+		}
+		else
+		{
+			NativeDiscImage_Init(s_nativeAssetsDir);
+		}
+	}
+
 	NativeAssets_ClearIndex();
 	s_nativeAssetsInitialized = 1;
 	return 1;

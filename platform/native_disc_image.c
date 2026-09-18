@@ -349,10 +349,8 @@ internal int NativeDiscImage_LoadRoot(void)
 	return 1;
 }
 
-int NativeDiscImage_Init(const char *assetsDir)
+internal int NativeDiscImage_OpenImage(const char *path)
 {
-	char path[NATIVE_DISC_IMAGE_PATH_MAX];
-
 	s_nativeDiscImageAvailable = 0;
 	s_nativeDiscImagePath[0] = '\0';
 
@@ -362,7 +360,7 @@ int NativeDiscImage_Init(const char *assetsDir)
 		s_nativeDiscImageFile = NULL;
 	}
 
-	if ((assetsDir == NULL) || !NativeDiscImage_FindHostImagePath(path, sizeof(path), NativeStr8_FromCString(assetsDir)))
+	if ((path == NULL) || (path[0] == '\0'))
 	{
 		return 0;
 	}
@@ -389,6 +387,34 @@ int NativeDiscImage_Init(const char *assetsDir)
 
 	s_nativeDiscImageAvailable = 1;
 	return 1;
+}
+
+int NativeDiscImage_Init(const char *assetsDir)
+{
+	char path[NATIVE_DISC_IMAGE_PATH_MAX];
+
+	s_nativeDiscImageAvailable = 0;
+	s_nativeDiscImagePath[0] = '\0';
+
+	if (s_nativeDiscImageFile != NULL)
+	{
+		fclose(s_nativeDiscImageFile);
+		s_nativeDiscImageFile = NULL;
+	}
+
+	if ((assetsDir == NULL) || !NativeDiscImage_FindHostImagePath(path, sizeof(path), NativeStr8_FromCString(assetsDir)))
+	{
+		return 0;
+	}
+
+	return NativeDiscImage_OpenImage(path);
+}
+
+// Opens a specific disc image file (config `disc_image` override). The path
+// may be absolute or relative to the process working directory.
+int NativeDiscImage_InitImage(const char *imagePath)
+{
+	return NativeDiscImage_OpenImage(imagePath);
 }
 
 int NativeDiscImage_FindFile(const char *path, struct NativeDiscImageFile *fileOut)

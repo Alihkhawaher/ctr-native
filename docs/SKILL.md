@@ -52,10 +52,21 @@ panel (top-left) lists everything with live values.
 
 ## Disc images & XA audio (voices)
 - Raw Mode 2 sectors: 2352 B; sub-header at +16, user data at +24.
-- Only a clean raw dump can do voices; converted/rebuilt images (current
-  `assets/ctr-u.bin`) have ZERO XA sectors; PAL track tables differ — not
-  substitutable. Check with `docs/scripts/whole_scan.py` / `serial_check.py` /
-  `xa_player.py` (decode to WAV).
+- **Voices work with a complete NTSC-U dump** (SCUS-94426, 53,428 XA audio
+  sectors): `PlayXATrack OK` for EXTRA/MUSIC tracks. The old `assets/ctr-u.bin`
+  is audio-gutted (0 XA sectors) — boot only, no voices. PAL images
+  (SCES-02105, 115k XA sectors) MOUNT but the NTSC-U build segfaults on PAL
+  data; JP (SCPS-10118) runs but XA lookups fail (manifest ids differ).
+- **Check any image with `tools/disc_probe.py`** — prints sector format,
+  region/BOOT id, BIGFILE presence, and the XA-audio census (the voice test).
+- **`disc_image` config key** (`game_data` section; launcher "Game data" row):
+  absolute or game-folder-relative path; engine logs `Disc image (config):`.
+  Config loads BEFORE `NativeAssets_Init` (asset validation must see it).
+- Conversions: **`tools/unecm.py`** (ECM → raw 2352; type 2/3 records carry
+  only the 2336-byte Mode2 body — writing 2352 desyncs by 16 B/sector).
+  **chdman** (MAME): `extractcd -i x.chd -ob x.bin -o x.cue` — in 0.289
+  `-o` is the TOC and `-ob` the data (reversed vs older docs; same-file use
+  fails with "Permission denied"). CHDs are not engine-readable directly.
 - XNF: `XNFf` magic, counts 0x0C/0x10, sizes 0x44, entries
   `{channelFilter, fileNumber, numSectors}` at `0x44 + numXAs*4`.
 - PR #27 in the upstream repo has a useful `extract_assets.sh` (bin/cue + iso,

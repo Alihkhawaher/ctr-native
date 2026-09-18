@@ -143,6 +143,7 @@ void NativeConfig_SetDefaults(NativeConfig *config)
 	config->gamepadRumble = 1;
 	config->padMode = 1; // 4-pad bus from startup (pads attach into slots as they connect)
 	config->keyboardSlot = -2; // default: "Pads only" — the keyboard drives no player unless assigned
+	config->discImage[0] = '\0'; // default: assets/ctr-u.bin next to the executable
 }
 
 int NativeConfig_LoadFile(NativeConfig *config, const char *path)
@@ -248,20 +249,24 @@ int NativeConfig_LoadFile(NativeConfig *config, const char *path)
 		config->keyboardSlot = value;
 	}
 
+	// Optional: explicit disc image path chosen in the launcher (absolute, or
+	// relative to the game folder). Missing/malformed keeps the default empty.
+	NativeConfig_ReadString(text, "disc_image", config->discImage, sizeof(config->discImage));
+
 	SDL_free(text);
 	return 1;
 }
 
-// Copies the launcher's configured game executable (raw JSON string content,
-// escapes preserved) so saving graphics options never clobbers that setting.
-internal void NativeConfig_CopyLauncherExecutable(const char *text, char *out, size_t outSize)
+// Copies a raw JSON string value (escapes preserved) so saving engine-owned
+// options never clobbers launcher-managed keys.
+internal void NativeConfig_CopyStringValue(const char *text, const char *key, const char *fallback, char *out, size_t outSize)
 {
-	const char *cursor = NativeConfig_FindValue(text, "game_executable");
+	const char *cursor = NativeConfig_FindValue(text, key);
 	size_t length = 0;
 
 	if ((cursor == NULL) || (*cursor != '"'))
 	{
-		snprintf(out, outSize, "ctr_native.exe");
+		snprintf(out, outSize, "%s", fallback);
 		return;
 	}
 
@@ -274,11 +279,18 @@ internal void NativeConfig_CopyLauncherExecutable(const char *text, char *out, s
 
 	if (cursor[length] != '"')
 	{
-		snprintf(out, outSize, "ctr_native.exe");
+		snprintf(out, outSize, "%s", fallback);
 		return;
 	}
 
 	out[length] = '\0';
+}
+
+// Copies the launcher's configured game executable (raw JSON string content,
+// escapes preserved) so saving graphics options never clobbers that setting.
+internal void NativeConfig_CopyLauncherExecutable(const char *text, char *out, size_t outSize)
+{
+	NativeConfig_CopyStringValue(text, "game_executable", "ctr_native.exe", out, outSize);
 }
 
 int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
@@ -286,6 +298,7 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	static const char *s_aspectNames[3] = {"Auto", "4:3", "16:9"};
 	char tempPath[512];
 	char launcherExecutable[512];
+	char discImage[512];
 	char *existing;
 	size_t existingSize = 0;
 	FILE *file;
@@ -295,11 +308,13 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	if (existing != NULL)
 	{
 		NativeConfig_CopyLauncherExecutable(existing, launcherExecutable, sizeof(launcherExecutable));
+		NativeConfig_CopyStringValue(existing, "disc_image", "", discImage, sizeof(discImage));
 		SDL_free(existing);
 	}
 	else
 	{
 		snprintf(launcherExecutable, sizeof(launcherExecutable), "ctr_native.exe");
+		discImage[0] = '\0';
 	}
 
 	if (snprintf(tempPath, sizeof(tempPath), "%s.tmp", path) <= 0)
@@ -336,6 +351,9 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  "  },\n"
 	                  "  \"launcher\": {\n"
 	                  "    \"game_executable\": \"%s\"\n"
+	                  "  },\n"
+	                  "  \"game_data\": {\n"
+	                  "    \"disc_image\": \"%s\"\n"
 	                  "  }\n"
 	                  "}\n",
 	                  config->windowWidth,
@@ -353,7 +371,8 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  config->gamepadDeadzone,
 	                  (config->gamepadAnalog != 0) ? "true" : "false",
 	                  (config->gamepadRumble != 0) ? "true" : "false",
-	                  launcherExecutable);
+	                  launcherExecutable,
+	                  discImage);
 
 	fclose(file);
 
