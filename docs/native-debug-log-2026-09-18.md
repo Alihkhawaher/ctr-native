@@ -603,3 +603,27 @@ per-region game builds (upstream territory).
   adding rows). Also: when patching the launcher file, keep full indentation
   in both sides of the edit (fuzzy matching can double it) and verify with
   `python -m py_compile`.
+
+## 12. Version difference database + PAL porting estimate (2026-09-18, night)
+
+- New tool `tools/version_diff.py`: SQLite + CSV database comparing any number
+  of raw disc images at three levels — ISO9660 file trees, BIGFILE entries
+  (named via CTR-tools' per-version lists), and PS-X EXE function-level
+  disassembly diffing (capstone; classes: identical / address-shift-only /
+  structural / value-changed / unique). BIGFILE format verified by
+  cross-version content-hash matches (449/608 US entries match PAL).
+- Executable verdict (US 986 / PAL 989 / JP 1006 functions, all loading at
+  `0x80010000`): US↔PAL = 175 identical, 136 address-only, **23 structural
+  (all same-size = small in-place edits)**, ~683 value-diffs, 62/64 unique;
+  US↔JP = 336 structural (an order of magnitude more).
+- Data verdict: PAL = 449 identical / 169 changed / +29 PAL-only entries
+  (all localisation: per-language cutscene variants + new credits dances);
+  six XA voice sets (ENG/FRN/GRM/ITL/SPN/DCH) each with its own manifest;
+  PAL XA list "reorders music, cuts 2 tropy lines…" (community notes).
+- Report + estimate: `docs/version-diff-summary.md` — PAL port ≈ 8–14 weeks
+  solo (triage tooling 1–2w, code port 2–4w, language system 3–5w, timing
+  1–2w, QA 1–2w); phased shortcut for partial PAL included.
+- Upstream reality check: no `VERSION_PAL` exists in the ModSDK source — the
+  decompilation is US-only (per-region support there = mod-build tooling).
+  ModSDK has a `LangMenu` module (prior art for stage 3) and an `EurLibcrypt`
+  patch (PAL LibCrypt — irrelevant to this port, we never run the PSX exe).

@@ -82,6 +82,21 @@ panel (top-left) lists everything with live values.
   on Save & Play for foreign discs). Detector logic: PVD at sector 16, root
   walk for SYSTEM.CNF, parse `BOOT = cdrom:\<id>;1`.
 
+## Version diff database (US vs PAL vs JP)
+- `tools/version_diff.py <workdir> US=img PAL=img JP=img NAMES:US=...` →
+  SQLite + CSVs: disc file trees, BIGFILE entries (named via CTR-tools lists
+  in `version_diff/names/`: big_usa_release.txt = 608 entries, big_pal = 723;
+  NON-COMMENT lines = entry order), PS-X EXE function diff (capstone — needs
+  `md.skipdata=True` + `md.detail=True`; classes: identical /
+  address-shift-only / structural / value-changed / unique).
+- BIGFILE format: int32 cdpos + int32 numEntry, then numEntry × (offset in
+  sectors, size bytes); entry data at `offset*2048`.
+- PAL verdict: 175 identical functions, 23 structural (same size as US!),
+  ~683 value-diffs; data = 449/608 identical, 169 changed, +29 localisation
+  entries; six XA voice sets. Port estimate ≈ 8–14 weeks —
+  `docs/version-diff-summary.md`. Full artifacts:
+  `E:\Games\CrashCTR-Win\version_diff\`.
+
 ## Hard-won pitfalls (do not repeat)
 - Gamepad slots: `s_controllerToSlotMapping` must be WRITTEN on open (and
   cleared on close); SDL sends `GAMEPAD_ADDED` for pads already connected at
