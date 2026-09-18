@@ -1,0 +1,4 @@
+label,path,size,sector,boot_id,exe_entry,exe_load,exe_size,func_count
+US,assets/CTR - Crash Team Racing/CTR - Crash Team Racing.bin,605698800,2352,SCUS_944.26,2147973436,2147549184,514048,986
+PAL,assets/CTR - Crash Team Racing (EUROPE) (1999) (Kart Racing) (ISO) (Playstation)/CTR - Crash Team Racing (Europe) (En;Fr;De;Es;It;Nl) (EDC).bin,740179104,2352,SCES_021.05,2147973716,2147549184,516096,989
+JP,assets/jp-from-chd.bin,707919072,2352,SCPS_101.18,2147986080,2147549184,528384,1006
