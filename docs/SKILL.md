@@ -72,6 +72,16 @@ panel (top-left) lists everything with live values.
 - PR #27 in the upstream repo has a useful `extract_assets.sh` (bin/cue + iso,
   extracts XA as raw 2352-byte sectors, validates).
 
+## Region dispatch (NTSC-U-only build)
+- The game code = the NTSC-U decompilation; foreign discs cannot run on it
+  (their own PSX executables need an emulator; their data layouts differ).
+- `platform/native_region.c` detects the disc's SYSTEM.CNF BOOT id and
+  refuses PAL (SCES_/SLES_) / NTSC-J (SCPS_/SLPS_) discs with a clear message
+  instead of a segfault; `--allow-foreign-disc` overrides (expect crashes).
+- The launcher detects the picked image's region too (colored status; warns
+  on Save & Play for foreign discs). Detector logic: PVD at sector 16, root
+  walk for SYSTEM.CNF, parse `BOOT = cdrom:\<id>;1`.
+
 ## Hard-won pitfalls (do not repeat)
 - Gamepad slots: `s_controllerToSlotMapping` must be WRITTEN on open (and
   cleared on close); SDL sends `GAMEPAD_ADDED` for pads already connected at

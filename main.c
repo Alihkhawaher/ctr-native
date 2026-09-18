@@ -24,6 +24,7 @@
 #include "platform/native_memory.h"
 #include "platform/native_perf.h"
 #include "platform/native_replay_scheduler.h"
+#include "platform/native_region.h"
 #include "platform/native_savestate.h"
 
 #include <platform.h>
@@ -37,6 +38,7 @@
 #undef RECT
 
 #include "platform/native_disc_image.c"
+#include "platform/native_region.c"
 #include "platform/native_assets.c"
 #include "platform/native_audio.c"
 #include "platform/native_memory.c"
@@ -143,6 +145,11 @@ static int NativeArg_IsDumpBoot(const char *arg)
 	return (arg != NULL) && (strcmp(arg, "--dump-boot") == 0);
 }
 
+static int NativeArg_IsAllowForeignDisc(const char *arg)
+{
+	return (arg != NULL) && (strcmp(arg, "--allow-foreign-disc") == 0);
+}
+
 static int NativeArg_IsHelp(const char *arg)
 {
 	return (arg != NULL) && ((strcmp(arg, "--help") == 0) || (strcmp(arg, "-h") == 0));
@@ -246,6 +253,7 @@ int main(int argc, char *argv[])
 #endif
 
 	extern int g_cli_dumpBoot;
+	extern int g_cli_allowForeignDisc;
 
 	for (int argIndex = 1; argIndex < argc; argIndex++)
 	{
@@ -261,6 +269,7 @@ int main(int argc, char *argv[])
 			printf("  --verbose     enable [CTR Debug] logging (default)\n");
 			printf("  -q, --quiet   silence [CTR Debug] logging\n");
 			printf("  --dump-boot   capture the first 150 frames to boot_dump/ (debug)\n");
+			printf("  --allow-foreign-disc  try a PAL/NTSC-J disc anyway (unsupported; expect crashes)\n");
 			printf("  -h, --help    show this help\n");
 			return 0;
 		}
@@ -275,6 +284,10 @@ int main(int argc, char *argv[])
 		else if (NativeArg_IsDumpBoot(argv[argIndex]))
 		{
 			g_cli_dumpBoot = 1;
+		}
+		else if (NativeArg_IsAllowForeignDisc(argv[argIndex]))
+		{
+			g_cli_allowForeignDisc = 1;
 		}
 	}
 
@@ -328,6 +341,39 @@ int main(int argc, char *argv[])
 	if (!NativeAssets_Validate())
 	{
 		return NativeConsole_Return(1);
+	}
+
+	// Region dispatch: the shipped game code is the NTSC-U decompilation only.
+	// Detect the disc's region now and refuse foreign discs cleanly instead of
+	// segfaulting later on incompatible data (override: --allow-foreign-disc).
+	{
+		enum NativeRegion region = NativeRegion_DetectFromDisc();
+		const char *bootId = NativeRegion_GetLastBootId();
+
+		if (region != NATIVE_REGION_UNKNOWN)
+		{
+			printf("[CTR Native] Disc region: %s (%s)\n", NativeRegion_Name(region), bootId);
+		}
+		else if (bootId[0] != '\0')
+		{
+			printf("[CTR Native] Disc region: unrecognized boot id (%s)\n", bootId);
+		}
+		fflush(stdout);
+
+		if (!NativeRegion_IsSupported(region))
+		{
+			if (g_cli_allowForeignDisc == 0)
+			{
+				fprintf(stderr, "\n[CTR Native] This disc is %s - NOT SUPPORTED by this build.\n", NativeRegion_Name(region));
+				fprintf(stderr, "[CTR Native] This build ships the NTSC-U (SCUS-94426) game code only; foreign discs\n");
+				fprintf(stderr, "[CTR Native] carry their own game executables (which a source port cannot run) and\n");
+				fprintf(stderr, "[CTR Native] different data layouts. Use an NTSC-U image - check yours with\n");
+				fprintf(stderr, "[CTR Native] tools/disc_probe.py. To try anyway (expect crashes): --allow-foreign-disc\n\n");
+				return NativeConsole_Return(1);
+			}
+
+			fprintf(stderr, "[CTR Native] WARNING: foreign disc (%s) forced by --allow-foreign-disc - expect crashes.\n", NativeRegion_Name(region));
+		}
 	}
 
 #if defined(CTR_INTERNAL)

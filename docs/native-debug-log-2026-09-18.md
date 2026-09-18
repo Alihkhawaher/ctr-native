@@ -584,3 +584,22 @@ per-region game builds (upstream territory).
 - Launcher: stores paths relative when inside the game folder (portable
   installs); fixed a merge bug where `input`/`game_data` sections were not
   merged on load (gamepad settings could silently reset).
+
+### Region dispatch (new module)
+- `platform/native_region.c` (+h): reads SYSTEM.CNF from the loaded disc and
+  classifies the BOOT id — SCUS_/SLUS_ = NTSC-U, SCES_/SLES_ = PAL,
+  SCPS_/SLPS_ = NTSC-J. UNKNOWN (extracted-asset setups, no disc) stays
+  allowed. Foreign discs are now REFUSED with a clear message instead of
+  segfaulting; log line `Disc region: PAL (SCES_021.05)`; override for
+  experiments: `--allow-foreign-disc` (still crashes, by design).
+- Launcher: the same detection in Python — colored status under the disc
+  picker (green = NTSC-U, red = foreign/unreadable), and Save & Play warns
+  before launching a foreign disc.
+- Verified: PAL → clean refusal; NTSC-J → clean refusal; NTSC-U → normal
+  (voices); forced PAL → segfault (expected, documented).
+- Launcher layout rework: two columns + trimmed hints — with the Game data row
+  added the window had grown taller than a 1200p screen and clipped its own
+  buttons (second occurrence of this bug class — check window height when
+  adding rows). Also: when patching the launcher file, keep full indentation
+  in both sides of the edit (fuzzy matching can double it) and verify with
+  `python -m py_compile`.

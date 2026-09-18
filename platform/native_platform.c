@@ -224,6 +224,7 @@ internal void Platform_UpdateHostAltKeyState(const s32 key, const s8 down)
 #include <time.h>
 
 int g_cli_dumpBoot = 0;
+int g_cli_allowForeignDisc = 0;
 
 internal void Platform_SaveFrameBMP(const char *path)
 {
