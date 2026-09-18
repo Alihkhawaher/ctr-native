@@ -162,6 +162,24 @@ Debug workflow that worked:
   nearest sample for every pixel — menus, intro, title, cutscenes are pixel-
   crisp at any internal resolution; races keep the smoothed 3D look. The user's
   model: menus = "images" (crisp), racing = 3D (smoothed).
+- **True-resolution presentation (emulator-class "enhanced resolution"):** the
+  frame is displayed directly from the supersampled render target
+  (`ctr_present_fb_shader` via `NativeRenderer_PresentRenderTarget`), not from
+  the packed VRAM — so 3D both renders and displays at the full internal
+  resolution (Auto 5x = 1600x1200 here). `StoreFrameBuffer` still packs into
+  the VRAM every frame so the game's own VRAM reads/effects stay correct. The
+  AA and the 2D mask apply unchanged (mask + target share orientation,
+  `flipY = 0`). **Fallback for VRAM-direct frames (movies / decoded video):**
+  `s_frameHadDraws` is set on any `AddSplit` and reset in
+  `NativeRenderer_BeginScene`; the present draws the target only when
+  `NativeGpu_FrameHadDraws() || !activeDrawEnv.isbg`, otherwise it presents the
+  packed VRAM region (the original path) so zero-draw background-env frames
+  (FMV playback) can never show a stale target.
+- **GitHub checkpoint:** `https://github.com/Alihkhawaher/ctr-native` (private).
+  `origin` = that repo; `upstream` = `CTR-tools/ctr-native` (kept for syncing).
+  Commits: `f1f8edd1a` (crash fix, tooling, graphics options, icon) and
+  `236830796` (true-resolution presentation). Launcher is tracked at
+  `tools/ctr_config_launcher.py`.
 - **The "sandy" look (solved):** the fine grain over gradients was the PSX's
   4x4 ordered dither carried at *PSX-pixel* period (`v_ditherCoord = a_position.xy`
   in `native_renderer.c`). Because one PSX pixel = one dither cell, supersampling
@@ -178,9 +196,17 @@ Debug workflow that worked:
 
 ## 5. Open items
 
-- [ ] Replace `assets/ctr-u.bin` with a proper raw NTSC-U dump → voices work.
-- [ ] Debug instrumentation is **permanent** (user requirement: never remove
+- [ ] Voices: replace `assets/ctr-u.bin` with a proper raw NTSC-U dump
+      (a PAL image cannot be substituted — XNF track tables differ).
+- [ ] FMV fallback: verify visually on a story cutscene (Adventure mode). Logic
+      is in place (`s_frameHadDraws` + `isbg` gate) but no movie frame has been
+      captured yet on the new present path.
+- [ ] Optional next-level "modern 3D" (researched, NOT implemented): PGXP-style
+      perspective-correct texture mapping + subpixel vertex precision — the
+      Beetle PSX / DuckStation approach. The port carries PSX fixed-point
+      screen-space coords; would need W carried from the GTE into the shaders.
+- [x] Debug instrumentation is **permanent** (user requirement: never remove
       debug/verbose). Control it with `--quiet` / `--verbose` CLI flags — the
       `[CTR Debug]` lines stay in the code.
-- [ ] Optional: keep the PAL image as a reference dump for future XA testing.
-- [ ] Consider committing the crash fix + tooling to the repo.
+- [x] Crash fix + tooling + graphics options + true-res present committed and
+      pushed to the checkpoint repo (`f1f8edd1a`, `236830796`).
