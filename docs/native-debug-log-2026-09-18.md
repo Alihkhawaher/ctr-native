@@ -205,8 +205,14 @@ Debug workflow that worked:
   windows unreliable; a stale match only mis-warps one vertex, a miss
   disables correction for that vertex). `OFX`/`OFY` are 16.16 fixed-point —
   use `(OFX >> 16)` (the raw value displaced every vertex by ~10M px: giant
-  streak triangles). Each `glVertexAttribPointer` must be captured while its
-  own VBO is bound; the GTE hook must run AFTER `C2_SX2`/`C2_SY2` are stored.
+  streak triangles). The float copy must ALSO clamp to the hardware
+  saturation range `[-0x400, 0x3FF]` (Lm_G1/Lm_G2) — games rely on it, and
+  unclamped off-screen vertices tear edge geometry. Do NOT use ±1px tolerance
+  matching in this pool: the 320x240 coordinate space is dense, so vertices
+  matched unrelated geometry (wrong depth → smeared textures); exact matching
+  + a 16k-slot table gives ~96% hit rate (measured). Each `glVertexAttribPointer`
+  must be captured while its own VBO is bound; the GTE hook must run AFTER
+  `C2_SX2`/`C2_SY2` are stored.
   Runtime toggle like the bilinear filter (`u_pgxpModeLoc` set in
   `NativeRenderer_SetTexture`). After the fixes: 77–91% of 3D vertices matched
   (title/intro/attract render cleanly at Auto 5x, 30 fps locked); the effect

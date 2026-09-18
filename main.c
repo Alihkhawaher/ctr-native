@@ -326,6 +326,7 @@ int main(int argc, char *argv[])
 		g_cfg_internalResolutionAuto = nativeConfig.internalResolutionAuto;
 		g_cfg_bilinearFiltering = nativeConfig.bilinearFiltering;
 		g_cfg_antialiasing = nativeConfig.antialiasing;
+		g_cfg_pgxp = nativeConfig.pgxp;
 		g_cfg_showFps = nativeConfig.showFps;
 
 #ifdef USE_16BY9

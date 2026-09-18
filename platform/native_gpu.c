@@ -159,7 +159,7 @@ typedef struct
 	float px, py, w;
 } PgxpCachedVertex;
 
-#define PGXP_CACHE_SIZE (4096)
+#define PGXP_CACHE_SIZE (16384)
 
 internal PgxpCachedVertex s_pgxpCache[PGXP_CACHE_SIZE];
 internal float s_pgxpVertexData[MAX_VERTEX_BUFFER_SIZE * 3]; // px, py, w per vertex, parallel to the vertex buffer
@@ -213,17 +213,16 @@ void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
 
 internal int Pgxp_LookupVertex(int x, int y, float *out)
 {
+	// NOTE(aalhendi): EXACT coordinate match only. A +-1px tolerance was
+	// tried and caused texture smearing: at the PSX's 320x240 coordinate
+	// space, +-1px is a dense neighbourhood, so vertices matched unrelated
+	// geometry (wrong view depth -> warped UVs). PC emulator PGXP gets away
+	// with position tolerance because it matches within tightly scoped
+	// per-draw buffers; this pool spans the whole frame. Misses fall back to
+	// the affine PSX path for the whole triangle (never mixed).
 	const u32 hash = ((u32)(u16)x * 73856093u) ^ ((u32)(u16)y * 19349663u);
 	const PgxpCachedVertex *v = &s_pgxpCache[hash & (PGXP_CACHE_SIZE - 1)];
 
-	// NOTE(aalhendi): Match by exact coordinate only. Entries are overwritten
-	// by newer transforms of the same coordinate ("last transform wins"), same
-	// contract as PC emulator PGXP buffers. A generation stamp is kept for
-	// diagnostics but is NOT part of the accept test — frame boundaries in this
-	// port are not tight enough for a strict window (multiple DrawOTag calls
-	// per frame can advance it), and a missed match is far worse than a stale
-	// one (a stale match only slightly mis-warps one vertex; a miss disables
-	// the correction entirely for that vertex).
 	if ((v->valid != 0) && (v->sx == (s16)x) && (v->sy == (s16)y))
 	{
 		out[0] = v->px;
@@ -259,6 +258,50 @@ internal void Pgxp_CopyVertex(int dstIndex, int srcIndex)
 	s_pgxpVertexData[dstIndex * 3 + 0] = s_pgxpVertexData[srcIndex * 3 + 0];
 	s_pgxpVertexData[dstIndex * 3 + 1] = s_pgxpVertexData[srcIndex * 3 + 1];
 	s_pgxpVertexData[dstIndex * 3 + 2] = s_pgxpVertexData[srcIndex * 3 + 2];
+}
+
+// PGXP consistency rule: a triangle must be corrected for ALL of its vertices
+// or none of them. Mixing corrected and uncorrected vertices inside one
+// triangle tears the texture apart (perspective and affine interpolation meet
+// mid-triangle), which reads as surfaces "breaking up" in motion. Primitive
+// builders call this after filling their vertices.
+internal void Pgxp_RequireConsistent(int base, int count)
+{
+	for (int i = 0; i < count; i++)
+	{
+		if (s_pgxpVertexData[(base + i) * 3 + 2] == 0.0f)
+		{
+			for (int j = 0; j < count; j++)
+			{
+				s_pgxpVertexData[(base + j) * 3 + 0] = 0.0f;
+				s_pgxpVertexData[(base + j) * 3 + 1] = 0.0f;
+				s_pgxpVertexData[(base + j) * 3 + 2] = 0.0f;
+			}
+			return;
+		}
+	}
+}
+
+// The raster path positions vertices at (raw + draw-env offset); the PGXP
+// floats must carry the same offset or corrected and uncorrected primitives
+// land at different places (split-screen / offset draw areas).
+internal void Pgxp_ApplyOffset(int base, int count, float ofsX, float ofsY)
+{
+	if ((ofsX == 0.0f) && (ofsY == 0.0f))
+	{
+		return;
+	}
+
+	for (int i = 0; i < count; i++)
+	{
+		float *v = &s_pgxpVertexData[(base + i) * 3];
+
+		if (v[2] != 0.0f)
+		{
+			v[0] += ofsX;
+			v[1] += ofsY;
+		}
+	}
 }
 
 void ClearSplits(void)
@@ -448,6 +491,8 @@ void MakeVertexTriangle(GrVertex *vertex, VERTTYPE *p0, VERTTYPE *p1, VERTTYPE *
 	Pgxp_FillVertex(pgxpBase + 0, p0);
 	Pgxp_FillVertex(pgxpBase + 1, p1);
 	Pgxp_FillVertex(pgxpBase + 2, p2);
+	Pgxp_RequireConsistent(pgxpBase, 3);
+	Pgxp_ApplyOffset(pgxpBase, 3, ofsX, ofsY);
 
 	vertex[0].x = p0[0] + ofsX;
 	vertex[0].y = p0[1] + ofsY;
@@ -476,6 +521,8 @@ void MakeVertexQuad(GrVertex *vertex, VERTTYPE *p0, VERTTYPE *p1, VERTTYPE *p2, 
 	Pgxp_FillVertex(pgxpBase + 1, p1);
 	Pgxp_FillVertex(pgxpBase + 2, p2);
 	Pgxp_FillVertex(pgxpBase + 3, p3);
+	Pgxp_RequireConsistent(pgxpBase, 4);
+	Pgxp_ApplyOffset(pgxpBase, 4, ofsX, ofsY);
 
 	vertex[0].x = p0[0] + ofsX;
 	vertex[0].y = p0[1] + ofsY;

@@ -332,9 +332,20 @@ internal int GTE_RotTransPers(int idx, int lm)
 
 			// NOTE: OFX/OFY are 16.16 fixed-point (hardware adds them before
 			// the >>16), so the integer screen offset is (OFX >> 16).
+			// The hardware SATURATES SX2/SY2 to [-0x400, 0x3FF] (Lm_G1/Lm_G2)
+			// and games rely on that clamping (off-screen geometry stays put
+			// at the screen edge). The float copy must clamp identically or
+			// saturated vertices render at their true off-screen position and
+			// tear the polygon apart.
+			double px = (double)(C2_OFX >> 16) + mac1f * invZ;
+			double py = (double)(C2_OFY >> 16) + mac2f * invZ;
+
+			if (px > 0x3ff) { px = 0x3ff; } else if (px < -0x400) { px = -0x400; }
+			if (py > 0x3ff) { py = 0x3ff; } else if (py < -0x400) { py = -0x400; }
+
 			Pgxp_PushVertex(C2_SX2, C2_SY2,
-			                (float)((double)(C2_OFX >> 16) + mac1f * invZ),
-			                (float)((double)(C2_OFY >> 16) + mac2f * invZ),
+			                (float)px,
+			                (float)py,
 			                (float)(mac3f / 4096.0));
 		}
 	}

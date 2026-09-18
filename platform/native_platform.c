@@ -150,6 +150,7 @@ internal void Platform_SaveSettings(void)
 	config.internalResolutionAuto = g_cfg_internalResolutionAuto;
 	config.bilinearFiltering = g_cfg_bilinearFiltering;
 	config.antialiasing = g_cfg_antialiasing;
+	config.pgxp = g_cfg_pgxp;
 	config.showFps = g_cfg_showFps;
 
 	NativeConfig_SaveDefaultLocation(&config);
