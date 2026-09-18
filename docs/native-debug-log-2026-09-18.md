@@ -191,16 +191,27 @@ Debug workflow that worked:
   misses store `(0,0,0)` = PSX-exact fallback). Data rides a second VBO
   (`s_glPgxpBuffer`, attribute `a_pgxp` vec3 float) uploaded with the GrVertex
   buffer in `NativeRenderer_UpdateVertexBuffer`; `TriangulateQuad` mirrors the
-  vertex copies. Vertex shader (`pgxpMode`): position = `a_pgxp.xy`,
-  `gl_Position.w = a_pgxp.z` → the GPU interpolates UV/color perspective-
-  correctly. `v_z` still comes from the non-PGXP `grOrtho` position so
-  semi-transparency is unchanged. Pitfalls: each `glVertexAttribPointer` must
-  be captured while its own VBO is bound; the GTE hook must run AFTER
-  `C2_SX2`/`C2_SY2` are stored; the cache is cleared per frame in
-  `NativeRenderer_BeginScene` (stale matches otherwise). Runtime toggle like
-  the bilinear filter (`u_pgxpModeLoc` set in `NativeRenderer_SetTexture`);
-  verified clean in-game (menu + intro at Auto 5x, 30 fps, no artifacts),
-  effect is most visible in-motion (road/ground texture swim disappears).
+  vertex copies. Vertex shader (`pgxpMode`): `gl_Position = Projection *`
+  `vec4(pos * w, 0.0, w)` — the position must be pre-multiplied by w, or the
+  ortho translation gets divided by w as well and the scene explodes into
+  streaks. `v_z` still comes from the non-PGXP `grOrtho` position so
+  semi-transparency is unchanged. Pitfalls (all three measured with the
+  `[CTR Debug] PGXP stats` counters): this port parses primitives at DRAW
+  time, after the game's GTE work, so a per-frame cache clear in
+  `NativeRenderer_BeginScene` wipes exactly the entries the lookups need
+  (measured 2,052,762 pushes / 0 hits — the feature was a silent no-op);
+  matching is now last-transform-wins with a generation stamp kept for
+  diagnostics only (multiple DrawOTag calls per frame make strict frame
+  windows unreliable; a stale match only mis-warps one vertex, a miss
+  disables correction for that vertex). `OFX`/`OFY` are 16.16 fixed-point —
+  use `(OFX >> 16)` (the raw value displaced every vertex by ~10M px: giant
+  streak triangles). Each `glVertexAttribPointer` must be captured while its
+  own VBO is bound; the GTE hook must run AFTER `C2_SX2`/`C2_SY2` are stored.
+  Runtime toggle like the bilinear filter (`u_pgxpModeLoc` set in
+  `NativeRenderer_SetTexture`). After the fixes: 77–91% of 3D vertices matched
+  (title/intro/attract render cleanly at Auto 5x, 30 fps locked); the effect
+  is most visible in-motion on large angled surfaces (road/ground texture
+  swim) — check at 1x internal resolution.
 - **The "sandy" look (solved):** the fine grain over gradients was the PSX's
   4x4 ordered dither carried at *PSX-pixel* period (`v_ditherCoord = a_position.xy`
   in `native_renderer.c`). Because one PSX pixel = one dither cell, supersampling
