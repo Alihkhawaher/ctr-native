@@ -83,6 +83,7 @@ typedef struct
 	bool psxTexturedSemiTrans;
 	bool psxTextureOutputSTP;
 	bool psxDrawMaskSet;
+	bool is2D;
 
 	u16 startVertex;
 	u16 numVerts;
@@ -102,6 +103,7 @@ typedef struct
 	int drawPrimMode;
 	bool psxDrawMaskSet;
 	bool framebufferFeedbackRunActive;
+	bool primIs2D;
 
 	GrVertex vertexBuffer[MAX_VERTEX_BUFFER_SIZE];
 	GPUDrawSplit splits[MAX_DRAW_SPLITS];
@@ -832,6 +834,7 @@ internal void AddSplit(bool semiTrans, bool textured, bool framebufferFeedback)
 	if (!psxTexturedSemiTrans && curSplit->blendMode == blendMode && curSplit->texFormat == texFormat && curSplit->textureId == textureId &&
 	    curSplit->drawPrimMode == s_gpu.drawPrimMode && curSplit->psxTexturedSemiTrans == psxTexturedSemiTrans &&
 	    curSplit->psxTextureOutputSTP == psxTextureOutputSTP && curSplit->psxDrawMaskSet == s_gpu.psxDrawMaskSet &&
+	    curSplit->is2D == s_gpu.primIs2D &&
 	    curSplit->drawenv.clip.x == activeDrawEnv.clip.x && curSplit->drawenv.clip.y == activeDrawEnv.clip.y &&
 	    curSplit->drawenv.clip.w == activeDrawEnv.clip.w && curSplit->drawenv.clip.h == activeDrawEnv.clip.h && curSplit->drawenv.dfe == activeDrawEnv.dfe &&
 	    curSplit->debugText == s_gpu.currentSplitDebugText)
@@ -855,6 +858,7 @@ internal void AddSplit(bool semiTrans, bool textured, bool framebufferFeedback)
 	split->psxTexturedSemiTrans = psxTexturedSemiTrans;
 	split->psxTextureOutputSTP = psxTextureOutputSTP;
 	split->psxDrawMaskSet = s_gpu.psxDrawMaskSet;
+	split->is2D = s_gpu.primIs2D;
 	split->drawenv = activeDrawEnv;
 	split->dispenv = activeDispEnv;
 	split->debugText = s_gpu.currentSplitDebugText;
@@ -889,6 +893,8 @@ void DrawSplit(const GPUDrawSplit *split)
 	}
 
 	NativeRenderer_SetStencilMode(split->drawPrimMode); // draw with mask 0x16
+
+	NativeRenderer_SetDrawIs2D(split->is2D);
 
 	NativeRenderer_SetTexture(split->textureId, split->texFormat);
 
@@ -1891,23 +1897,28 @@ int ParsePrimitive(P_TAG *polyTag)
 	}
 	case 0x20:
 		// Flat polygons
+		s_gpu.primIs2D = false;
 		primLength = ProcessFlatPoly(polyTag);
 		break;
 	case 0x30:
 		// Gouraud shaded polygons
+		s_gpu.primIs2D = false;
 		primLength = ProcessGouraudPoly(polyTag);
 		break;
 	case 0x40:
 		// Flat (single colour) Lines
+		s_gpu.primIs2D = false;
 		primLength = ProcessFlatLines(polyTag);
 		break;
 	case 0x50:
 		// Gouraud lines
+		s_gpu.primIs2D = false;
 		primLength = ProcessGouraudLines(polyTag);
 		break;
 	case 0x60:
 	case 0x70:
-		// TILE and SPRT
+		// TILE and SPRT (2D elements: keep them out of the AA mask)
+		s_gpu.primIs2D = true;
 		primLength = ProcessTileAndSprt(polyTag);
 		break;
 	case 0xA0:

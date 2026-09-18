@@ -84,6 +84,9 @@ add_subdirectory(externals/SDL)
 
 # CTR Native
 add_executable(ctr_native main.c)
+if(WIN32)
+    target_sources(ctr_native PRIVATE resources/ctr_native.rc)
+endif()
 set_target_properties(ctr_native PROPERTIES
     C_STANDARD 17
     C_STANDARD_REQUIRED ON
@@ -108,6 +111,10 @@ if(CTR_NATIVE_MSVC_FRONTEND)
         /wd4310
         /wd5287
     )
+
+    # Emit a linker map so release-build crash addresses (e.g. from the
+    # unhandled-exception logger) can be resolved to functions.
+    target_link_options(ctr_native PRIVATE /MAP)
 else()
     target_compile_options(ctr_native PRIVATE
         -msse

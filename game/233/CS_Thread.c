@@ -1,6 +1,10 @@
 #include <common.h>
 #include <ctr_gte_transfer.h>
 
+#if defined(CTR_NATIVE)
+#include <platform/native_log.h>
+#endif
+
 struct CSThreadParentFrameScratch
 {
 	SVec3Slot parentPos;
@@ -569,6 +573,10 @@ afterCameraAndSkipChecks:
 				break;
 			default:
 				CS_LOAD_NEXT_SWAP = 1;
+#if defined(CTR_NATIVE)
+				Platform_LogWarn("[CTR Debug] CS request hub: levID=%d packID=%d active=%d\n", (int)nextFrameTime, (int)(3 - (s32)gGT->activeMempackIndex),
+				                 (int)gGT->activeMempackIndex);
+#endif
 				LOAD_Hub_ReadFile(CS_BIGFILE_HEADER, nextFrameTime, 3 - (s32)gGT->activeMempackIndex);
 				break;
 			}

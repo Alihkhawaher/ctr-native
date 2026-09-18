@@ -1,5 +1,9 @@
 #include <common.h>
 
+#if defined(CTR_NATIVE)
+#include <platform/native_log.h>
+#endif
+
 // NOTE(aalhendi): These lists alternate between InstDef* and Instance* in place.
 // Both records keep their peer at 0x2c. Shared PVS lists therefore toggle once
 // per reference, just as retail does; do not deduplicate the traversal.
@@ -19,9 +23,18 @@ void LevInstDef_UnPack(struct mesh_info *ptr_mesh_info)
 	struct QuadBlock *qbEnd;
 	LevInstDefLink *visInstSrc;
 	struct Level *level1;
+#if defined(CTR_NATIVE)
+	int dbgBadQB = 0;
+#endif
 
 	qbCurr = ptr_mesh_info->ptrQuadBlockArray;
 	qbEnd = qbCurr + ptr_mesh_info->numQuadBlock;
+
+#if defined(CTR_NATIVE)
+	Platform_LogWarn("[CTR Debug] UnPack enter: mesh=%p qbArr=%p numQB=%d level1=%p instArr=%p\n", (void *)ptr_mesh_info,
+	                 (void *)ptr_mesh_info->ptrQuadBlockArray, (int)ptr_mesh_info->numQuadBlock, (void *)GAME_TRACKER->level1,
+	                 (void *)(GAME_TRACKER->level1 ? GAME_TRACKER->level1->ptrInstDefPtrArray : 0));
+#endif
 
 	// loop through all quadblocks
 	for (; qbCurr < qbEnd; qbCurr++)
@@ -31,6 +44,28 @@ void LevInstDef_UnPack(struct mesh_info *ptr_mesh_info)
 			// loop through all instance pointers visible on quadblock
 			for (visInstSrc = (LevInstDefLink *)qbCurr->pvs->visInstSrc; visInstSrc[0] != NULL; visInstSrc++)
 			{
+#if defined(CTR_NATIVE)
+				// A list whose first word is its own address is the engine's
+				// "empty list" sentinel (the renderer skips such lists by the
+				// same self-check). Toggling it would read non-record data at
+				// +0x2C and corrupt the sentinel; PSX tolerates the junk read,
+				// hosts fault on it. Preserve the sentinel.
+				if (visInstSrc[0] == (void *)visInstSrc)
+				{
+					Platform_LogWarn("[CTR Debug] UnPack: preserved self-sentinel list=%p qb=%p\n", (void *)visInstSrc, (void *)qbCurr);
+					continue;
+				}
+				if (((u32)visInstSrc[0] < 0x00400000u) || ((u32)visInstSrc[0] >= 0x10000000u))
+				{
+					dbgBadQB++;
+					if (dbgBadQB <= 10)
+					{
+						Platform_LogError("[CTR Debug] UnPack BAD qb-entry: list=%p idx=%d val=%p qb=%p\n", (void *)visInstSrc,
+						                  (int)(visInstSrc - (LevInstDefLink *)qbCurr->pvs->visInstSrc), visInstSrc[0], (void *)qbCurr);
+					}
+					continue;
+				}
+#endif
 				visInstSrc[0] = LevInstDef_Peer(visInstSrc[0]);
 			}
 		}
@@ -44,9 +79,28 @@ void LevInstDef_UnPack(struct mesh_info *ptr_mesh_info)
 		// loop through all instDef pointers in the LEV
 		for (; visInstSrc[0] != 0; visInstSrc++)
 		{
+#if defined(CTR_NATIVE)
+			if (((u32)visInstSrc[0] < 0x00400000u) || ((u32)visInstSrc[0] >= 0x10000000u))
+			{
+				dbgBadQB++;
+				if (dbgBadQB <= 10)
+				{
+					Platform_LogError("[CTR Debug] UnPack BAD lev-entry: list=%p idx=%d val=%p\n", (void *)visInstSrc,
+					                  (int)(visInstSrc - (LevInstDefLink *)level1->ptrInstDefPtrArray), visInstSrc[0]);
+				}
+				continue;
+			}
+#endif
 			visInstSrc[0] = LevInstDef_Peer(visInstSrc[0]);
 		}
 	}
+
+#if defined(CTR_NATIVE)
+	if (dbgBadQB != 0)
+	{
+		Platform_LogError("[CTR Debug] UnPack: skipped %d bad entries total\n", dbgBadQB);
+	}
+#endif
 }
 
 
@@ -69,6 +123,13 @@ void LevInstDef_RePack(struct mesh_info *ptr_mesh_info, b32 boolAdvHub)
 			// loop through all instance pointers visible on quadblock
 			for (visInstSrc = (LevInstDefLink *)qbCurr->pvs->visInstSrc; visInstSrc[0] != NULL; visInstSrc++)
 			{
+#if defined(CTR_NATIVE)
+				// Preserve the "empty list" self-sentinel, same as UnPack.
+				if (visInstSrc[0] == (void *)visInstSrc)
+				{
+					continue;
+				}
+#endif
 				visInstSrc[0] = LevInstDef_Peer(visInstSrc[0]);
 			}
 		}

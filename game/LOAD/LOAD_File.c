@@ -15,6 +15,7 @@ void LOAD_StringToUpper(char *path)
 
 #ifdef CTR_NATIVE
 #include <platform/native_cd.h>
+#include <platform/native_log.h>
 #endif
 
 int LOAD_InitCDvol(void)
@@ -114,6 +115,10 @@ void LOAD_DramFileCallback(struct LoadQueueSlot *lqs)
 	{
 		int ptrMapOffset = *(int *)&fileBuf[0];
 		char *realFileBuf = &fileBuf[4];
+
+#if defined(CTR_NATIVE)
+		Platform_LogWarn("[CTR Debug] DramFile cb: buf=%p ptrMapOff=%d\n", (void *)fileBuf, ptrMapOffset);
+#endif
 
 		if (ptrMapOffset >= 0)
 		{

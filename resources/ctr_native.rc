@@ -1,0 +1,3 @@
+// CTR-Native application icon (Crash Team Racing logo)
+// Compiled into the exe by rc.exe; ctr_native.ico lives next to this file.
+IDI_ICON1 ICON "ctr_native.ico"

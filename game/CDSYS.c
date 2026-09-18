@@ -2,6 +2,7 @@
 
 #if defined(CTR_NATIVE)
 #include <platform/native_audio.h>
+#include <platform/native_log.h>
 #endif
 
 b32 CDSYS_Init(b32 boolUseDisc)
@@ -660,6 +661,11 @@ int CDSYS_XAPlay(int categoryID, int xaID)
 	u8 buf1[8];
 	u8 buf2[8];
 
+#if defined(CTR_NATIVE)
+	Platform_LogWarn("[CTR Debug] XAPlay req: cat=%d id=%d useDisc=%d volV=%d volM=%d state=%d\n", categoryID, xaID, (int)sdata->boolUseDisc,
+	                 (int)sdata->vol_Voice, (int)sdata->vol_Music, (int)sdata->XA_State);
+#endif
+
 	if (sdata->boolUseDisc == 0)
 	{
 #if defined(CTR_NATIVE)
@@ -668,7 +674,9 @@ int CDSYS_XAPlay(int categoryID, int xaID)
 		// NOTE(aalhendi): Native CD has no CD-XA IRQ stream. Feed extracted
 		// XA assets to the native audio backend and synthesize the minimal
 		// retail XA state gates.
-		if (NativeAudio_PlayXATrack(categoryID, xaID, nativeVol << CDSYS_XA_VOLUME_SHIFT, nativeVol << CDSYS_XA_VOLUME_SHIFT) == 0)
+		int xaResult = NativeAudio_PlayXATrack(categoryID, xaID, nativeVol << CDSYS_XA_VOLUME_SHIFT, nativeVol << CDSYS_XA_VOLUME_SHIFT);
+		Platform_LogWarn("[CTR Debug] XAPlay native: cat=%d id=%d vol=%d result=%d\n", categoryID, xaID, nativeVol, xaResult);
+		if (xaResult == 0)
 		{
 			return 0;
 		}
@@ -691,6 +699,10 @@ int CDSYS_XAPlay(int categoryID, int xaID)
 #endif
 		return 1;
 	}
+
+#if defined(CTR_NATIVE)
+	Platform_LogError("[CTR Debug] XAPlay: retail CD path taken (useDisc=%d) - voices will not play on native\n", (int)sdata->boolUseDisc);
+#endif
 
 	if (sdata->bool_XnfLoaded == 0)
 	{

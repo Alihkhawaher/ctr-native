@@ -1,5 +1,9 @@
 #include <common.h>
 
+#if defined(CTR_NATIVE)
+#include <platform/native_log.h>
+#endif
+
 void LOAD_AppendQueue(struct BigHeader *bigfile, int type, int fileIndex, void *destinationPtr, void (*callback)(struct LoadQueueSlot *))
 {
 	if (sdata->queueLength >= LOAD_QUEUE_SLOT_COUNT)
@@ -51,6 +55,11 @@ void LOAD_NextQueuedFile()
 			}
 		}
 
+#if defined(CTR_NATIVE)
+		Platform_LogWarn("[CTR Debug] Queue: type=%d subfile=%d dest=%p flags=%X\n", (int)curr->type_UNUSED, curr->subfileIndex, (void *)curr->ptrDestination,
+		                 (unsigned)curr->flags);
+#endif
+
 		switch (curr->type_UNUSED)
 		{
 		case LT_RAW:
@@ -68,6 +77,11 @@ void LOAD_NextQueuedFile()
 			    LOAD_VramFile(curr->ptrBigfileCdPos_UNUSED, curr->subfileIndex, curr->ptrDestination, &curr->size_UNUSED, (int)(s32)curr->callbackFuncPtr);
 			break;
 		}
+
+#if defined(CTR_NATIVE)
+		Platform_LogWarn("[CTR Debug] Queue done: type=%d dest=%p flags=%X len=%d\n", (int)curr->type_UNUSED, (void *)curr->ptrDestination,
+		                 (unsigned)curr->flags, (int)sdata->queueLength);
+#endif
 
 		sdata->queueLength--;
 	}

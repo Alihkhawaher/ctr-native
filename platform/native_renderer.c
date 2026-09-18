@@ -99,6 +99,7 @@ global_variable struct NativeVramState s_vram;
 struct NativeRenderTarget
 {
 	TextureID texture;
+	TextureID aaMaskTexture;
 	GLuint framebuffer;
 	GLuint stencilBuffer;
 	s32 width;
@@ -132,13 +133,65 @@ int g_dbg_wireframeMode = 0;
 int g_dbg_texturelessMode = 0;
 
 int g_cfg_bilinearFiltering = 0;
+int g_cfg_antialiasing = 0;
+
+// NOTE: Supersample-antialiasing (SSAA) via internal resolution scaling.
+// Geometry is still projected in native PSX screen coordinates, but the main
+// render target and viewport are enlarged by this factor so edges and texture
+// sampling are rasterized at higher resolution, then averaged back down to
+// native VRAM by the pack shader (GL_LINEAR minification). 1 = native (no
+// change); 2 = 2x SSAA, 4 = 4x SSAA.
+int g_cfg_internalResolutionScale = 1;
+int g_cfg_internalResolutionAuto = 0;
+int g_drawIs2D = 0;
+int g_aaForceSharp = 0;
+
+void NativeRenderer_SetDrawIs2D(b32 is2D)
+{
+	g_drawIs2D = (is2D != 0) ? 1 : 0;
+}
+
+// Auto internal resolution: match the render resolution to the window/display
+// at the PSX vertical resolution (240 lines). (h + 120) / 240 rounds to nearest.
+void NativeRenderer_ResolveAutoResolution(void)
+{
+	if (g_cfg_internalResolutionAuto == 0)
+	{
+		return;
+	}
+
+	int scale = (g_windowHeight + 120) / 240;
+	if (scale < 1)
+	{
+		scale = 1;
+	}
+	if (scale > 8)
+	{
+		scale = 8;
+	}
+	g_cfg_internalResolutionScale = scale;
+}
+
+int NativeRenderer_IsAutoResolution(void)
+{
+	return g_cfg_internalResolutionAuto;
+}
+
+// NOTE: Presentation aspect for the displayed VRAM region.
+// 0 = auto (match the window aspect), 1 = force 4:3, 2 = force 16:9.
+int g_cfg_aspectRatio = 0;
 
 // NOTE(aalhendi): Pack native RGBA render targets into the persistent RG8 VRAM
 // texture on the GPU instead of a GPU-to-CPU-to-GPU round trip.
 global_variable GLuint s_packShader = 0;
 global_variable GLint s_packFlipYLoc = -1;
+global_variable GLint s_packScaleLoc = -1;
+global_variable GLint s_packMaskLoc = -1;
+global_variable GLint s_packForceSharpLoc = -1;
 global_variable GLuint s_presentVramShader = 0;
 global_variable GLint s_presentVramSourceRectLoc = -1;
+global_variable GLint s_presentVramSmoothLoc = -1;
+global_variable GLint s_presentVramMaskLoc = -1;
 global_variable GLuint s_vramQuadVAO = 0;
 global_variable GLuint s_vramQuadVBO = 0;
 
@@ -149,6 +202,7 @@ internal void NativeRenderer_SetScissorState(int enable);
 internal void NativeRenderer_EnableDepth(int enable);
 internal void NativeRenderer_SetViewPort(int x, int y, int width, int height);
 internal void NativeRenderer_SetPresentationAspect(int width, int height);
+void NativeRenderer_ApplyPresentationAspect(void);
 internal void NativeRenderer_UpdatePresentationViewport(void);
 internal void NativeRenderer_ClearPresentationBars(void);
 internal void NativeRenderer_SetWireframe(int enable);
@@ -185,6 +239,19 @@ internal int NativeRenderer_InitialiseGLContext(char *windowName, int fullscreen
 	{
 		NATIVE_RENDERER_ERROR("%s\n", "Failed to initialise SDL window!");
 		return 0;
+	}
+
+	// Set the window/taskbar icon from ctr_native.bmp (next to the exe).
+	SDL_Surface *iconSurface = SDL_LoadBMP("ctr_native.bmp");
+	if (iconSurface != NULL)
+	{
+		SDL_SetWindowIcon(g_window, iconSurface);
+		SDL_DestroySurface(iconSurface);
+		Platform_Log("[CTR Native] Window icon: set from ctr_native.bmp\n");
+	}
+	else
+	{
+		Platform_LogWarn("[CTR Native] Window icon: ctr_native.bmp not found (skipped)\n");
 	}
 
 	int major_version = 3;
@@ -242,7 +309,7 @@ int NativeRenderer_InitialiseRender(char *windowName, int width, int height, int
 {
 	g_windowWidth = width;
 	g_windowHeight = height;
-	NativeRenderer_SetPresentationAspect(width, height);
+	NativeRenderer_ApplyPresentationAspect();
 
 	// Due to debugging in fullscreen
 	SDL_SetHint(SDL_HINT_WINDOW_ALLOW_TOPMOST, "0");
@@ -447,6 +514,26 @@ internal void NativeRenderer_SetPresentationAspect(int width, int height)
 	s_presentAspectH = height / divisor;
 }
 
+void NativeRenderer_ApplyPresentationAspect(void)
+{
+	if (g_cfg_aspectRatio == 1)
+	{
+		s_presentAspectW = 4;
+		s_presentAspectH = 3;
+	}
+	else if (g_cfg_aspectRatio == 2)
+	{
+		s_presentAspectW = 16;
+		s_presentAspectH = 9;
+	}
+	else
+	{
+		NativeRenderer_SetPresentationAspect(g_windowWidth, g_windowHeight);
+	}
+
+	NativeRenderer_UpdatePresentationViewport();
+}
+
 internal void NativeRenderer_UpdatePresentationViewport(void)
 {
 	if ((g_windowWidth <= 0) || (g_windowHeight <= 0) || (s_presentAspectW <= 0) || (s_presentAspectH <= 0))
@@ -492,6 +579,16 @@ internal void NativeRenderer_InitRenderTarget(struct NativeRenderTarget *target)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
+	target->aaMaskTexture = (TextureID)-1;
+	glGenTextures(1, &target->aaMaskTexture);
+	glBindTexture(GL_TEXTURE_2D, target->aaMaskTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 1, 1, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
 	glGenRenderbuffers(1, &target->stencilBuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, target->stencilBuffer);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, 1, 1);
@@ -500,7 +597,16 @@ internal void NativeRenderer_InitRenderTarget(struct NativeRenderTarget *target)
 	glGenFramebuffers(1, &target->framebuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, target->framebuffer);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->texture, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, target->aaMaskTexture, 0);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, target->stencilBuffer);
+
+	// Both color attachments active; the mask attachment never blends (raw
+	// write of the 2D marker) so glDisablei keeps it out of the blend math.
+	{
+		const GLenum aaDrawBuffers[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+		glDrawBuffers(2, aaDrawBuffers);
+		glDisablei(GL_BLEND, 1);
+	}
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 	{
 		NATIVE_RENDERER_ERROR("%s\n", "failed to create RGBA/stencil render target");
@@ -513,8 +619,10 @@ internal void NativeRenderer_DestroyRenderTarget(struct NativeRenderTarget *targ
 	glDeleteFramebuffers(1, &target->framebuffer);
 	glDeleteRenderbuffers(1, &target->stencilBuffer);
 	NativeRenderer_DestroyTexture(target->texture);
+	NativeRenderer_DestroyTexture(target->aaMaskTexture);
 	SDL_memset(target, 0, sizeof(*target));
 	target->texture = (TextureID)-1;
+	target->aaMaskTexture = (TextureID)-1;
 }
 
 internal void NativeRenderer_EnsureRenderTarget(struct NativeRenderTarget *target, int width, int height)
@@ -537,6 +645,10 @@ internal void NativeRenderer_EnsureRenderTarget(struct NativeRenderTarget *targe
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
+	glBindTexture(GL_TEXTURE_2D, target->aaMaskTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
 	glBindRenderbuffer(GL_RENDERBUFFER, target->stencilBuffer);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, width, height);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
@@ -556,16 +668,51 @@ internal void NativeRenderer_BindMainRenderTarget(void)
 		height = activeDrawEnv.clip.h;
 	}
 
+	// Internal resolution scaling (SSAA): rasterize geometry at a higher
+	// resolution than the native PSX screen, then let the VRAM pack-down
+	// average the extra samples back to native size.
+	if (g_cfg_internalResolutionScale > 1)
+	{
+		width *= g_cfg_internalResolutionScale;
+		height *= g_cfg_internalResolutionScale;
+	}
+
 	NativeRenderer_EnsureRenderTarget(&s_mainRenderTarget, width, height);
 	glBindFramebuffer(GL_FRAMEBUFFER, s_mainRenderTarget.framebuffer);
+
+	// The pack shader minifies this texture into native VRAM; use linear
+	// filtering so the supersampled pixels are averaged (SSAA), not point-
+	// sampled (which would just discard the extra detail).
+	if (g_cfg_internalResolutionScale > 1)
+	{
+		glBindTexture(GL_TEXTURE_2D, s_mainRenderTarget.texture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glBindTexture(GL_TEXTURE_2D, s_lastBoundTexture == (TextureID)-1 ? 0 : s_lastBoundTexture);
+	}
 }
 
 internal void NativeRenderer_DrawVRAMRegion(int x, int y, int width, int height)
 {
 	glUseProgram(s_presentVramShader);
 	glUniform4f(s_presentVramSourceRectLoc, (float)x, (float)y, (float)width, (float)height);
+	glUniform1i(s_presentVramSmoothLoc, ((g_cfg_antialiasing != 0) && (g_aaForceSharp == 0)) ? 1 : 0);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, s_vram.texture);
+
+	// Anti-aliasing option: the smoothing happens in the present shader as a
+	// bilinear blend in *color* space (after unpacking the packed VRAM bytes).
+	// The texture itself always samples NEAREST so the taps are exact texels.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	if (s_mainRenderTarget.aaMaskTexture != (TextureID)-1)
+	{
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, s_mainRenderTarget.aaMaskTexture);
+		glActiveTexture(GL_TEXTURE0);
+	}
+
 	glBindVertexArray(s_vramQuadVAO);
 	NativeRenderer_DrawTriangles(0, 2);
 }
@@ -583,7 +730,26 @@ internal void NativeRenderer_LoadRenderTargetFromVRAM(struct NativeRenderTarget 
 	glDisable(GL_SCISSOR_TEST);
 	glDisable(GL_STENCIL_TEST);
 	glViewport(0, 0, target->width, target->height);
-	NativeRenderer_DrawVRAMRegion(x, y, target->width, target->height);
+
+	// The VRAM source region is native-sized. For the supersampled main target
+	// the target dimensions are scaled, so sample the native rect and let the
+	// quad stretch it across the enlarged target (new geometry supersamples on
+	// top of this loaded background).
+	if ((target == &s_mainRenderTarget) && (g_cfg_internalResolutionScale > 1))
+	{
+		int srcW = activeDispEnv.disp.w;
+		int srcH = activeDispEnv.disp.h;
+		if ((srcW <= 0) || (srcH <= 0))
+		{
+			srcW = activeDrawEnv.clip.w;
+			srcH = activeDrawEnv.clip.h;
+		}
+		NativeRenderer_DrawVRAMRegion(x, y, srcW, srcH);
+	}
+	else
+	{
+		NativeRenderer_DrawVRAMRegion(x, y, target->width, target->height);
+	}
 	glClear(GL_STENCIL_BUFFER_BIT);
 	glEnable(GL_STENCIL_TEST);
 
@@ -662,7 +828,7 @@ internal void NativeRenderer_ClearPresentationBars(void)
 
 void NativeRenderer_ResetDevice(void)
 {
-	NativeRenderer_UpdatePresentationViewport();
+	NativeRenderer_ApplyPresentationAspect();
 	NativeRenderer_UpdateSwapIntervalState(0);
 }
 
@@ -673,6 +839,8 @@ typedef struct
 
 	GLint projectionLoc;
 	GLint bilinearFilterLoc;
+	GLint ditherScaleLoc;
+	GLint drawIs2DLoc;
 	GLint texelSizeLoc;
 	GLint texLoc;
 	GLint lutLoc;
@@ -692,7 +860,7 @@ internal void NativeRenderer_Ortho2D(float left, float right, float bottom, floa
 internal void NativeRenderer_SetShader(const ShaderID shader);
 internal void NativeRenderer_SyncGpuVRAMToCPU(int x, int y, int w, int h);
 internal void NativeRenderer_ResolveVRAMRead(int x, int y, int w, int h);
-internal void NativeRenderer_GpuPackTextureToVRAM(TextureID sourceTexture, int x, int y, int w, int h, b32 flipY);
+internal void NativeRenderer_GpuPackTextureToVRAM(TextureID sourceTexture, int x, int y, int w, int h, b32 flipY, int sourceScale);
 
 global_variable GTEShader s_gteShader4;
 global_variable GTEShader s_gteShader8;
@@ -701,6 +869,8 @@ global_variable GTEShader s_gteShader32Rgba;
 
 GLint u_projectionLoc;
 GLint u_bilinearFilterLoc;
+GLint u_ditherScaleLoc;
+GLint u_drawIs2DLoc;
 GLint u_texelSizeLoc;
 GLint u_psxSemiTransPassLoc;
 GLint u_psxDrawMaskSetLoc;
@@ -753,13 +923,14 @@ GLint u_psxTextureOutputStpLoc;
 	"	}\n"
 
 #define GPU_DITHERING                                             \
+	"	uniform float ditherScale;\n"                               \
 	"	const mat4 c_dither = mat4(\n"                              \
 	"		-4.0,  +0.0,  -3.0,  +1.0,\n"                              \
 	"		+2.0,  -2.0,  +3.0,  -1.0,\n"                              \
 	"		-3.0,  +1.0,  -4.0,  +0.0,\n"                              \
 	"		+3.0,  -1.0,  +2.0,  -2.0) / 255.0;\n"                     \
 	"	vec4 dither(vec4 color) {\n"                                \
-	"		ivec2 dc = ivec2(mod(floor(v_ditherCoord), 4.0));\n"       \
+	"		ivec2 dc = ivec2(mod(floor(v_ditherCoord * ditherScale), 4.0));\n" \
 	"		color.xyz += vec3(c_dither[dc.x][dc.y] * v_texcoord.w);\n" \
 	"		return color;\n"                                           \
 	"	}\n"
@@ -824,6 +995,7 @@ GLint u_psxTextureOutputStpLoc;
 	    "		return t;\n"                                                                                                                               \
 	    "	}\n"                                                                                                                                        \
 	    "	void main() {\n"                                                                                                                            \
+	    "		aaMask = 1.0 - drawIs2D;\n"                                                                                                                  \
 	    "		vec4 color = (bilinearFilter > 0) ? bilinearTextureSample(v_texcoord.xy) : nearestTextureSample(v_texcoord.xy);\n"                         \
 	    "		fragColor = dither(color * v_color);\n"                                                                                                    \
 	    "		fragColor.a = (psxDrawMaskSet != 0 || (psxTextureOutputStp != 0 && sampledStp >= 0.5)) ? 1.0 : 0.0;\n"                                     \
@@ -842,6 +1014,7 @@ const char *gte_shader_32_rgba = "	uniform sampler2D s_texture;\n"
                                  "	uniform int psxDrawMaskSet;\n"
                                  "	uniform vec2 texelSize;\n"
                                  "	void main() {\n"
+                                 "		aaMask = 1.0 - drawIs2D;\n"
                                  "		vec2 tc = v_texcoord.xy * texelSize + texelSize * 0.5;\n"
                                  "		vec4 color = texture2D(s_texture, tc);\n"
                                  "		fragColor = dither(color * v_color);\n"
@@ -943,6 +1116,12 @@ internal ShaderID NativeRenderer_Shader_Compile(const char *source, bool isPsxSh
 		strcat(extra_fs_defines, "#define BILINEAR_FILTER\n");
 	}
 
+	// PSX shaders only: second fragment output = the 2D mask for AA exclusion.
+	if (isPsxShader)
+	{
+		strcat(extra_fs_defines, "out float aaMask;\nuniform float drawIs2D;\n");
+	}
+
 	const char *vs_list_psx[] = {GLSL_HEADER_VERT, extra_vs_defines, gpu_shader_common, GTE_VERTEX_SHADER};
 	const char *fs_list_psx[] = {GLSL_HEADER_FRAG, extra_fs_defines, gpu_shader_common, GPU_DITHERING, source};
 	const char *vs_list_src[] = {
@@ -991,6 +1170,12 @@ internal ShaderID NativeRenderer_Shader_Compile(const char *source, bool isPsxSh
 	glBindAttribLocation(program, a_texcoord, "a_texcoord");
 	glBindAttribLocation(program, a_color, "a_color");
 	glBindAttribLocation(program, a_extra, "a_extra");
+
+	if (isPsxShader)
+	{
+		glBindFragDataLocation(program, 0, "fragColor");
+		glBindFragDataLocation(program, 1, "aaMask");
+	}
 
 	glLinkProgram(program);
 	if (NativeRenderer_Shader_CheckProgramStatus(program) == 0)
@@ -1046,6 +1231,8 @@ internal void NativeRenderer_CompilePSXShader(GTEShader *sh, const char *source)
 	sh->shader = NativeRenderer_Shader_Compile(source, true);
 
 	sh->bilinearFilterLoc = glGetUniformLocation(sh->shader, "bilinearFilter");
+	sh->ditherScaleLoc = glGetUniformLocation(sh->shader, "ditherScale");
+	sh->drawIs2DLoc = glGetUniformLocation(sh->shader, "drawIs2D");
 	sh->projectionLoc = glGetUniformLocation(sh->shader, "Projection");
 	sh->texelSizeLoc = glGetUniformLocation(sh->shader, "texelSize");
 	sh->texLoc = glGetUniformLocation(sh->shader, "s_texture");
@@ -1064,8 +1251,10 @@ internal void NativeRenderer_InitialisePSXShaders(void)
 }
 
 // NOTE(aalhendi): GPU VRAM pack. Samples an RGBA render texture and writes PS1
-// 5:5:5:1 pixels into RG8 VRAM, low byte in R and high byte in G. NEAREST
-// sampling and integer channel shifts preserve the packed PS1 pixel value.
+// 5:5:5:1 pixels into RG8 VRAM, low byte in R and high byte in G. At internal
+// resolution > 1 each output pixel box-filters the full scale x scale block of
+// supersamples (sampled exactly at source texel centres), which keeps fine
+// patterns crisp; packScale == 1 keeps the original single-sample path.
 global_variable const char *ctr_pack_shader = "#ifdef VERTEX\n"
                                               "attribute vec2 a_position;\n"
                                               "varying vec2 v_uv;\n"
@@ -1079,8 +1268,38 @@ global_variable const char *ctr_pack_shader = "#ifdef VERTEX\n"
                                               "#ifdef FRAGMENT\n"
                                               "varying vec2 v_uv;\n"
                                               "uniform sampler2D s_src;\n"
+                                              "uniform sampler2D s_mask;\n"
+                                              "uniform int packScale;\n"
+                                              "uniform int forceSharp;\n"
                                               "void main() {\n"
-                                              "	ivec4 c = ivec4(texture2D(s_src, v_uv) * 255.0 + 0.5);\n"
+                                              "	vec4 acc;\n"
+                                              "	if (forceSharp != 0) {\n"
+                                              "		acc = texture2D(s_src, v_uv);\n"
+                                              "	} else if (packScale <= 1) {\n"
+                                              "		acc = texture2D(s_src, v_uv);\n"
+                                              "	} else {\n"
+                                              "		float s = float(packScale);\n"
+                                              "		vec2 sTexel = 1.0 / vec2(textureSize(s_src, 0));\n"
+                                              "		acc = vec4(0.0);\n"
+                                              "		float maskSum = 0.0;\n"
+                                              "		for (int y = 0; y < 8; y++) {\n"
+                                              "			if (y >= packScale) { break; }\n"
+                                              "			for (int x = 0; x < 8; x++) {\n"
+                                              "				if (x >= packScale) { break; }\n"
+                                              "				vec2 off = (vec2(float(x), float(y)) + 0.5 - 0.5 * s) * sTexel;\n"
+                                              "				acc += texture2D(s_src, v_uv + off);\n"
+                                              "				maskSum += texture2D(s_mask, v_uv + off).r;\n"
+                                              "			}\n"
+                                              "		}\n"
+                                              "		// Only 3D (POLY/line) pixels are marked in the mask:\n"
+                                              "		// 2D sprites, videos and direct VRAM content stay pixel-crisp.\n"
+                                              "		if ((maskSum / (s * s)) > 0.5) {\n"
+                                              "			acc /= s * s;\n"
+                                              "		} else {\n"
+                                              "			acc = texture2D(s_src, v_uv);\n"
+                                              "		}\n"
+                                              "	}\n"
+                                              "	ivec4 c = ivec4(acc * 255.0 + 0.5);\n"
                                               "	int px16 = (c.r >> 3) | ((c.g >> 3) << 5) | ((c.b >> 3) << 10) | ((c.a >> 7) << 15);\n"
                                               "	fragColor = vec4(float(px16 & 0xFF) / 255.0, float((px16 >> 8) & 0xFF) / 255.0, 0.0, 0.0);\n"
                                               "}\n"
@@ -1088,27 +1307,55 @@ global_variable const char *ctr_pack_shader = "#ifdef VERTEX\n"
 
 // NOTE(aalhendi): Expand packed VRAM without losing bit 15. Internal render
 // targets carry that PS1 STP/mask bit in alpha so packing them is lossless.
+// Anti-aliasing (smoothPresent) does a manual bilinear in *color* space: the
+// packed bytes are unpacked first, then blended. Filtering the raw packed
+// bytes directly mixes different bitfields and garbles colors.
 global_variable const char *ctr_present_vram_shader = "#ifdef VERTEX\n"
                                                       "attribute vec2 a_position;\n"
                                                       "varying vec2 v_uv;\n"
+                                                      "varying vec2 v_maskUV;\n"
                                                       "uniform vec4 sourceRect;\n"
                                                       "void main() {\n"
                                                       "\tvec2 screenUV = a_position * 0.5 + 0.5;\n"
                                                       "\tvec2 sourcePixel = sourceRect.xy + vec2(screenUV.x, 1.0 - screenUV.y) * sourceRect.zw;\n"
+                                                      "\tv_maskUV = screenUV; // mask lives in render-target orientation (the VRAM flip above does not apply)\n"
                                                       "\tv_uv = sourcePixel / vec2(1024.0, 512.0);\n"
                                                       "\tgl_Position = vec4(a_position, 0.0, 1.0);\n"
                                                       "}\n"
                                                       "#endif\n"
                                                       "#ifdef FRAGMENT\n"
                                                       "varying vec2 v_uv;\n"
+                                                      "varying vec2 v_maskUV;\n"
                                                       "uniform sampler2D s_texture;\n"
-                                                      "void main() {\n"
-                                                      "\tivec2 packedBytes = ivec2(texture2D(s_texture, v_uv).rg * 255.0 + 0.5);\n"
+                                                      "uniform sampler2D s_aaMask;\n"
+                                                      "uniform int smoothPresent;\n"
+                                                      "vec4 unpackPSX(vec2 uv) {\n"
+                                                      "\tivec2 packedBytes = ivec2(texture2D(s_texture, uv).rg * 255.0 + 0.5);\n"
                                                       "\tint pixel = packedBytes.r | (packedBytes.g << 8);\n"
                                                       "\tivec3 color5 = ivec3(pixel & 31, (pixel >> 5) & 31, (pixel >> 10) & 31);\n"
                                                       "\tivec3 color8 = (color5 << 3) | (color5 >> 2);\n"
                                                       "\tfloat stp = float((pixel >> 15) & 1);\n"
-                                                      "\tfragColor = vec4(vec3(color8) / 255.0, stp);\n"
+                                                      "\treturn vec4(vec3(color8) / 255.0, stp);\n"
+                                                      "}\n"
+                                                      "void main() {\n"
+                                                      "\tif (smoothPresent <= 0) {\n"
+                                                      "\t\tfragColor = unpackPSX(v_uv);\n"
+                                                      "\t} else {\n"
+                                                      "\t\tvec2 texel = vec2(1.0 / 1024.0, 1.0 / 512.0);\n"
+                                                      "\t\tvec4 cC = unpackPSX(v_uv);\n"
+                                                      "\t\tvec2 f = fract(v_uv / texel);\n"
+                                                      "\t\tvec4 c00 = unpackPSX(v_uv);\n"
+                                                      "\t\tvec4 c10 = unpackPSX(v_uv + vec2(texel.x, 0.0));\n"
+                                                      "\t\tvec4 c01 = unpackPSX(v_uv + vec2(0.0, texel.y));\n"
+                                                      "\t\tvec4 c11 = unpackPSX(v_uv + texel);\n"
+                                                      "\t\tvec3 smoothed = mix(mix(c00.rgb, c10.rgb, f.x), mix(c01.rgb, c11.rgb, f.x), f.y);\n"
+                                                      "\t\tvec3 lumaW = vec3(0.299, 0.587, 0.114);\n"
+                                                      "\t\tfloat lC = dot(cC.rgb, lumaW);\n"
+                                                      "\t\tfloat lX = max(abs(dot(unpackPSX(v_uv - vec2(texel.x, 0.0)).rgb, lumaW) - lC), abs(dot(unpackPSX(v_uv + vec2(texel.x, 0.0)).rgb, lumaW) - lC));\n"
+                                                      "\t\tfloat lY = max(abs(dot(unpackPSX(v_uv - vec2(0.0, texel.y)).rgb, lumaW) - lC), abs(dot(unpackPSX(v_uv + vec2(0.0, texel.y)).rgb, lumaW) - lC));\n"
+                                                      "\t\tfloat edge = smoothstep(0.06, 0.22, max(lX, lY)) * clamp(texture2D(s_aaMask, v_maskUV).r, 0.0, 1.0);\n"
+                                                      "\t\tfragColor = vec4(mix(cC.rgb, smoothed, edge), cC.a);\n"
+                                                      "\t}\n"
                                                       "}\n"
                                                       "#endif\n";
 
@@ -1120,11 +1367,22 @@ internal void NativeRenderer_InitVRAMPipelines(void)
 	glUseProgram(s_packShader);
 	const GLint packSrcLoc = glGetUniformLocation(s_packShader, "s_src");
 	s_packFlipYLoc = glGetUniformLocation(s_packShader, "flipY");
+	s_packScaleLoc = glGetUniformLocation(s_packShader, "packScale");
+	s_packMaskLoc = glGetUniformLocation(s_packShader, "s_mask");
+	s_packForceSharpLoc = glGetUniformLocation(s_packShader, "forceSharp");
 	glUniform1i(packSrcLoc, 0);
+	glUniform1i(s_packScaleLoc, 1);
+	glUniform1i(s_packMaskLoc, 2); // 2D mask on texture unit 2
+	glUniform1i(s_packForceSharpLoc, 0);
 	glUseProgram(0);
 
 	s_presentVramShader = NativeRenderer_Shader_Compile(ctr_present_vram_shader, false);
 	s_presentVramSourceRectLoc = glGetUniformLocation(s_presentVramShader, "sourceRect");
+	s_presentVramSmoothLoc = glGetUniformLocation(s_presentVramShader, "smoothPresent");
+	s_presentVramMaskLoc = glGetUniformLocation(s_presentVramShader, "s_aaMask");
+	glUseProgram(s_presentVramShader);
+	glUniform1i(s_presentVramMaskLoc, 2); // mask sampler on texture unit 2 (unit 1 = game's color LUT)
+	glUseProgram(0);
 
 	glGenVertexArrays(1, &s_vramQuadVAO);
 	glGenBuffers(1, &s_vramQuadVBO);
@@ -1335,7 +1593,17 @@ void NativeRenderer_SetupClipMode(const RECT16 *rect, const DISPENV *displayEnv,
 	const float crw = clipRectW * viewportW;
 	const float crh = clipRectH * viewportH;
 
-	glScissor(crx, flipOffset - cry, crw, crh);
+	// Scale the scissor to the supersampled internal framebuffer.
+	if (g_cfg_internalResolutionScale > 1)
+	{
+		const float scale = (float)g_cfg_internalResolutionScale;
+		glScissor((int)(crx * scale), (int)((flipOffset - cry) * scale),
+		          (int)(crw * scale), (int)(crh * scale));
+	}
+	else
+	{
+		glScissor((int)crx, (int)(flipOffset - cry), (int)crw, (int)crh);
+	}
 }
 
 internal void NativeRenderer_SetShader(const ShaderID shader)
@@ -1356,6 +1624,8 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 	case TF_4_BIT:
 		NativeRenderer_SetShader(s_gteShader4.shader);
 		u_bilinearFilterLoc = s_gteShader4.bilinearFilterLoc;
+		u_ditherScaleLoc = s_gteShader4.ditherScaleLoc;
+		u_drawIs2DLoc = s_gteShader4.drawIs2DLoc;
 		u_projectionLoc = s_gteShader4.projectionLoc;
 		u_texelSizeLoc = -1;
 		u_psxSemiTransPassLoc = s_gteShader4.psxSemiTransPassLoc;
@@ -1365,6 +1635,8 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 	case TF_8_BIT:
 		NativeRenderer_SetShader(s_gteShader8.shader);
 		u_bilinearFilterLoc = s_gteShader8.bilinearFilterLoc;
+		u_ditherScaleLoc = s_gteShader8.ditherScaleLoc;
+		u_drawIs2DLoc = s_gteShader8.drawIs2DLoc;
 		u_projectionLoc = s_gteShader8.projectionLoc;
 		u_texelSizeLoc = -1;
 		u_psxSemiTransPassLoc = s_gteShader8.psxSemiTransPassLoc;
@@ -1374,6 +1646,8 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 	case TF_16_BIT:
 		NativeRenderer_SetShader(s_gteShader16.shader);
 		u_bilinearFilterLoc = s_gteShader16.bilinearFilterLoc;
+		u_ditherScaleLoc = s_gteShader16.ditherScaleLoc;
+		u_drawIs2DLoc = s_gteShader16.drawIs2DLoc;
 		u_projectionLoc = s_gteShader16.projectionLoc;
 		u_texelSizeLoc = -1;
 		u_psxSemiTransPassLoc = s_gteShader16.psxSemiTransPassLoc;
@@ -1383,6 +1657,8 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 	case TF_32_BIT_RGBA:
 		NativeRenderer_SetShader(s_gteShader32Rgba.shader);
 		u_bilinearFilterLoc = s_gteShader32Rgba.bilinearFilterLoc;
+		u_ditherScaleLoc = s_gteShader32Rgba.ditherScaleLoc;
+		u_drawIs2DLoc = s_gteShader32Rgba.drawIs2DLoc;
 		u_projectionLoc = s_gteShader32Rgba.projectionLoc;
 		u_texelSizeLoc = s_gteShader32Rgba.texelSizeLoc;
 		u_psxSemiTransPassLoc = s_gteShader32Rgba.psxSemiTransPassLoc;
@@ -1403,6 +1679,22 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 	if (u_bilinearFilterLoc >= 0)
 	{
 		glUniform1i(u_bilinearFilterLoc, g_cfg_bilinearFiltering);
+	}
+
+	// Scale the PSX dither pattern with the internal resolution ("scaled
+	// dithering"): at 2x+ the 4x4 Bayer grid operates per render-target pixel,
+	// so the SSAA pack averages it out instead of leaving the dot pattern
+	// visible (the "sandy" look). 1.0 keeps exact PSX behaviour at native res.
+	if (u_ditherScaleLoc >= 0)
+	{
+		glUniform1f(u_ditherScaleLoc, (g_cfg_internalResolutionScale > 1) ? (float)g_cfg_internalResolutionScale : 1.0f);
+	}
+
+	// AA mask source: 1.0 for 2D primitives (SPRT/TILE) so the present-time
+	// anti-aliasing never touches non-3D elements.
+	if (u_drawIs2DLoc >= 0)
+	{
+		glUniform1f(u_drawIs2DLoc, (g_drawIs2D != 0) ? 1.0f : 0.0f);
 	}
 	NativeRenderer_SetPSXTextureSemiTransPass(0);
 
@@ -1705,7 +1997,15 @@ void NativeRenderer_Clear(int x, int y, int w, int h, u8 r, u8 g, u8 b)
 	glGetIntegerv(GL_SCISSOR_BOX, previousScissorBox);
 
 	glEnable(GL_SCISSOR_TEST);
-	glScissor(scissorX, scissorY, scissorW, scissorH);
+	if (g_cfg_internalResolutionScale > 1)
+	{
+		const int scale = g_cfg_internalResolutionScale;
+		glScissor(scissorX * scale, scissorY * scale, scissorW * scale, scissorH * scale);
+	}
+	else
+	{
+		glScissor(scissorX, scissorY, scissorW, scissorH);
+	}
 	glClearColor(NativeRenderer_PSXColorComponentFloat(r), NativeRenderer_PSXColorComponentFloat(g), NativeRenderer_PSXColorComponentFloat(b), 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -1850,8 +2150,11 @@ internal void NativeRenderer_FlushOffscreenToVRAM(void)
 
 	// NOTE(aalhendi): Native offscreen draws produce RGBA pixels. Pack them into
 	// the persistent 5:5:5:1 VRAM texture instead of reading them through the CPU.
-	NativeRenderer_GpuPackTextureToVRAM(s_offscreenRenderTarget.texture, s_previousOffscreen.x, s_previousOffscreen.y, s_previousOffscreen.w,
-	                                    s_previousOffscreen.h, true);
+	{
+		const int offscreenScale = (s_previousOffscreen.h > 0) ? (s_offscreenRenderTarget.height / s_previousOffscreen.h) : 1;
+		NativeRenderer_GpuPackTextureToVRAM(s_offscreenRenderTarget.texture, s_previousOffscreen.x, s_previousOffscreen.y, s_previousOffscreen.w,
+		                                    s_previousOffscreen.h, true, offscreenScale);
+	}
 }
 
 internal void NativeRenderer_SetScissorState(int enable)
@@ -1923,12 +2226,21 @@ void NativeRenderer_SetProjection(const RECT16 *drawRect, const DISPENV *display
 // NOTE(aalhendi): Pack an RGBA render texture straight into the RG8 VRAM texture
 // on the GPU, no CPU round trip. Restore or invalidate the render-state caches
 // disturbed by this native bridge before the submit run continues.
-internal void NativeRenderer_GpuPackTextureToVRAM(TextureID sourceTexture, int x, int y, int w, int h, b32 flipY)
+internal void NativeRenderer_GpuPackTextureToVRAM(TextureID sourceTexture, int x, int y, int w, int h, b32 flipY, int sourceScale)
 {
 	const ShaderID previousShader = s_previousShader;
 	const TextureID previousTexture = s_lastBoundTexture;
 	const BlendMode previousBlendMode = s_previousBlendMode;
 	const int previousScissorState = s_previousScissorState;
+
+	if (sourceScale < 1)
+	{
+		sourceScale = 1;
+	}
+	if (sourceScale > 8)
+	{
+		sourceScale = 8;
+	}
 
 	NativeRenderer_UpdateVRAM();
 
@@ -1942,6 +2254,17 @@ internal void NativeRenderer_GpuPackTextureToVRAM(TextureID sourceTexture, int x
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, sourceTexture);
 	glUniform1i(s_packFlipYLoc, flipY);
+	glUniform1i(s_packScaleLoc, sourceScale);
+	glUniform1i(s_packForceSharpLoc, g_aaForceSharp);
+
+	{
+		const TextureID maskTexture = (sourceTexture == s_mainRenderTarget.texture) ? s_mainRenderTarget.aaMaskTexture : s_offscreenRenderTarget.aaMaskTexture;
+		if (maskTexture != (TextureID)-1)
+		{
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, maskTexture);
+		}
+	}
 
 	glBindVertexArray(s_vramQuadVAO);
 	NativeRenderer_DrawTriangles(0, 2);
@@ -1985,7 +2308,14 @@ void NativeRenderer_StoreFrameBuffer(int x, int y, int w, int h)
 {
 	NativePerf_BeginScope(NATIVE_PERF_BUCKET_FRAMEBUFFER_STORE);
 
-	NativeRenderer_GpuPackTextureToVRAM(s_mainRenderTarget.texture, x, y, w, h, true);
+	// Menus and cutscenes are "images": keep them pixel-crisp (no present AA,
+	// no supersample box filter). Races keep the smoothed 3D look.
+	{
+		struct GameTracker *aaTracker = GAME_TRACKER;
+		g_aaForceSharp = ((aaTracker != NULL) && ((aaTracker->gameMode1 & GAME_MODE_MENU_OR_CUTSCENE_MASK) != 0)) ? 1 : 0;
+	}
+
+	NativeRenderer_GpuPackTextureToVRAM(s_mainRenderTarget.texture, x, y, w, h, true, (h > 0) ? (s_mainRenderTarget.height / h) : 1);
 
 	NativePerf_EndScope(NATIVE_PERF_BUCKET_FRAMEBUFFER_STORE);
 }

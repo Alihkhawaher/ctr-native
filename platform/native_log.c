@@ -12,6 +12,22 @@
 
 global_variable FILE *s_logStream = NULL;
 global_variable char s_logPath[512]; // TODO(aalhendi): yeah this is an issue waiting to happen. w/e
+global_variable int s_logDebugEnabled = 1;
+
+void Platform_LogSetDebugEnabled(int enabled)
+{
+	s_logDebugEnabled = (enabled != 0);
+}
+
+int Platform_LogDebugEnabled(void)
+{
+	return s_logDebugEnabled;
+}
+
+internal int Platform_LogIsDebugLine(const char *fmt)
+{
+	return (fmt != NULL) && (strncmp(fmt, "[CTR Debug]", 11) == 0);
+}
 
 internal void Platform_LogWrite(FILE *consoleStream, const char *text)
 {
@@ -117,6 +133,11 @@ void Platform_LogFlush(void)
 
 void Platform_Log(const char *fmt, ...)
 {
+	if ((!s_logDebugEnabled) && Platform_LogIsDebugLine(fmt))
+	{
+		return;
+	}
+
 	va_list args;
 
 	va_start(args, fmt);
@@ -126,6 +147,11 @@ void Platform_Log(const char *fmt, ...)
 
 void Platform_LogWarn(const char *fmt, ...)
 {
+	if ((!s_logDebugEnabled) && Platform_LogIsDebugLine(fmt))
+	{
+		return;
+	}
+
 	va_list args;
 
 	va_start(args, fmt);
@@ -135,6 +161,11 @@ void Platform_LogWarn(const char *fmt, ...)
 
 void Platform_LogError(const char *fmt, ...)
 {
+	if ((!s_logDebugEnabled) && Platform_LogIsDebugLine(fmt))
+	{
+		return;
+	}
+
 	va_list args;
 
 	va_start(args, fmt);

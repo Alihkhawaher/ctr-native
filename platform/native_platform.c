@@ -3,10 +3,12 @@
 #include <macros.h>
 
 #include "platform/native_audio.h"
+#include "platform/native_config.h"
 #include "platform/native_glad.h"
 #include "platform/native_gpu.h"
 #include "platform/native_input.h"
 #include "platform/native_log.h"
+#include "platform/native_overlay.h"
 #include "platform/native_perf.h"
 #include "platform/native_renderer.h"
 #include "platform/native_replay_scheduler.h"
@@ -21,7 +23,12 @@
 SDL_Window *g_window = NULL;
 int g_dbg_polygonSelected = 0;
 
+extern int g_cfg_aspectRatio;
+extern int g_cfg_antialiasing;
 extern int g_cfg_bilinearFiltering;
+extern int g_cfg_internalResolutionScale;
+extern int g_cfg_internalResolutionAuto;
+extern int g_cfg_showFps;
 extern int g_dbg_emulatorPaused;
 extern int g_dbg_texturelessMode;
 extern int g_dbg_wireframeMode;
@@ -93,6 +100,7 @@ internal void Platform_HandleWindowResize(int width, int height)
 {
 	g_windowWidth = width;
 	g_windowHeight = height;
+	NativeRenderer_ResolveAutoResolution();
 	NativeRenderer_ResetDevice();
 }
 
@@ -113,6 +121,8 @@ internal void Platform_UpdateCursorVisibility(void)
 	}
 }
 
+internal void Platform_SaveSettings(void);
+
 internal void Platform_HandleFullscreenToggle(void)
 {
 	int fullscreen = (SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN) != 0;
@@ -121,6 +131,55 @@ internal void Platform_HandleFullscreenToggle(void)
 	SDL_GetWindowSize(g_window, &g_windowWidth, &g_windowHeight);
 	Platform_UpdateCursorVisibility();
 	NativeRenderer_ResetDevice();
+	NativeOverlay_Show();
+	Platform_SaveSettings();
+}
+
+// NOTE: Persists the current graphics options to ctr-native-config.json so
+// in-game changes stick across launches.
+internal void Platform_SaveSettings(void)
+{
+	NativeConfig config;
+
+	config.windowWidth = g_windowWidth;
+	config.windowHeight = g_windowHeight;
+	config.fullscreen = ((SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN) != 0) ? 1 : 0;
+	config.aspectRatio = g_cfg_aspectRatio;
+	config.internalResolutionScale = g_cfg_internalResolutionScale;
+	config.internalResolutionAuto = g_cfg_internalResolutionAuto;
+	config.bilinearFiltering = g_cfg_bilinearFiltering;
+	config.antialiasing = g_cfg_antialiasing;
+	config.showFps = g_cfg_showFps;
+
+	NativeConfig_SaveDefaultLocation(&config);
+}
+
+// NOTE: Cycles the window through the same resolution presets the launcher
+// offers; the renderer re-applies the presentation aspect on resize.
+internal void Platform_CycleWindowSize(void)
+{
+	static const int sizePresets[][2] = {
+	    {640, 480}, {800, 600}, {1024, 768}, {1280, 720}, {1280, 960}, {1920, 1080}, {2560, 1440}, {3840, 2160},
+	};
+	const int presetCount = (int)(sizeof(sizePresets) / sizeof(sizePresets[0]));
+	int presetIndex = -1;
+
+	for (int i = 0; i < presetCount; i++)
+	{
+		if ((sizePresets[i][0] == g_windowWidth) && (sizePresets[i][1] == g_windowHeight))
+		{
+			presetIndex = i;
+			break;
+		}
+	}
+
+	presetIndex = (presetIndex + 1) % presetCount;
+
+	SDL_SetWindowSize(g_window, sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
+	Platform_HandleWindowResize(sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
+	Platform_LogWarn("[CTR Native] window size: %dx%d\n", sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
+	NativeOverlay_Show();
+	Platform_SaveSettings();
 }
 
 internal void Platform_UpdateHostAltKeyState(const s32 key, const s8 down)
@@ -219,6 +278,16 @@ internal void Platform_HandleKey(int key, char down)
 		case SDL_SCANCODE_F3:
 			g_cfg_bilinearFiltering ^= 1;
 			Platform_LogWarn("[CTR Native] filtering mode: %d\n", g_cfg_bilinearFiltering);
+			NativeOverlay_Show();
+			Platform_SaveSettings();
+			break;
+		// NOTE: F4/F6 never reach this switch — the keyboard-assign (F4) and
+		// gamepad-assign (F6) handlers earlier in the event path consume them.
+		case SDL_SCANCODE_TAB:
+			g_cfg_antialiasing ^= 1;
+			Platform_LogWarn("[CTR Native] anti-aliasing: %s\n", (g_cfg_antialiasing != 0) ? "ON (smooth)" : "OFF (sharp)");
+			NativeOverlay_Show();
+			Platform_SaveSettings();
 			break;
 		case SDL_SCANCODE_F5:
 			NativeSaveState_RequestSave();
@@ -229,9 +298,74 @@ internal void Platform_HandleKey(int key, char down)
 		}
 	}
 #endif
+
+	// NOTE: Runtime internal-resolution (SSAA) scale toggle for testing.
+	// PAGEUP increases scale (1->2->4), PAGEDOWN decreases (4->2->1).
+	if (!down)
+	{
+		if (key == SDL_SCANCODE_PAGEUP)
+		{
+			if (g_cfg_internalResolutionAuto != 0)
+			{
+				g_cfg_internalResolutionAuto = 0;
+				g_cfg_internalResolutionScale = 1;
+			}
+			else if (g_cfg_internalResolutionScale < 8)
+			{
+				g_cfg_internalResolutionScale <<= 1;
+			}
+			else
+			{
+				g_cfg_internalResolutionAuto = 1;
+				NativeRenderer_ResolveAutoResolution();
+			}
+			Platform_LogWarn("[CTR Native] internal resolution: %dx%s\n", g_cfg_internalResolutionScale, (g_cfg_internalResolutionAuto != 0) ? " (auto)" : "");
+			NativeOverlay_Show();
+			Platform_SaveSettings();
+		}
+		else if (key == SDL_SCANCODE_PAGEDOWN)
+		{
+			if (g_cfg_internalResolutionAuto != 0)
+			{
+				g_cfg_internalResolutionAuto = 0;
+				g_cfg_internalResolutionScale = 8;
+			}
+			else if (g_cfg_internalResolutionScale > 1)
+			{
+				g_cfg_internalResolutionScale >>= 1;
+			}
+			else
+			{
+				g_cfg_internalResolutionAuto = 1;
+				NativeRenderer_ResolveAutoResolution();
+			}
+			Platform_LogWarn("[CTR Native] internal resolution: %dx%s\n", g_cfg_internalResolutionScale, (g_cfg_internalResolutionAuto != 0) ? " (auto)" : "");
+			NativeOverlay_Show();
+			Platform_SaveSettings();
+		}
+		else if (key == SDL_SCANCODE_HOME)
+		{
+			g_cfg_aspectRatio = (g_cfg_aspectRatio + 1) % 3;
+			NativeRenderer_ApplyPresentationAspect();
+			Platform_LogWarn("[CTR Native] aspect ratio mode: %d\n", g_cfg_aspectRatio);
+			NativeOverlay_Show();
+			Platform_SaveSettings();
+		}
+		else if (key == SDL_SCANCODE_END)
+		{
+			Platform_CycleWindowSize();
+		}
+		else if (key == SDL_SCANCODE_INSERT)
+		{
+			g_cfg_showFps ^= 1;
+			Platform_LogWarn("[CTR Native] fps counter: %d\n", g_cfg_showFps);
+			NativeOverlay_Show();
+			Platform_SaveSettings();
+		}
+	}
 }
 
-void Platform_Init(const char *title, int width, int height)
+void Platform_Init(const char *title, int width, int height, int fullscreen)
 {
 	char windowName[128];
 
@@ -249,7 +383,7 @@ void Platform_Init(const char *title, int width, int height)
 
 	s_platformInitialized = 1;
 
-	if (!NativeRenderer_InitialiseRender(windowName, width, height, 0))
+	if (!NativeRenderer_InitialiseRender(windowName, width, height, fullscreen))
 	{
 		Platform_LogError("[CTR Native] Failed to initialise window\n");
 		Platform_Shutdown();
@@ -262,6 +396,23 @@ void Platform_Init(const char *title, int width, int height)
 		Platform_Shutdown();
 		return;
 	}
+
+	NativeOverlay_Init();
+	NativeOverlay_Show();
+
+	// Auto internal resolution needs the real window size (fullscreen may have
+	// changed it) before resolving.
+	{
+		int actualWidth = 0;
+		int actualHeight = 0;
+		SDL_GetWindowSize(g_window, &actualWidth, &actualHeight);
+		if ((actualWidth > 0) && (actualHeight > 0))
+		{
+			g_windowWidth = actualWidth;
+			g_windowHeight = actualHeight;
+		}
+	}
+	NativeRenderer_ResolveAutoResolution();
 
 	atexit(Platform_Shutdown);
 	Platform_UpdateCursorVisibility();
@@ -276,6 +427,7 @@ void Platform_Shutdown(void)
 	}
 
 	s_platformInitialized = 0;
+	Platform_LogWarn("[CTR Native] shutdown: begin\n");
 #if defined(CTR_INTERNAL)
 	NativeRenderer_FinishGpuMeasurements();
 	NativePerf_Shutdown();
@@ -283,7 +435,10 @@ void Platform_Shutdown(void)
 #endif
 	Platform_InputShutdown();
 	NativeAudio_Shutdown();
+	NativeOverlay_Shutdown();
+	Platform_LogWarn("[CTR Native] shutdown: overlay done\n");
 	NativeRenderer_Shutdown();
+	Platform_LogWarn("[CTR Native] shutdown: renderer done\n");
 
 	if (g_window != NULL)
 	{
@@ -359,6 +514,7 @@ void Platform_EndScene(void)
 			NativeRenderer_PresentVRAMDisplay();
 		}
 		NativeRenderer_EndGpuFrame();
+		NativeOverlay_Draw();
 		NativeRenderer_SwapWindow();
 		s_pinnedVramDisplayFrames--;
 		if (s_pinnedVramDisplayFrames <= 0)
@@ -374,6 +530,7 @@ void Platform_EndScene(void)
 	NativeRenderer_StoreFrameBuffer(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
 	NativeRenderer_PresentVRAMRect(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
 	NativeRenderer_EndGpuFrame();
+	NativeOverlay_Draw();
 	NativeRenderer_SwapWindow();
 	NativePerf_EndScope(NATIVE_PERF_BUCKET_PLATFORM_END_SCENE);
 }
@@ -434,6 +591,7 @@ void Platform_PollHostEvents(void)
 			Platform_InputControllerRemoved(event.gdevice.which);
 			break;
 		case SDL_EVENT_QUIT:
+			Platform_LogWarn("[CTR Native] quit event\n");
 			exit(0);
 			break;
 		case SDL_EVENT_WINDOW_RESIZED:
@@ -444,6 +602,7 @@ void Platform_PollHostEvents(void)
 			Platform_UpdateCursorVisibility();
 			break;
 		case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+			Platform_LogWarn("[CTR Native] window close requested\n");
 			exit(0);
 			break;
 		case SDL_EVENT_KEY_DOWN:

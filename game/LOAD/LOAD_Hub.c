@@ -1,9 +1,19 @@
 #include <common.h>
 
+#if defined(CTR_NATIVE)
+#include <platform/native_log.h>
+#endif
+
 // packID will always be 3-gGT->activeMempackIndex
 void LOAD_Hub_ReadFile(struct BigHeader *bigfile, int levID, int packID)
 {
 	struct GameTracker *gGT = sdata->gGT;
+
+#if defined(CTR_NATIVE)
+	Platform_LogWarn("[CTR Debug] HubReadFile: levID=%d packID=%d active=%d patchMem=%p levIDs=[%d,%d,%d] level2=%p\n", levID, packID,
+	                 (int)gGT->activeMempackIndex, (void *)sdata->PatchMem_Ptr, (int)gGT->levID_in_each_mempack[0], (int)gGT->levID_in_each_mempack[1],
+	                 (int)gGT->levID_in_each_mempack[2], (void *)gGT->level2);
+#endif
 
 	// if level is already loaded, quit
 	if (gGT->levID_in_each_mempack[packID] == levID)
@@ -34,6 +44,11 @@ void LOAD_Hub_SwapNow()
 	struct CameraDC *cDC;
 	struct GameTracker *gGT = sdata->gGT;
 
+#if defined(CTR_NATIVE)
+	Platform_LogWarn("[CTR Debug] HubSwapNow enter: active=%d level1=%p level2=%p levelID=%d\n", (int)gGT->activeMempackIndex, (void *)gGT->level1,
+	                 (void *)gGT->level2, (int)gGT->levelID);
+#endif
+
 	// stall until load is done
 	while (gGT->level2 == 0)
 	{
@@ -50,6 +65,10 @@ void LOAD_Hub_SwapNow()
 
 	gGT->prevLEV = gGT->levelID;
 	gGT->levelID = gGT->levID_in_each_mempack[gGT->activeMempackIndex];
+
+#if defined(CTR_NATIVE)
+	Platform_LogWarn("[CTR Debug] HubSwapNow flip: active=%d levelID=%d level1=%p\n", (int)gGT->activeMempackIndex, (int)gGT->levelID, (void *)gGT->level1);
+#endif
 
 	Audio_AdvHub_SwapSong(gGT->levelID);
 

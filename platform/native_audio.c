@@ -2,6 +2,7 @@
 #include <platform/native_audio.h>
 #include <platform/native_assets.h>
 #include <platform/native_disc_image.h>
+#include <platform/native_log.h>
 #include <platform/native_perf.h>
 
 #include <SDL3/SDL.h>
@@ -3316,27 +3317,35 @@ int NativeAudio_PlayXATrack(int categoryID, int xaID, int volumeLeft, int volume
 
 	if (!NativeAudio_SpuInit())
 	{
+		Platform_LogError("[CTR Debug] PlayXATrack: SpuInit FAILED\n");
 		return 0;
 	}
 
 	if (!NativeAudio_LookupXATrackInfo(categoryID, xaID, &info))
 	{
+		Platform_LogError("[CTR Debug] PlayXATrack: LookupXATrackInfo FAILED cat=%d id=%d\n", categoryID, xaID);
 		return 0;
 	}
 	if (!NativeAudio_BuildXAPath(path, sizeof(path), categoryID, info.fileNumber))
 	{
+		Platform_LogError("[CTR Debug] PlayXATrack: BuildXAPath FAILED cat=%d file=%d\n", categoryID, (int)info.fileNumber);
 		return 0;
 	}
 	if (!NativeAudio_XaSourceOpen(path, &source))
 	{
+		Platform_LogError("[CTR Debug] PlayXATrack: XaSourceOpen FAILED path=%s\n", path);
 		return 0;
 	}
 	if (!NativeAudio_PrepareXAStream(&source, info.channelFilter, info.numSectors, &prepared))
 	{
+		Platform_LogError("[CTR Debug] PlayXATrack: PrepareXAStream FAILED path=%s sectors=%d\n", path, (int)info.numSectors);
 		NativeAudio_XaSourceClose(&source);
 		return 0;
 	}
 	NativeAudio_XaSourceClose(&source);
+
+	Platform_LogWarn("[CTR Debug] PlayXATrack OK: path=%s sectors=%d chFilter=%d frames=%u rate=%u volL=%d\n", path, (int)info.numSectors, (int)info.channelFilter,
+	                 (unsigned)prepared.frameCount, (unsigned)prepared.sampleRate, volumeLeft);
 
 	NativeAudio_LockOutput();
 
