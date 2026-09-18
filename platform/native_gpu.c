@@ -125,9 +125,21 @@ struct NativeGpuSnapshot
 	u16 vram[VRAM_WIDTH * VRAM_HEIGHT];
 };
 
+internal int s_frameHadDraws = 0;
+
 int NativeGpu_HasPendingSplits(void)
 {
 	return s_gpu.splitIndex > 0;
+}
+
+int NativeGpu_FrameHadDraws(void)
+{
+	return s_frameHadDraws;
+}
+
+void NativeGpu_ResetFrameDraws(void)
+{
+	s_frameHadDraws = 0;
 }
 
 void ClearSplits(void)
@@ -800,6 +812,7 @@ internal void NativeGpu_PrepareFramebufferFeedback(int tpage)
 
 internal void AddSplit(bool semiTrans, bool textured, bool framebufferFeedback)
 {
+	s_frameHadDraws = 1;
 	int tpage = activeDrawEnv.tpage;
 
 	if (framebufferFeedback)

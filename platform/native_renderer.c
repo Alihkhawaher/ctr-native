@@ -192,6 +192,10 @@ global_variable GLuint s_presentVramShader = 0;
 global_variable GLint s_presentVramSourceRectLoc = -1;
 global_variable GLint s_presentVramSmoothLoc = -1;
 global_variable GLint s_presentVramMaskLoc = -1;
+global_variable GLuint s_presentFbShader = 0;
+global_variable GLint s_presentFbSmoothLoc = -1;
+global_variable GLint s_presentFbMaskLoc = -1;
+global_variable GLint s_presentFbFlipYLoc = -1;
 global_variable GLuint s_vramQuadVAO = 0;
 global_variable GLuint s_vramQuadVBO = 0;
 
@@ -406,6 +410,7 @@ void NativeRenderer_BeginScene(void)
 
 	NativePerf_BeginScope(NATIVE_PERF_BUCKET_RENDERER_BEGIN_SCENE);
 	s_lastBoundTexture = 0;
+	NativeGpu_ResetFrameDraws();
 
 	NativeRenderer_UpdatePresentationViewport();
 	NativeRenderer_ClearPresentationBars();
@@ -691,6 +696,51 @@ internal void NativeRenderer_BindMainRenderTarget(void)
 		glBindTexture(GL_TEXTURE_2D, s_lastBoundTexture == (TextureID)-1 ? 0 : s_lastBoundTexture);
 	}
 }
+
+// NOTE(aalhendi): Direct render-target present. Displays the supersampled
+// frame at full internal resolution (emulator-style "enhanced resolution")
+// instead of the packed VRAM; the pack still runs for the game's own reads.
+// Anti-aliasing (smoothPresent) is edge-directed and gated by the 2D mask;
+// when disabled the target is sampled nearest (pixel-crisp blocks).
+global_variable const char *ctr_present_fb_shader = "#ifdef VERTEX\n"
+                                                    "attribute vec2 a_position;\n"
+                                                    "varying vec2 v_uv;\n"
+                                                    "varying vec2 v_maskUV;\n"
+                                                    "uniform int flipY;\n"
+                                                    "void main() {\n"
+                                                    "	vec2 screenUV = a_position * 0.5 + 0.5;\n"
+                                                    "	v_uv = vec2(screenUV.x, (flipY != 0) ? 1.0 - screenUV.y : screenUV.y);\n"
+                                                    "	v_maskUV = screenUV;\n"
+                                                    "	gl_Position = vec4(a_position, 0.0, 1.0);\n"
+                                                    "}\n"
+                                                    "#endif\n"
+                                                    "#ifdef FRAGMENT\n"
+                                                    "varying vec2 v_uv;\n"
+                                                    "varying vec2 v_maskUV;\n"
+                                                    "uniform sampler2D s_texture;\n"
+                                                    "uniform sampler2D s_aaMask;\n"
+                                                    "uniform int smoothPresent;\n"
+                                                    "void main() {\n"
+                                                    "	vec3 cC = texture2D(s_texture, v_uv).rgb;\n"
+                                                    "	if (smoothPresent <= 0) {\n"
+                                                    "		fragColor = vec4(cC, 1.0);\n"
+                                                    "	} else {\n"
+                                                    "		vec2 texel = 1.0 / vec2(textureSize(s_texture, 0));\n"
+                                                    "		vec2 f = fract(v_uv / texel);\n"
+                                                    "		vec3 c00 = texture2D(s_texture, v_uv).rgb;\n"
+                                                    "		vec3 c10 = texture2D(s_texture, v_uv + vec2(texel.x, 0.0)).rgb;\n"
+                                                    "		vec3 c01 = texture2D(s_texture, v_uv + vec2(0.0, texel.y)).rgb;\n"
+                                                    "		vec3 c11 = texture2D(s_texture, v_uv + texel).rgb;\n"
+                                                    "		vec3 smoothed = mix(mix(c00, c10, f.x), mix(c01, c11, f.x), f.y);\n"
+                                                    "		vec3 lumaW = vec3(0.299, 0.587, 0.114);\n"
+                                                    "		float lC = dot(cC, lumaW);\n"
+                                                    "		float lX = max(abs(dot(c00, lumaW) - lC), abs(dot(c10, lumaW) - lC));\n"
+                                                    "		float lY = max(abs(dot(c01, lumaW) - lC), abs(dot(c11, lumaW) - lC));\n"
+                                                    "		float edge = smoothstep(0.06, 0.22, max(lX, lY)) * clamp(texture2D(s_aaMask, v_maskUV).r, 0.0, 1.0);\n"
+                                                    "		fragColor = vec4(mix(cC, smoothed, edge), 1.0);\n"
+                                                    "	}\n"
+                                                    "}\n"
+                                                    "#endif\n";
 
 internal void NativeRenderer_DrawVRAMRegion(int x, int y, int width, int height)
 {
@@ -1382,6 +1432,14 @@ internal void NativeRenderer_InitVRAMPipelines(void)
 	s_presentVramMaskLoc = glGetUniformLocation(s_presentVramShader, "s_aaMask");
 	glUseProgram(s_presentVramShader);
 	glUniform1i(s_presentVramMaskLoc, 2); // mask sampler on texture unit 2 (unit 1 = game's color LUT)
+	glUseProgram(0);
+
+	s_presentFbShader = NativeRenderer_Shader_Compile(ctr_present_fb_shader, false);
+	s_presentFbSmoothLoc = glGetUniformLocation(s_presentFbShader, "smoothPresent");
+	s_presentFbMaskLoc = glGetUniformLocation(s_presentFbShader, "s_aaMask");
+	s_presentFbFlipYLoc = glGetUniformLocation(s_presentFbShader, "flipY");
+	glUseProgram(s_presentFbShader);
+	glUniform1i(s_presentFbMaskLoc, 2);
 	glUseProgram(0);
 
 	glGenVertexArrays(1, &s_vramQuadVAO);
@@ -2449,6 +2507,44 @@ void NativeRenderer_PresentVRAMRect(int displayX, int displayY, int displayW, in
 	NativeRenderer_SetBlendMode(BM_NONE);
 
 	NativeRenderer_DrawVRAMRegion(displayX, displayY, displayW, displayH);
+	glBindVertexArray(0);
+
+	s_previousShader = (ShaderID)-1;
+	s_lastBoundTexture = (TextureID)-1;
+}
+
+void NativeRenderer_PresentRenderTarget(void)
+{
+	if (s_presentFbShader == 0)
+	{
+		return;
+	}
+
+	NativeRenderer_SetViewPort(s_presentViewport.x, s_presentViewport.y, s_presentViewport.w, s_presentViewport.h);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	NativeRenderer_SetScissorState(0);
+	NativeRenderer_EnableDepth(0);
+	NativeRenderer_SetBlendMode(BM_NONE);
+
+	glUseProgram(s_presentFbShader);
+	glUniform1i(s_presentFbSmoothLoc, ((g_cfg_antialiasing != 0) && (g_aaForceSharp == 0)) ? 1 : 0);
+	glUniform1i(s_presentFbFlipYLoc, 0);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, s_mainRenderTarget.texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	if (s_mainRenderTarget.aaMaskTexture != (TextureID)-1)
+	{
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, s_mainRenderTarget.aaMaskTexture);
+		glActiveTexture(GL_TEXTURE0);
+	}
+
+	glBindVertexArray(s_vramQuadVAO);
+	NativeRenderer_DrawTriangles(0, 2);
 	glBindVertexArray(0);
 
 	s_previousShader = (ShaderID)-1;

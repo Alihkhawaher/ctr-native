@@ -528,7 +528,17 @@ void Platform_EndScene(void)
 	// NOTE(aalhendi): Keep the displayed VRAM region current for screen-copy
 	// effects without forcing a CPU readback.
 	NativeRenderer_StoreFrameBuffer(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
-	NativeRenderer_PresentVRAMRect(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
+	// Display the full-resolution render target (the pack above still feeds the
+	// game's own VRAM reads). VRAM-direct frames (movies/decoded video: nothing
+	// drawn with a background fill env) fall back to the packed VRAM.
+	if (NativeGpu_FrameHadDraws() || !activeDrawEnv.isbg)
+	{
+		NativeRenderer_PresentRenderTarget();
+	}
+	else
+	{
+		NativeRenderer_PresentVRAMRect(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
+	}
 	NativeRenderer_EndGpuFrame();
 	NativeOverlay_Draw();
 	NativeRenderer_SwapWindow();
