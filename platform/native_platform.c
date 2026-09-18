@@ -218,7 +218,9 @@ internal void Platform_UpdateHostAltKeyState(const s32 key, const s8 down)
 #if defined(CTR_INTERNAL)
 #include <time.h>
 
-internal void Platform_TakeScreenshot(void)
+int g_cli_dumpBoot = 0;
+
+internal void Platform_SaveFrameBMP(const char *path)
 {
 	u8 *pixels = (u8 *)malloc(g_windowWidth * g_windowHeight * 4);
 
@@ -226,6 +228,38 @@ internal void Platform_TakeScreenshot(void)
 
 	SDL_Surface *surface = SDL_CreateSurfaceFrom(g_windowWidth, g_windowHeight, SDL_PIXELFORMAT_BGRA8888, pixels, g_windowWidth * 4);
 
+	SDL_SaveBMP(surface, path);
+	SDL_DestroySurface(surface);
+
+	free(pixels);
+}
+
+// --dump-boot: capture frames 0/15/30/.../135 of the first ~5 seconds right
+// before the swap (the back buffer holds the frame we just drew). Used to
+// inspect early boot/logo screens that external tools are too slow to catch.
+internal void Platform_BootCaptureFrame(void)
+{
+	static int s_bootFrame = 0;
+
+	if (g_cli_dumpBoot == 0 || s_bootFrame >= 150)
+	{
+		return;
+	}
+
+	if ((s_bootFrame % 15) == 0)
+	{
+		SDL_CreateDirectory("boot_dump");
+		char name[64];
+		snprintf(name, sizeof(name), "boot_dump/f%03d.bmp", s_bootFrame);
+		Platform_SaveFrameBMP(name);
+		Platform_LogWarn("[CTR Native] boot dump: %s\n", name);
+	}
+
+	s_bootFrame++;
+}
+
+internal void Platform_TakeScreenshot(void)
+{
 	// Timestamped copy for automated A/B verification harnesses (tools/pgxp_ab.py),
 	// plus the classic SCREENSHOT.BMP for manual use.
 	SDL_CreateDirectory("screenshots");
@@ -235,19 +269,10 @@ internal void Platform_TakeScreenshot(void)
 	char name[160];
 	snprintf(name, sizeof(name), "screenshots/ctr_%04d%02d%02d_%02d%02d%02d.bmp", tmInfo->tm_year + 1900, tmInfo->tm_mon + 1, tmInfo->tm_mday, tmInfo->tm_hour, tmInfo->tm_min, tmInfo->tm_sec);
 
-	if (SDL_SaveBMP(surface, name) == 0)
-	{
-		Platform_LogWarn("[CTR Native] screenshot saved: %s\n", name);
-	}
-	else
-	{
-		Platform_LogWarn("[CTR Native] screenshot save FAILED: %s\n", SDL_GetError());
-	}
+	Platform_SaveFrameBMP(name);
+	Platform_LogWarn("[CTR Native] screenshot saved: %s\n", name);
 
-	SDL_SaveBMP(surface, "SCREENSHOT.BMP");
-	SDL_DestroySurface(surface);
-
-	free(pixels);
+	Platform_SaveFrameBMP("SCREENSHOT.BMP");
 }
 #endif
 
@@ -384,7 +409,7 @@ internal void Platform_HandleKey(int key, char down)
 		{
 			g_cfg_pgxp ^= 1;
 			Pgxp_ClearCache();
-			Platform_LogWarn("[CTR Native] PGXP: %s\n", (g_cfg_pgxp != 0) ? "ON (perspective-correct)" : "OFF (PSX-exact)");
+			Platform_LogWarn("[CTR Native] PGXP (experimental): %s\n", (g_cfg_pgxp != 0) ? "ON" : "OFF");
 			NativeOverlay_Show();
 			Platform_SaveSettings();
 		}
@@ -567,6 +592,7 @@ void Platform_EndScene(void)
 		}
 		NativeRenderer_EndGpuFrame();
 		NativeOverlay_Draw();
+		Platform_BootCaptureFrame();
 		NativeRenderer_SwapWindow();
 		s_pinnedVramDisplayFrames--;
 		if (s_pinnedVramDisplayFrames <= 0)
@@ -579,7 +605,14 @@ void Platform_EndScene(void)
 
 	// NOTE(aalhendi): Keep the displayed VRAM region current for screen-copy
 	// effects without forcing a CPU readback.
-	NativeRenderer_StoreFrameBuffer(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
+	// IMPORTANT: only pack when this frame actually rendered draws. Zero-draw
+	// frames (boot/legal screens, FMV LoadImage frames) must keep the game's
+	// own VRAM content — packing a never-seeded (black) render target over it
+	// blacked those screens out.
+	if (NativeGpu_FrameHadDraws())
+	{
+		NativeRenderer_StoreFrameBuffer(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
+	}
 	// Display the full-resolution render target (the pack above still feeds the
 	// game's own VRAM reads). VRAM-direct frames (movies/decoded video: nothing
 	// drawn with a background fill env) fall back to the packed VRAM.
@@ -593,6 +626,7 @@ void Platform_EndScene(void)
 	}
 	NativeRenderer_EndGpuFrame();
 	NativeOverlay_Draw();
+	Platform_BootCaptureFrame();
 	NativeRenderer_SwapWindow();
 	NativePerf_EndScope(NATIVE_PERF_BUCKET_PLATFORM_END_SCENE);
 }

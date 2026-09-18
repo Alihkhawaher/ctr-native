@@ -129,15 +129,15 @@ void NativeConfig_SetDefaults(NativeConfig *config)
 {
 	config->windowWidth = 0;
 	config->windowHeight = 0;
-	config->fullscreen = 0;
-	config->aspectRatio = 0;
+	config->fullscreen = 1;
+	config->aspectRatio = 1; // 4:3
 	config->internalResolutionScale = 1;
 	config->bilinearFiltering = 0;
 	config->showFps = 0;
 	config->antialiasing = 0;
-	config->pgxp = 0;
-	config->pgxpGeometry = 1;
-	config->internalResolutionAuto = 0;
+	config->pgxp = 0;         // experimental: OFF by default (tearing)
+	config->pgxpGeometry = 1; // only active when pgxp is on
+	config->internalResolutionAuto = 1; // Auto (match screen height at 240 lines)
 }
 
 int NativeConfig_LoadFile(NativeConfig *config, const char *path)

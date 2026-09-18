@@ -388,7 +388,7 @@ void NativeOverlay_Draw(void)
 	snprintf(values[6], sizeof(values[6]), "%s", (g_cfg_antialiasing != 0) ? "ON" : "OFF");
 	snprintf(hints[6], sizeof(hints[6]), "Tab");
 
-	snprintf(labels[7], sizeof(labels[7]), "PGXP");
+	snprintf(labels[7], sizeof(labels[7]), "PGXP (experimental)");
 	snprintf(values[7], sizeof(values[7]), "%s", (g_cfg_pgxp != 0) ? "ON" : "OFF");
 	snprintf(hints[7], sizeof(hints[7]), "P");
 

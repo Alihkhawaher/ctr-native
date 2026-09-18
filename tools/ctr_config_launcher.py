@@ -51,11 +51,11 @@ def default_config():
     """Return the default configuration dict."""
     return {
         "graphics": {
-            "window_width": 1280,
-            "window_height": 720,
-            "fullscreen": False,
-            "aspect_ratio": "Auto",
-            "internal_resolution_scale": 1,
+            "window_width": 1920,
+            "window_height": 1080,
+            "fullscreen": True,
+            "aspect_ratio": "4:3",
+            "internal_resolution_scale": 0,
             "bilinear_filtering": False,
             "antialiasing": False,
             "pgxp": False,
@@ -149,12 +149,12 @@ class ConfigApp:
         )
 
         self.pgxp_var = tk.BooleanVar()
-        ttk.Checkbutton(gfx, text="PGXP (perspective-correct 3D textures, P)", variable=self.pgxp_var).grid(
+        ttk.Checkbutton(gfx, text="PGXP — EXPERIMENTAL, may cause tearing (perspective-correct textures, P)", variable=self.pgxp_var).grid(
             row=6, column=0, columnspan=2, sticky="w", **pad
         )
 
         self.pgxp_geo_var = tk.BooleanVar()
-        ttk.Checkbutton(gfx, text="PGXP geometry (subpixel positions, G)", variable=self.pgxp_geo_var).grid(
+        ttk.Checkbutton(gfx, text="PGXP geometry — EXPERIMENTAL (subpixel positions, G)", variable=self.pgxp_geo_var).grid(
             row=7, column=0, columnspan=2, sticky="w", **pad
         )
 

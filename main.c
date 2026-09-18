@@ -138,6 +138,11 @@ static int NativeArg_IsVersion(const char *arg)
 }
 
 // NOTE: "-v" is taken by --version, so verbose is long-form only.
+static int NativeArg_IsDumpBoot(const char *arg)
+{
+	return (arg != NULL) && (strcmp(arg, "--dump-boot") == 0);
+}
+
 static int NativeArg_IsHelp(const char *arg)
 {
 	return (arg != NULL) && ((strcmp(arg, "--help") == 0) || (strcmp(arg, "-h") == 0));
@@ -236,6 +241,8 @@ int main(int argc, char *argv[])
 	SetConsoleCtrlHandler(NativeConsole_ControlHandler, TRUE);
 #endif
 
+	extern int g_cli_dumpBoot;
+
 	for (int argIndex = 1; argIndex < argc; argIndex++)
 	{
 		if (NativeArg_IsVersion(argv[argIndex]))
@@ -249,6 +256,7 @@ int main(int argc, char *argv[])
 			printf("Usage: ctr_native.exe [options]\n");
 			printf("  --verbose     enable [CTR Debug] logging (default)\n");
 			printf("  -q, --quiet   silence [CTR Debug] logging\n");
+			printf("  --dump-boot   capture the first 150 frames to boot_dump/ (debug)\n");
 			printf("  -h, --help    show this help\n");
 			return 0;
 		}
@@ -259,6 +267,10 @@ int main(int argc, char *argv[])
 		else if (NativeArg_IsVerbose(argv[argIndex]))
 		{
 			Platform_LogSetDebugEnabled(1);
+		}
+		else if (NativeArg_IsDumpBoot(argv[argIndex]))
+		{
+			g_cli_dumpBoot = 1;
 		}
 	}
 

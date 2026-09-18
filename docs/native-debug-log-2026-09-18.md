@@ -300,3 +300,171 @@ Debug workflow that worked:
 - Frozen title/FMV geometry A/B: ≈0.0% — correct (those scenes are ~0% matched).
 - Hit-rate instrumentation: `[CTR Debug] PGXP stats` line unchanged and
   permanent; the miss probes now show mostly 1–4 px deltas (near class).
+- **PGXP status: EXPERIMENTAL.** User-verified: it still causes tearing in
+  some scenes. Therefore **off by default** (`pgxp: false`). Everything else
+  in this document is considered working.
+
+## 7. Disc images & XA audio (full technical reference)
+
+### Image/sector formats
+- PSX discs are Mode 2 raw sectors: **2352 bytes/sector** = sync (12) + header
+  (4) + **sub-header (8, at +16)** + user data (2048 for Form 1 / 2324 Form 2)
+  + EDC/ECC. ISO user data starts at **+24**. A 2048-byte/sector ISO dump is a
+  different container and cannot feed the XA stream directly.
+- The XA sub-header layout: `{file, channel, submode, coding}` twice (the
+  second copy must match). **Audio sectors have `submode & 0x04`**; real-time
+  streamed audio uses `submode = 0x64` with `file = 1`. Voices are selected by
+  (file, channel) pairs from the game's XNF manifest.
+- **Three classes of dumps, and only one works:**
+  1. **Clean raw dump (required):** real XA sectors with per-clip sub-headers.
+     NTSC-U = SCUS-94426. This is what the port needs for voices.
+  2. **Converted/rebuilt image (current `assets/ctr-u.bin`):** every one of the
+     257,675 sectors carries the same data-type sub-header; **zero XA audio
+     sectors**; XA payloads zeroed. The code path is fine — this image simply
+     cannot play voices, ever.
+  3. **Wrong region (PAL `Crash Team Racing2.bin`, SCES-021.05):** XNF track
+     tables differ (PAL: 14 files / 358 tracks vs NTSC-U: 29 files / 414).
+     Substituting PAL audio plays the wrong lines (or silence). Not a fix.
+- **Check any image in seconds:** `docs/scripts/whole_scan.py` (sub-header
+  histogram: audio vs data sectors), `docs/scripts/serial_check.py` (boot
+  serial / region), `docs/scripts/xa_player.py` (decode one region to WAV —
+  on the PAL image, channel 0 produces a real voice clip, proving the decoder).
+
+### XNF manifest (voice track table)
+- `XNFf` magic; counts at 0x0C/0x10; per-XA size array at 0x44; track entries
+  `{channelFilter, fileNumber, numSectors}` (4 bytes each) at
+  `0x44 + numXas*4`. The port's `PrepareXAStream` walks this table per cue.
+
+### Voices verdict
+- Engine audio (music/effects) works. **Cutscene voices do not**, because the
+  shipped image has no XA audio sectors. Root cause is the image, not the
+  code. Needs a clean raw NTSC-U SCUS-94426 dump; until then this item stays
+  blocked. The PAL dump cannot substitute (different track tables).
+
+## 8. Graphics stack (full technical reference)
+
+### Frame flow
+1. Game logic draws through the recompiled libgpu → GTE transforms
+   (`native_gte_core.c`) → primitives are parsed at draw time
+   (`ParsePrimitivesLinkedList`) → split batches (`DrawAllSplits`).
+2. Draws land in a **supersampled render target** (window height ÷ 240, 1–8×;
+   Auto = clamp(round(h/240), 1, 8)).
+3. `StoreFrameBuffer` **packs** the target down into PSX VRAM (box filter over
+   the scale×scale block, texel-center taps; 2D-majority blocks stay nearest)
+   — the game itself reads VRAM for its own effects, so this must stay exact.
+4. Presentation: `NativeRenderer_PresentRenderTarget` shows the **full-res
+   render target directly** (emulator-class "enhanced resolution"), with a
+   fallback to the packed VRAM for movie frames (`NativeGpu_FrameHadDraws()`
+   + `isbg` = zero draws + background env ⇒ VRAM-direct FMV frame).
+
+### Filters & options (keys)
+- **PgUp/PgDn** internal resolution 1→2→3→4→8→Auto; **F3** bilinear;
+  **Tab** anti-aliasing; **Home** aspect (Auto/4:3/16:9); **End** window size;
+  **F11/Alt+Enter** fullscreen; **Insert** FPS counter.
+- **Scaled dithering:** the PSX 4×4 ordered dither runs at *render-target*
+  pixel period when internal res > 1 (`ditherScale` uniform) so the SSAA pack
+  averages it into smooth gradients; at 1× it stays bit-exact PSX dither.
+- **AA (Tab):** edge-directed, color-space (unpacks packed VRAM bytes before
+  blending), gated by a luminance-contrast mask; **3D-only** via a second R8
+  attachment (COLOR_ATTACHMENT1) written by every draw (`aaMask`, `drawIs2D`
+  per split: 1.0 for SPRT/TILE, 0.0 for POLY). Flat areas/images stay sharp.
+  Pitfalls: filtering raw packed bytes garbles colors; the mask sampler must
+  NOT use texture unit 1 (the game's palette LUT lives there — unit 2).
+- **Menus/cutscenes auto-crisp:** `g_aaForceSharp` set each frame from
+  `GAME_TRACKER->gameMode1 & GAME_MODE_MENU_OR_CUTSCENE_MASK` — AA off and
+  pack forced nearest for menu/cutscene frames (they are "images"); races keep
+  SSAA/AA. Toggling AA on the legal screen = 0.0% pixel diff (2D excluded).
+- **Overlay panel:** top-left, all options with live values + full key
+  reference; shown at boot and on any option change.
+- **F12 screenshot:** `screenshots/ctr_YYYYMMDD_HHMMSS.bmp` + classic
+  `SCREENSHOT.BMP`; path logged. glReadPixels of the GL framebuffer.
+- **H freeze-frame (debug):** pauses the sim in `DrawOTag`; the pause loop
+  pumps host events and re-presents every 16 ms so O/P/G/F1/F2 update live —
+  exact-frame A/B testing (frozen pairs are pixel-static, 0.02%).
+
+### PGXP (EXPERIMENTAL — off by default)
+- Architecture: GTE side channel publishes unclamped float screen x/y + view
+  depth (`mac3f/4096`) per transformed vertex; a 64k-entry hash cache keyed by
+  exact (SX2, SY2) stores them; at draw time `Pgxp_FillVertex` matches back
+  (exact → near-match: nearest live vertex within 4px, ties refused) and the
+  data rides a second VBO (`a_pgxp`, vec4: px, py, w, status). Triangle/quad
+  correction is **all-or-nothing**; misses fall back to PSX-exact affine.
+- Shader: `gl_Position = Projection * vec4(grPos * w, 0, w)` (pre-multiplied
+  w); texture correction (perspective UVs) always on when PGXP is on;
+  geometry correction (`G`) additionally sets
+  `grPos = clamp(a_pgxp.xy, a_position.xy ± 0.5)` — the 0.5px clamp keeps
+  seams from opening (psxrecomp PR#148 / DuckStation "geometry tolerance").
+- **Status view (O):** blue=exact, orange=near, red=none, magenta=ambiguous,
+  cyan=stale, yellow=discarded, green=2D. This is the ground truth for which
+  content the correction affects: title screens and FMVs are ~0% matched
+  (olive/yellow), races/attract worlds are largely blue.
+- **Known problem:** tearing in some scenes (user-verified). Experimental —
+  off by default; enable per-session with `P` (and `G` for geometry) to
+  experiment.
+
+## 9. Status ledger — works / experimental / blocked / tried-and-reverted
+
+### Working (verified)
+- Crash fix (self-sentinel PVS lists) — verified by play.
+- Boot/legal screen (white legal text) — **fixed**: the per-frame VRAM pack is
+  now gated on `NativeGpu_FrameHadDraws()`; zero-draw frames (boot/legal,
+  FMV `LoadImage` frames) keep the game's own VRAM. Before the gate, the pack
+  of a never-seeded (black) render target overwrote the displayed region and
+  blacked those screens out. Diagnosed with `--dump-boot` (see tooling).
+- Full graphics stack: SSAA 1–8× + Auto, true-resolution presentation, FMV
+  fallback, scaled dithering, edge-directed 3D-only AA, menu/cutscene
+  auto-crisp, bilinear, aspect, fullscreen, window size, FPS counter.
+- Overlay panel, config persistence (game + launcher), CTR icon (exe + window
+  + launcher), launcher UI (incl. Auto resolution), CLI verbosity flags.
+- Debug tooling: F12 timestamped screenshots, H freeze-frame, O/P/G toggles,
+  `[CTR Debug]` instrumentation (permanent), A/B harness `tools/pgxp_ab.py`,
+  `--dump-boot` (capture frames 0–135 to `boot_dump/`, glReadPixels right
+  before the swap — catches the first second external tools cannot),
+  crash filter with register dump + map-based symbol resolution.
+- 30 fps locked in normal play.
+
+### Experimental (not working well)
+- **PGXP** (P / `pgxp`): perspective-correct textures work in most scenes
+  (~96% of 3D vertices match) but **tearing still occurs in some scenes** —
+  user-verified. **Default OFF.**
+- PGXP geometry (G / `pgxp_geometry`): subpixel positions, 0.5px-clamped.
+  Subtle by design; acts only on matched (blue) content. Part of the same
+  experimental feature — default is inert because the PGXP master is off.
+
+### Blocked
+- Cutscene voices: need a clean raw NTSC-U SCUS-94426 dump (current image has
+  zero XA sectors; PAL cannot substitute). See §7.
+- FMV fallback visual verification: same blocker (no movie frame reachable
+  with a real cutscene on the stripped image — logic is in place and the
+  attract's VRAM-direct frames render correctly).
+
+### Tried and reverted (so nobody repeats them)
+- Per-frame PGXP cache clear → silently zero hits (draws parse after the GTE
+  work) → generation-stamped cache instead.
+- Raw `C2_OFX/OFY` in the float path → ±10M-pixel offsets → `(OFX >> 16)`.
+- ±1px tolerance matching → texture smearing (dense 320×240 neighborhood,
+  whole-frame pool) → exact match + near-match (4px, nearest, tie-refused).
+- Mixed corrected/affine vertices in one triangle → texture tearing →
+  all-or-nothing per triangle/quad.
+- `contested` flag as raw hash-collision detector → ~5% of all lookups
+  refused → full-screen blue/yellow flicker → true ambiguity only (same
+  pixel + same frame + different depth).
+- Unclamped geometry correction → hairline seams between corrected and affine
+  neighbors → 0.5px clamp (validated in psxrecomp #148).
+- Message/position-changing PGXP (the "real" PGXP geometry) in a decompiled-C
+  port without guest memory to shadow → abandoned in favor of the matched
+  float side-channel (position matching has a ~93% ambiguity ceiling; this
+  port measures better but the class is inherent — see psxrecomp notes).
+- F5/F8 savestate spam during A/B → per-load jitter (baseline ≥8-diff ~10%
+  per load) → freeze-frame instead.
+- A/B comparisons on title screens / FMVs → ~0.0% by definition (0% matched
+  content) → always A/B on blue-heavy scenes.
+- New shader uniform with only 3 of 4 wiring points → vertex shader compile
+  failure → entire screen white → always add: declaration, struct field,
+  glGetUniformLocation, glUniform set.
+
+### Defaults (final)
+- `fullscreen: true`, `aspect_ratio: "4:3"`, `internal_resolution_scale: 0`
+  (Auto), `pgxp: false` (experimental), `pgxp_geometry: true` (inert while
+  PGXP is off), `show_fps: true`, bilinear/AA off. Launcher and engine share
+  these defaults.
