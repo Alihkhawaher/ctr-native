@@ -11,6 +11,7 @@
 #include <platform/native_renderer.h>
 #include <platform/native_gpu.h>
 #include <platform/native_perf.h>
+#include <SDL3/SDL.h>
 #include <gpu.h>
 #include <platform.h>
 
@@ -290,6 +291,13 @@ void DrawOTag(void *p)
 
 		ParsePrimitivesLinkedList((uint32_t *)p, 0);
 		DrawAllSplits();
+		// NOTE: keep host events alive while frozen (debug freeze, H key) so the
+		// freeze can be toggled off and other debug keys still respond.
+		Platform_PollHostEvents();
+		// Re-present every frozen iteration so debug toggles (wireframe, texless,
+		// PGXP, status view, geometry) update live while the sim is frozen.
+		Platform_EndScene();
+		SDL_Delay(16);
 	} while (g_dbg_emulatorPaused);
 	NativePerf_EndScope(NATIVE_PERF_BUCKET_DRAW_OTAG);
 }

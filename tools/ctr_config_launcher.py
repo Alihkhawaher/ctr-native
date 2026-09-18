@@ -59,6 +59,7 @@ def default_config():
             "bilinear_filtering": False,
             "antialiasing": False,
             "pgxp": False,
+            "pgxp_geometry": True,
         },
         "launcher": {
             "game_executable": DEFAULT_GAME_EXE,
@@ -148,8 +149,13 @@ class ConfigApp:
         )
 
         self.pgxp_var = tk.BooleanVar()
-        ttk.Checkbutton(gfx, text="PGXP (perspective-correct 3D textures)", variable=self.pgxp_var).grid(
+        ttk.Checkbutton(gfx, text="PGXP (perspective-correct 3D textures, P)", variable=self.pgxp_var).grid(
             row=6, column=0, columnspan=2, sticky="w", **pad
+        )
+
+        self.pgxp_geo_var = tk.BooleanVar()
+        ttk.Checkbutton(gfx, text="PGXP geometry (subpixel positions, G)", variable=self.pgxp_geo_var).grid(
+            row=7, column=0, columnspan=2, sticky="w", **pad
         )
 
         # Launcher group
@@ -208,6 +214,7 @@ class ConfigApp:
         self.bilinear_var.set(bool(g.get("bilinear_filtering", False)))
         self.aa_var.set(bool(g.get("antialiasing", False)))
         self.pgxp_var.set(bool(g.get("pgxp", False)))
+        self.pgxp_geo_var.set(bool(g.get("pgxp_geometry", True)))
 
         game = self.config.get("launcher", {}).get("game_executable", DEFAULT_GAME_EXE)
         if not os.path.isabs(game):
@@ -230,6 +237,7 @@ class ConfigApp:
             "bilinear_filtering": self.bilinear_var.get(),
             "antialiasing": self.aa_var.get(),
             "pgxp": self.pgxp_var.get(),
+            "pgxp_geometry": self.pgxp_geo_var.get(),
         })
         self.config["launcher"]["game_executable"] = self.game_path_var.get()
 

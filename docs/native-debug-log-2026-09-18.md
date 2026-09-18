@@ -250,3 +250,53 @@ Debug workflow that worked:
       `[CTR Debug]` lines stay in the code.
 - [x] Crash fix + tooling + graphics options + true-res present committed and
       pushed to the checkpoint repo (`f1f8edd1a`, `236830796`).
+
+## 6. Subpixel geometry correction + debug tooling (2026-09-18, later session)
+
+### Geometry correction (`G` key)
+- New `pgxp_geometry` config key + `G` toggle + `PGXP geometry` overlay row +
+  launcher checkbox. Default ON (matches emulator defaults; the reference port
+  ships geometry correction, off-switch documented for troubled games).
+- Shader (`GTE_PERSPECTIVE_CORRECTION`): when `pgxpGeoMode != 0` and the vertex
+  matched (`a_pgxp.z > 0`), `grPos = clamp(a_pgxp.xy, a_position.xy - 0.5,
+  a_position.xy + 0.5)` — subpixel precision limited to ±0.5 PSX px so adjacent
+  corrected/uncorrected edges cannot open seams (validated approach: psxrecomp
+  PR #148 "hairline seams eliminated by the 0.5px clamp"; DuckStation exposes
+  the same as "PGXP Geometry Tolerance").
+- **Uniform wiring trap (cost a white screen):** a new shader uniform needs
+  FOUR touch points — (1) the `uniform int pgxpGeoMode;` declaration in the
+  shader source, (2) the `GTEShader` struct field, (3) `glGetUniformLocation`,
+  (4) the `glUniform` set. Missing (1) = vertex shader compile failure →
+  the renderer's error path leaves the entire screen WHITE (looked like a
+  catastrophic regression; `Failed to compile Vertex Shader` in the log).
+- Verified scope: the geometry path acts only on MATCHED vertices. The `O`
+  status view is the ground truth for which content qualifies (blue). Title
+  screens and FMVs are ~0% matched (olive/yellow) → a geometry A/B there
+  measures ≈0.0% and means nothing. Always A/B on blue-heavy content
+  (races, attract worlds).
+- Push-side diagnostic (temporary, since removed): real subpixel deviations
+  run up to ~1.3 px (`dx/dy` in the push log); the ±0.5 clamp passes the
+  under-half part through.
+
+### Debug tooling (new this session)
+- **F12 screenshots** now also write timestamped
+  `screenshots/ctr_YYYYMMDD_HHMMSS.bmp` (plus the classic `SCREENSHOT.BMP`)
+  and log the path (for automation). Captures are glReadPixels of the GL
+  framebuffer — pure game pixels, no desktop.
+- **`H` = debug freeze** (`g_dbg_emulatorPaused`). The pause loop in
+  `native_libgpu.c` (DrawOTag) now pumps host events + re-presents every
+  16 ms, so debug toggles (O/P/G/F1/F2) update LIVE while frozen. Verified:
+  frozen pairs are pixel-static (0.02% diff), frozen O-toggle changes 75%.
+- **`tools/pgxp_ab.py`** — A/B harness: drives the game via cua-driver keys,
+  collects the game's own F12 screenshots, converts to PNG, writes diff
+  reports with worst-tile crops + heat maps into `<game>/ab/`. Subcommands:
+  `capture`, `ab <A> <B> --toggle <key>`, `diff`, `live`.
+- **Cross-build savestates crash** (0xC0000005): `debug/states/quick.ctrstates`
+  validates its own checksum, not the build ID. Regenerate states (F5) after
+  every rebuild; do not load states from older builds.
+
+### Measured (final)
+- Live `P` toggle: 71% of pixels change (PGXP master clearly active).
+- Frozen title/FMV geometry A/B: ≈0.0% — correct (those scenes are ~0% matched).
+- Hit-rate instrumentation: `[CTR Debug] PGXP stats` line unchanged and
+  permanent; the miss probes now show mostly 1–4 px deltas (near class).

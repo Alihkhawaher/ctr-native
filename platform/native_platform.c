@@ -27,6 +27,7 @@ extern int g_cfg_aspectRatio;
 extern int g_cfg_antialiasing;
 extern int g_cfg_bilinearFiltering;
 extern int g_cfg_pgxp;
+extern int g_cfg_pgxpGeometry;
 extern int g_cfg_internalResolutionScale;
 extern int g_cfg_internalResolutionAuto;
 extern int g_cfg_showFps;
@@ -152,6 +153,7 @@ internal void Platform_SaveSettings(void)
 	config.bilinearFiltering = g_cfg_bilinearFiltering;
 	config.antialiasing = g_cfg_antialiasing;
 	config.pgxp = g_cfg_pgxp;
+	config.pgxpGeometry = g_cfg_pgxpGeometry;
 	config.showFps = g_cfg_showFps;
 
 	NativeConfig_SaveDefaultLocation(&config);
@@ -214,6 +216,8 @@ internal void Platform_UpdateHostAltKeyState(const s32 key, const s8 down)
 }
 
 #if defined(CTR_INTERNAL)
+#include <time.h>
+
 internal void Platform_TakeScreenshot(void)
 {
 	u8 *pixels = (u8 *)malloc(g_windowWidth * g_windowHeight * 4);
@@ -221,6 +225,24 @@ internal void Platform_TakeScreenshot(void)
 	glReadPixels(0, 0, g_windowWidth, g_windowHeight, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
 
 	SDL_Surface *surface = SDL_CreateSurfaceFrom(g_windowWidth, g_windowHeight, SDL_PIXELFORMAT_BGRA8888, pixels, g_windowWidth * 4);
+
+	// Timestamped copy for automated A/B verification harnesses (tools/pgxp_ab.py),
+	// plus the classic SCREENSHOT.BMP for manual use.
+	SDL_CreateDirectory("screenshots");
+
+	time_t t = time(NULL);
+	struct tm *tmInfo = localtime(&t);
+	char name[160];
+	snprintf(name, sizeof(name), "screenshots/ctr_%04d%02d%02d_%02d%02d%02d.bmp", tmInfo->tm_year + 1900, tmInfo->tm_mon + 1, tmInfo->tm_mday, tmInfo->tm_hour, tmInfo->tm_min, tmInfo->tm_sec);
+
+	if (SDL_SaveBMP(surface, name) == 0)
+	{
+		Platform_LogWarn("[CTR Native] screenshot saved: %s\n", name);
+	}
+	else
+	{
+		Platform_LogWarn("[CTR Native] screenshot save FAILED: %s\n", SDL_GetError());
+	}
 
 	SDL_SaveBMP(surface, "SCREENSHOT.BMP");
 	SDL_DestroySurface(surface);
@@ -369,8 +391,21 @@ internal void Platform_HandleKey(int key, char down)
 		else if (key == SDL_SCANCODE_O)
 		{
 			g_dbg_pgxpStatusView ^= 1;
-			Platform_LogWarn("[CTR Native] PGXP status view: %s\n", (g_dbg_pgxpStatusView != 0) ? "ON (blue=corrected, red=not, magenta=ambiguous, yellow=discarded, cyan=stale, green=2D)" : "OFF");
+			Platform_LogWarn("[CTR Native] PGXP status view: %s\n", (g_dbg_pgxpStatusView != 0) ? "ON (blue=corrected, orange=near, red=not, magenta=ambiguous, yellow=discarded, cyan=stale, green=2D)" : "OFF");
 			NativeOverlay_Show();
+		}
+		else if (key == SDL_SCANCODE_H)
+		{
+			g_dbg_emulatorPaused ^= 1;
+			Platform_LogWarn("[CTR Native] debug freeze: %s\n", (g_dbg_emulatorPaused != 0) ? "FROZEN" : "running");
+			NativeOverlay_Show();
+		}
+		else if (key == SDL_SCANCODE_G)
+		{
+			g_cfg_pgxpGeometry ^= 1;
+			Platform_LogWarn("[CTR Native] PGXP geometry (subpixel, 0.5px clamp): %s\n", (g_cfg_pgxpGeometry != 0) ? "ON" : "OFF");
+			NativeOverlay_Show();
+			Platform_SaveSettings();
 		}
 		else if (key == SDL_SCANCODE_INSERT)
 		{

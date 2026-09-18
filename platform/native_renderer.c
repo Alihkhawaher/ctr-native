@@ -135,6 +135,7 @@ int g_dbg_pgxpStatusView = 0;
 
 int g_cfg_bilinearFiltering = 0;
 int g_cfg_pgxp = 0;
+int g_cfg_pgxpGeometry = 1;
 int g_cfg_antialiasing = 0;
 
 // NOTE: Supersample-antialiasing (SSAA) via internal resolution scaling.
@@ -897,6 +898,7 @@ typedef struct
 	GLint drawIs2DLoc;
 	GLint pgxpModeLoc;
 	GLint pgxpDebugViewLoc;
+	GLint pgxpGeoModeLoc;
 	GLint texelSizeLoc;
 	GLint texLoc;
 	GLint lutLoc;
@@ -927,6 +929,7 @@ GLint u_projectionLoc;
 GLint u_bilinearFilterLoc;
 GLint u_pgxpModeLoc;
 GLint u_pgxpDebugViewLoc;
+GLint u_pgxpGeoModeLoc;
 GLint u_ditherScaleLoc;
 GLint u_drawIs2DLoc;
 GLint u_texelSizeLoc;
@@ -1095,7 +1098,10 @@ const char *gte_shader_32_rgba = "	uniform sampler2D s_texture;\n"
 #define GTE_PERSPECTIVE_CORRECTION                                                                                      \
 	"	vec2 grPos = a_position.xy;\n"                                                                                   \
 	"	float grW = 1.0;\n"                                                                                              \
-	"	if ((pgxpMode != 0) && (a_pgxp.z > 0.0)) { grW = a_pgxp.z; }\n"                                                  \
+	"	if ((pgxpMode != 0) && (a_pgxp.z > 0.0)) {\n"                                                                    \
+	"		grW = a_pgxp.z;\n"                                                                                             \
+	"		if (pgxpGeoMode != 0) { grPos = clamp(a_pgxp.xy, a_position.xy - vec2(0.5), a_position.xy + vec2(0.5)); }\n"   \
+	"	}\n"                                                                                                             \
 	"	v_pgxpStatus = (pgxpMode != 0) ? a_pgxp.w : 0.0;\n"                                                              \
 	"	vec4 grOrtho = Projection * vec4(grPos, 0.0, 1.0);\n"                                                            \
 	"	gl_Position = Projection * vec4(grPos * grW, 0.0, grW);\n"
@@ -1108,6 +1114,7 @@ const char *gte_shader_32_rgba = "	uniform sampler2D s_texture;\n"
 	"	attribute vec4 a_pgxp; // PGXP: float screen x/y + view depth + match status\n"                                \
 	"	uniform mat4 Projection;\n"                                                                                  \
 	"	uniform int pgxpMode;\n"                                                                                     \
+	"	uniform int pgxpGeoMode;\n"                                                                                  \
 	"	const vec2 c_UVFudge = vec2(0.00025, 0.00025);\n"                                                            \
 	"	void main() {\n"                                                                                             \
 	"		v_ditherCoord = a_position.xy;\n"                                                                           \
@@ -1322,6 +1329,7 @@ internal void NativeRenderer_CompilePSXShader(GTEShader *sh, const char *source)
 	sh->psxTextureOutputStpLoc = glGetUniformLocation(sh->shader, "psxTextureOutputStp");
 	sh->pgxpModeLoc = glGetUniformLocation(sh->shader, "pgxpMode");
 	sh->pgxpDebugViewLoc = glGetUniformLocation(sh->shader, "pgxpDebugView");
+	sh->pgxpGeoModeLoc = glGetUniformLocation(sh->shader, "pgxpGeoMode");
 }
 
 internal void NativeRenderer_InitialisePSXShaders(void)
@@ -1727,6 +1735,7 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 		u_drawIs2DLoc = s_gteShader4.drawIs2DLoc;
 		u_pgxpModeLoc = s_gteShader4.pgxpModeLoc;
 		u_pgxpDebugViewLoc = s_gteShader4.pgxpDebugViewLoc;
+		u_pgxpGeoModeLoc = s_gteShader4.pgxpGeoModeLoc;
 		u_projectionLoc = s_gteShader4.projectionLoc;
 		u_texelSizeLoc = -1;
 		u_psxSemiTransPassLoc = s_gteShader4.psxSemiTransPassLoc;
@@ -1740,6 +1749,7 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 		u_drawIs2DLoc = s_gteShader8.drawIs2DLoc;
 		u_pgxpModeLoc = s_gteShader8.pgxpModeLoc;
 		u_pgxpDebugViewLoc = s_gteShader8.pgxpDebugViewLoc;
+		u_pgxpGeoModeLoc = s_gteShader8.pgxpGeoModeLoc;
 		u_projectionLoc = s_gteShader8.projectionLoc;
 		u_texelSizeLoc = -1;
 		u_psxSemiTransPassLoc = s_gteShader8.psxSemiTransPassLoc;
@@ -1753,6 +1763,7 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 		u_drawIs2DLoc = s_gteShader16.drawIs2DLoc;
 		u_pgxpModeLoc = s_gteShader16.pgxpModeLoc;
 		u_pgxpDebugViewLoc = s_gteShader16.pgxpDebugViewLoc;
+		u_pgxpGeoModeLoc = s_gteShader16.pgxpGeoModeLoc;
 		u_projectionLoc = s_gteShader16.projectionLoc;
 		u_texelSizeLoc = -1;
 		u_psxSemiTransPassLoc = s_gteShader16.psxSemiTransPassLoc;
@@ -1766,6 +1777,7 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 		u_drawIs2DLoc = s_gteShader32Rgba.drawIs2DLoc;
 		u_pgxpModeLoc = s_gteShader32Rgba.pgxpModeLoc;
 		u_pgxpDebugViewLoc = s_gteShader32Rgba.pgxpDebugViewLoc;
+		u_pgxpGeoModeLoc = s_gteShader32Rgba.pgxpGeoModeLoc;
 		u_projectionLoc = s_gteShader32Rgba.projectionLoc;
 		u_texelSizeLoc = s_gteShader32Rgba.texelSizeLoc;
 		u_psxSemiTransPassLoc = s_gteShader32Rgba.psxSemiTransPassLoc;
@@ -1796,6 +1808,11 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat)
 	if (u_pgxpDebugViewLoc >= 0)
 	{
 		glUniform1i(u_pgxpDebugViewLoc, (g_dbg_pgxpStatusView != 0) ? 1 : 0);
+	}
+
+	if (u_pgxpGeoModeLoc >= 0)
+	{
+		glUniform1i(u_pgxpGeoModeLoc, ((g_cfg_pgxp != 0) && (g_cfg_pgxpGeometry != 0)) ? 1 : 0);
 	}
 
 	// Scale the PSX dither pattern with the internal resolution ("scaled

@@ -176,7 +176,7 @@ typedef struct
 // candidate; ties are refused (ambiguty falls back to affine instead of
 // guessing). Distinct from the old +-1 "first hit wins" tolerance, which
 // smeared because unrelated neighbours could win.
-#define PGXP_NEAR_RADIUS (2)
+#define PGXP_NEAR_RADIUS (4)
 
 internal PgxpCachedVertex s_pgxpCache[PGXP_CACHE_SIZE];
 internal float s_pgxpVertexData[MAX_VERTEX_BUFFER_SIZE * 4]; // px, py, w, status per vertex, parallel to the vertex buffer
