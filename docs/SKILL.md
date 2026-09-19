@@ -170,7 +170,11 @@ panel (top-left) lists everything with live values.
 ## PGXP — EXPERIMENTAL, off by default
 Perspective-correct textures + subpixel geometry (window [-1.0, +2.5]px after the
 2026-09-19 review fixes; was ±0.5). User-verified tearing in some scenes; labeled
-experimental everywhere; `pgxp: false` is the default. Enable per-session with P
+experimental everywhere; `pgxp: false` is the default. **Tearing rule (debug log §19):** P alone = perspective-correct
+*textures* only (vertices stay on the integer grid - nothing moves,
+cannot tear). G adds subpixel *vertex* positions, which seam wherever a
+neighbouring triangle is not bound and the internal resolution magnifies it. Check the
+geometry toggle FIRST on any tearing report. Enable per-session with P
 (+G). Status view (O) legend: blue=exact, orange=near, red=none,
 magenta=ambiguous, yellow=discarded, cyan=stale, green=2D — with PGXP on, **HUD
 elements must be green** (blue/orange = the stale-slot 2D regression).
@@ -213,8 +217,10 @@ Review fixes landed (verified against code, results measured — see debug log �
 
 ## Defaults (final)
 `fullscreen: true`, `aspect_ratio: "4:3"`, `internal_resolution_scale: 0`
-(Auto), `pgxp: false`, `pgxp_geometry: true` (inert while PGXP off),
-`show_fps: true`; bilinear/AA off. Engine + launcher defaults aligned.
+(Auto), `pgxp: false`, `pgxp_geometry: false` (inert while PGXP off; see §19 -
+subpixel geometry is opt-in because partial bindings seam at high internal
+res; texture-only PGXP cannot tear), `show_fps: true`; bilinear/AA off.
+Engine + launcher defaults aligned.
 
 ## User preferences
 - NEVER remove debug/verbose logging — permanent. Add CLI flags instead.

@@ -890,4 +890,64 @@ Verified end-to-end with a background F7 into a live sandbox instance:
 Use this to capture glitches **at the location of the issue**: press F7 the
 moment something looks wrong; the dump then contains the textures/CLUTs and
 framebuffer that produced it. Report the timestamp of the dump along with a
-description of the artifact.
+description of the artifact.---
+
+## 19. PGXP toggles resolved — texture-only vs geometry correction (tearing root cause)
+
+After the memory-cache / era-freshness work, "tearing" reports continued on the
+menu. The user's own A/B isolated it cleanly: **with both PGXP toggles on there
+is tearing; either one alone is clean.** This section records what each toggle
+actually does, why that combination tears, and the resulting default change.
+
+### What the two toggles do (shader: `GTE_PERSPECTIVE_CORRECTION`, native_renderer.c)
+
+- **PGXP (experimental, `P`)** supplies the correct per-vertex `w` (`a_pgxp.z`).
+  Interpolation of the texture coordinates becomes perspective-correct.
+  - **with geometry OFF:** `grPos` stays `= a_position` — the game's original
+    integer vertex. **Only texture interpolation changes; nothing moves on
+    screen. Tearing is impossible by construction.**
+  - **with geometry ON:** `grPos = clamp(a_pgxp.xy, a_position.xy - vec2(1.0),
+    + vec2(2.5))` — vertices take their subpixel positions. A corrected vertex
+    sits up to ~1px off the integer grid; where a neighbouring triangle is not
+    bound (or is bound to different precision), the shared edge splits — the
+    seam. At high internal resolution (Auto = 5x on the user's setup) 1px is
+    magnified to ~5px, which is why the seams are loud there.
+
+So: **texture-only PGXP is tear-proof; the subpixel geometry correction is the
+half that can tear, exclusively because bindings are per-triangle and
+neighbours can disagree.**
+
+### Freeze-frame evidence (user's discovery)
+
+Freezing (`H`) heals every tear — pieces visibly "pull together"
+(ينجذب لبعض). Mechanism: frozen, no new pushes evict anything and no lookups
+roll, so every binding resolves; the corrected positions become consistent and
+the seams close. Proof the tears are **bind availability/timing**, not bad data.
+
+### Live-path fixes that came out of this (already committed)
+
+- Bind freshness judged in **frame eras** (epochs), not push distance — this
+  port transforms whole frames before drawing, so distances exceeded any push
+  window and refused valid bindings: measured **1.9M stale refusals -> 0**.
+- **Coordinate-only fallback** (tight, same-frame) for batched stores whose SZ
+  registers rotated away (`tzX` counter in the stats line).
+- Chain freshness 4 -> 32 epochs (assembled prims draw frames after their
+  transform stores).
+Result: live rendering now behaves like the frozen case for static content;
+the remaining holdout is fast-moving animation content (overlapping pieces =
+contested by nature, refused by design — renders coherent either way).
+
+### Default change
+
+`pgxp_geometry` now defaults **OFF** (engine + launcher). Turning on the
+experiment (`P`) gives the *tear-proof texture-only* mode out of the box; the
+subpixel geometry correction is the opt-in extra (`G`) for those who want it.
+
+### Guidance for future tearing reports
+
+1. Check the geometry toggle first — texture-only PGXP cannot tear.
+2. At high internal resolutions, keep geometry off unless binding completeness
+   for that content is known-good.
+3. If geometry must stay on: freeze (`H`) at the spot — heals => binding
+   availability; doesn't heal => a different bug. `F7` (VRAM dump, §18)
+   captures the moment either way.

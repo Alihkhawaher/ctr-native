@@ -136,7 +136,10 @@ void NativeConfig_SetDefaults(NativeConfig *config)
 	config->showFps = 0;
 	config->antialiasing = 0;
 	config->pgxp = 0;         // experimental: OFF by default (tearing)
-	config->pgxpGeometry = 1; // only active when pgxp is on
+	config->pgxpGeometry = 0; // only active when pgxp is on. Subpixel vertex
+	                          // positions: moves vertices, so partial bindings
+	                          // open visible seams at high internal resolutions
+	                          // (texture-only PGXP cannot tear - nothing moves).
 	config->internalResolutionAuto = 1; // Auto (match screen height at 240 lines)
 	config->gamepadDeadzone = 5; // percent; wider than the old 1.5% so Xbox sticks at rest stay neutral
 	config->gamepadAnalog = 1;

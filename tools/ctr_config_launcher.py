@@ -160,7 +160,7 @@ def default_config():
             "bilinear_filtering": False,
             "antialiasing": False,
             "pgxp": False,
-            "pgxp_geometry": True,
+            "pgxp_geometry": False,
         },
         "input": {
             "pad_mode": 1,
@@ -268,7 +268,7 @@ class ConfigApp:
         )
 
         self.pgxp_geo_var = tk.BooleanVar()
-        ttk.Checkbutton(gfx, text="PGXP geometry — EXPERIMENTAL (subpixel positions, G)", variable=self.pgxp_geo_var).grid(
+        ttk.Checkbutton(gfx, text="PGXP geometry — EXPERIMENTAL (subpixel positions; may seam at high internal res, G)", variable=self.pgxp_geo_var).grid(
             row=7, column=0, columnspan=2, sticky="w", **pad
         )
 
@@ -383,7 +383,7 @@ class ConfigApp:
         self.bilinear_var.set(bool(g.get("bilinear_filtering", False)))
         self.aa_var.set(bool(g.get("antialiasing", False)))
         self.pgxp_var.set(bool(g.get("pgxp", False)))
-        self.pgxp_geo_var.set(bool(g.get("pgxp_geometry", True)))
+        self.pgxp_geo_var.set(bool(g.get("pgxp_geometry", False)))
 
         inp = self.config.get("input", {})
         self.pad_mode_var.set(next((k for k, v in PAD_MODES.items() if v == int(inp.get("pad_mode", 1))), "4 pads (always on, even if disconnected)"))
