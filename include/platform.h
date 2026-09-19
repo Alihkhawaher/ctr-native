@@ -30,8 +30,8 @@ int Platform_PollInput(void);
 // PGXP memory cache: bind a prim field that just received raw GTE output
 // (packed SXY) to the full-precision transform, keyed by its address.
 // Called by the RenderBucket prim writers; see platform/native_gpu.c.
-void Pgxp_NoteSxyStore(const void *addrField, unsigned int packedSxy);
-void Pgxp_NotePrimWrite(void *dstField, const void *srcField, unsigned int packed);
+void Pgxp_NoteSxyStore(const void *addrField, unsigned int packedSxy, int szLow);
+void Pgxp_NotePrimWrite(void *dstField, const void *srcField, unsigned int packed, int szLow);
 void Pgxp_NoteTransformCopy(void *dstField, const void *srcField);
 void Pgxp_SetPackedSource(const void *field, unsigned int packed);
 

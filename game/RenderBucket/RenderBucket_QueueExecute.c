@@ -3427,9 +3427,9 @@ static int RenderBucket_DrawSplitPrimitiveNormalAtOTEntry(struct RenderBucketDra
 		p->y1 = (s16)(v1->sxy >> 16);
 		p->x2 = (s16)v2->sxy;
 		p->y2 = (s16)(v2->sxy >> 16);
-		Pgxp_NoteSxyStore(&p->x0, v0->sxy);
-		Pgxp_NoteSxyStore(&p->x1, v1->sxy);
-		Pgxp_NoteSxyStore(&p->x2, v2->sxy);
+		Pgxp_NoteSxyStore(&p->x0, v0->sxy, (v0->sz != 0) ? (int)(u16)v0->sz : -1);
+		Pgxp_NoteSxyStore(&p->x1, v1->sxy, (v1->sz != 0) ? (int)(u16)v1->sz : -1);
+		Pgxp_NoteSxyStore(&p->x2, v2->sxy, (v2->sz != 0) ? (int)(u16)v2->sz : -1);
 		RenderBucket_LinkPrimRaw(otEntry, p, 0x06000000);
 		ctx->primMem->cursor = (char *)p + 0x1c;
 	}
@@ -3454,9 +3454,9 @@ static int RenderBucket_DrawSplitPrimitiveNormalAtOTEntry(struct RenderBucketDra
 		p->tpage = tex->tpage;
 		p->x2 = (s16)v2->sxy;
 		p->y2 = (s16)(v2->sxy >> 16);
-		Pgxp_NoteSxyStore(&p->x0, v0->sxy);
-		Pgxp_NoteSxyStore(&p->x1, v1->sxy);
-		Pgxp_NoteSxyStore(&p->x2, v2->sxy);
+		Pgxp_NoteSxyStore(&p->x0, v0->sxy, (v0->sz != 0) ? (int)(u16)v0->sz : -1);
+		Pgxp_NoteSxyStore(&p->x1, v1->sxy, (v1->sz != 0) ? (int)(u16)v1->sz : -1);
+		Pgxp_NoteSxyStore(&p->x2, v2->sxy, (v2->sz != 0) ? (int)(u16)v2->sz : -1);
 		p->u2 = (u8)v2->uv;
 		p->v2 = (u8)(v2->uv >> 8);
 		RenderBucket_LinkPrimRaw(otEntry, p, 0x09000000);
@@ -3548,9 +3548,9 @@ static void RenderBucket_WriteSplitFT3(POLY_FT3 *p, const struct RenderBucketSpl
 	CtrGpu_WritePackedUVWord(&p->u1, texWord1);
 	p->x2 = (s16)v2->sxy;
 	p->y2 = (s16)(v2->sxy >> 16);
-	Pgxp_NoteSxyStore(&p->x0, v0->sxy);
-	Pgxp_NoteSxyStore(&p->x1, v1->sxy);
-	Pgxp_NoteSxyStore(&p->x2, v2->sxy);
+	Pgxp_NoteSxyStore(&p->x0, v0->sxy, (v0->sz != 0) ? (int)(u16)v0->sz : -1);
+	Pgxp_NoteSxyStore(&p->x1, v1->sxy, (v1->sz != 0) ? (int)(u16)v1->sz : -1);
+	Pgxp_NoteSxyStore(&p->x2, v2->sxy, (v2->sz != 0) ? (int)(u16)v2->sz : -1);
 	CtrGpu_WritePackedUVWord(&p->u2, texWord2);
 }
 
@@ -3607,9 +3607,9 @@ static int RenderBucket_DrawSplitPrimitiveDepthFadeAtRange(struct RenderBucketDr
 	p->tpage = tex->tpage;
 	p->x2 = (s16)v2->sxy;
 	p->y2 = (s16)(v2->sxy >> 16);
-	Pgxp_NoteSxyStore(&p->x0, v0->sxy);
-	Pgxp_NoteSxyStore(&p->x1, v1->sxy);
-	Pgxp_NoteSxyStore(&p->x2, v2->sxy);
+	Pgxp_NoteSxyStore(&p->x0, v0->sxy, (v0->sz != 0) ? (int)(u16)v0->sz : -1);
+	Pgxp_NoteSxyStore(&p->x1, v1->sxy, (v1->sz != 0) ? (int)(u16)v1->sz : -1);
+	Pgxp_NoteSxyStore(&p->x2, v2->sxy, (v2->sz != 0) ? (int)(u16)v2->sz : -1);
 	p->u2 = (u8)v2->uv;
 	p->v2 = (u8)(v2->uv >> 8);
 	RenderBucket_LinkPrimRaw(otEntry, p, 0x09000000);

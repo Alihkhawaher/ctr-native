@@ -358,7 +358,7 @@ void Pgxp_SetPackedSource(const void *field, u32 packed)
 
 // Prim-field write: resolve the source (sticky + value match) into a shadow
 // entry for the destination field.
-void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed)
+void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed, int szLow)
 {
 #if PGXP_MEMCACHE_ENABLE
 	const s16 sx = (s16)packed;
@@ -395,7 +395,7 @@ void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed)
 	// No source address (RenderBucket-style writers, post-transform): bind
 	// against the freshest push at these coordinates within the tight window.
 	{
-		const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy, -1);
+		const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy, szLow);
 
 		if (best != NULL)
 		{
@@ -427,11 +427,11 @@ void Pgxp_NotePrimWriteSticky(void *dstField, u32 packed)
 	// transform-sourced.
 	if ((s_pgxpPackedSrc != NULL) && (s_pgxpPackedSrcValue == packed))
 	{
-		Pgxp_NotePrimWrite(dstField, s_pgxpPackedSrc, packed);
+		Pgxp_NotePrimWrite(dstField, s_pgxpPackedSrc, packed, -1);
 	}
 	else
 	{
-		Pgxp_NotePrimWrite(dstField, NULL, packed);
+		Pgxp_NotePrimWrite(dstField, NULL, packed, -1);
 	}
 
 	s_pgxpPackedSrc = NULL;
@@ -439,10 +439,12 @@ void Pgxp_NotePrimWriteSticky(void *dstField, u32 packed)
 }
 
 // RenderBucket writers (post-transform, no source address available): bind
-// against the fresh push window.
-void Pgxp_NoteSxyStore(const void *addrField, u32 packedSxy)
+// against the fresh push window. szLow = the vertex's raw SZ register value
+// (RenderBucketSplitVertex.sz) when known, else -1; passing it makes the
+// window bind depth-unique exactly like the transform-store binds.
+void Pgxp_NoteSxyStore(const void *addrField, u32 packedSxy, int szLow)
 {
-	Pgxp_NotePrimWrite((void *)addrField, NULL, packedSxy);
+	Pgxp_NotePrimWrite((void *)addrField, NULL, packedSxy, szLow);
 }
 
 internal int Pgxp_LookupShadow(const void *v, float *px, float *py, float *w)
