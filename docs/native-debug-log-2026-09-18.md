@@ -831,4 +831,40 @@ coordinate matcher was weakest — are now almost entirely address-bound.
 **Files touched:** `platform/native_gpu.c` (tables, hooks, resolver, stats),
 `include/ctr_gte.h` (store hooks), `include/gpu.h` (WritePackedXY hook),
 `game/226/226_00_DrawLevelOvr1P.c` (packer/copy hooks),
-`game/RenderBucket/RenderBucket_QueueExecute.c` (4 writers).
+`game/RenderBucket/RenderBucket_QueueExecute.c` (4 writers).---
+
+## 17. Depth-matched binding — the menu-shredding root cause (fixed)
+
+**Report:** "little tearing on the menu" with captures showing (a) the menu's
+3D logo shredded into scattered yellow fragments (O-view) and (b) a close-up
+of the ring with a visible gap + facet cracks.
+
+**Root cause.** The memory-cache bind at the transform store matched on
+`(sx, sy)` only, inside a 64-push window. In dense scenes (menu logo + title
+art + text all transforming around each other), a vertex could bind the
+full-precision transform of a *different* vertex that shared its pixel —
+applying another object's depth/position → flung geometry (the shredding;
+partial wrongness = the ring gap/cracks).
+
+**Fix (v3, `p9...` build):**
+1. **Depth-matched bind.** The push cache now records the raw `SZ` register
+   (`C2_SZ3` at push time). The store hooks (`CTR_GteStoreSXY*`) pass the
+   paired SZ register (`MFC2(17/18/19)` — the pairing follows the hardware
+   FIFO: SXY0/SZ1, SXY1/SZ2, SXY2/SZ3, verified against the core's shift at
+   `GTE_RotTransPers`). `Pgxp_FindFreshPush(sx, sy, sz)` requires the SZ to
+   match: **(x, y, SZ) is essentially unique**, so a bind can no longer land
+   on a pixel-sharing different vertex.
+2. **Window tightened** 64 → 8 pushes (the store follows its own GTE call
+   within a handful; belt-and-braces on top of the depth match).
+3. **Chain freshness:** transform entries expire after ~4 epochs (2 frames) —
+   a stale entry can no longer validate a later prim write.
+
+**Verified (same binary, PGXP on):** the menu scene at ~60s renders
+**completely clean** (logo, trophy, menu box, no fragments, no ghost); the
+attract-mode race at ~130s renders clean; 0 crashes over a 135s run.
+addrH ~6.1M (share drops slightly vs v2 as some ambiguous binds now correctly
+refuse — those fields render affine rather than wrong).
+
+**Lesson:** a tight window on `(x,y)` alone is not exact in a dense pool —
+match on everything the store site has (coordinates **and** depth) before
+binding, or refuse.

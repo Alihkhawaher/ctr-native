@@ -131,14 +131,14 @@ static inline void CTR_GteLoadLVL(const s32 *v)
 }
 
 #ifdef CTR_NATIVE
-void Pgxp_NoteTransformStore(void *field, unsigned int packed);
+void Pgxp_NoteTransformStore(void *field, unsigned int packed, int szLow);
 #endif
 
 static inline void CTR_GteStoreSXY(void *xy)
 {
 	CTR_GteStoreU32(xy, MFC2(14));
 #ifdef CTR_NATIVE
-	Pgxp_NoteTransformStore(xy, *(const u32 *)xy);
+	Pgxp_NoteTransformStore(xy, *(const u32 *)xy, MFC2(19)); // SXY2 pairs SZ3
 #endif
 }
 
@@ -146,7 +146,7 @@ static inline void CTR_GteStoreSXY0(void *xy)
 {
 	CTR_GteStoreU32(xy, MFC2(12));
 #ifdef CTR_NATIVE
-	Pgxp_NoteTransformStore(xy, *(const u32 *)xy);
+	Pgxp_NoteTransformStore(xy, *(const u32 *)xy, MFC2(17)); // SXY0 pairs SZ1
 #endif
 }
 
@@ -154,7 +154,7 @@ static inline void CTR_GteStoreSXY1(void *xy)
 {
 	CTR_GteStoreU32(xy, MFC2(13));
 #ifdef CTR_NATIVE
-	Pgxp_NoteTransformStore(xy, *(const u32 *)xy);
+	Pgxp_NoteTransformStore(xy, *(const u32 *)xy, MFC2(18)); // SXY1 pairs SZ2
 #endif
 }
 
@@ -169,9 +169,9 @@ static inline void CTR_GteStoreSXY3(void *xy0, void *xy1, void *xy2)
 	CTR_GteStoreU32(xy1, MFC2(13));
 	CTR_GteStoreU32(xy2, MFC2(14));
 #ifdef CTR_NATIVE
-	Pgxp_NoteTransformStore(xy0, *(const u32 *)xy0);
-	Pgxp_NoteTransformStore(xy1, *(const u32 *)xy1);
-	Pgxp_NoteTransformStore(xy2, *(const u32 *)xy2);
+	Pgxp_NoteTransformStore(xy0, *(const u32 *)xy0, MFC2(17));
+	Pgxp_NoteTransformStore(xy1, *(const u32 *)xy1, MFC2(18));
+	Pgxp_NoteTransformStore(xy2, *(const u32 *)xy2, MFC2(19));
 #endif
 }
 

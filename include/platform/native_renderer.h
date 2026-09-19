@@ -37,7 +37,7 @@ void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat);
 void NativeRenderer_SetDrawIs2D(b32 is2D);
 void Pgxp_ClearCache(void);
 void Pgxp_AdvanceEpoch(void);
-void Pgxp_PushVertex(int sx, int sy, float px, float py, float w);
+void Pgxp_PushVertex(int sx, int sy, float px, float py, float w, int szLow);
 void NativeRenderer_PresentRenderTarget(void);
 int NativeGpu_FrameHadDraws(void);
 void NativeGpu_ResetFrameDraws(void);

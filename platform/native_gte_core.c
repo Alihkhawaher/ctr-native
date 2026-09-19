@@ -360,7 +360,8 @@ internal int GTE_RotTransPers(int idx, int lm)
 			Pgxp_PushVertex(C2_SX2, C2_SY2,
 			                (float)px,
 			                (float)py,
-			                (float)w);
+			                (float)w,
+			                (int)(u16)C2_SZ3);
 
 			// Self-check (sampled): the float path must reproduce the integer
 			// chain (floor of IR1/SZ3 + final >>16) within the divide table's

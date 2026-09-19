@@ -158,6 +158,7 @@ typedef struct
 	u8 contested; // two different vertices wanted this slot within one frame
 	u32 gen;
 	u32 seq;      // monotonic push sequence (tight store-time binding)
+	u16 szLow;    // raw SZ register value (unique depth key for binding)
 	float px, py, w;
 } PgxpCachedVertex;
 
@@ -210,7 +211,7 @@ internal PgxpCachedVertex s_pgxpCache[PGXP_CACHE_SIZE];
 
 #define PGXP_MEMCACHE_ENABLE (1)
 #define PGXP_SHADOW_SIZE (32768)
-#define PGXP_BIND_WINDOW (64) // pushes: push -> prim store distance is a handful
+#define PGXP_BIND_WINDOW (8) // pushes: push -> store distance is a handful; tighter = fewer collisions
 
 typedef struct
 {
@@ -225,6 +226,8 @@ internal u32 s_pgxpPushSeq = 0;
 internal u32 s_pgxpStatAddrHits = 0;
 internal u32 s_pgxpStatAddrMiss = 0;
 
+internal u32 s_pgxpEpoch; // real definition below; forward for the hooks
+
 // Table A: a posScreen field address -> the full-precision transform bound to
 // it right after the GTE store (CTR_GteStoreSXY*); consumed by the prim
 // writers so the prim-field binding is a pure address chain.
@@ -234,6 +237,7 @@ typedef struct
 	const void *addr;
 	s16 sx, sy;
 	u16 valid;
+	u16 gen;      // epoch of the bind (chain must consume it promptly)
 	float px, py, w;
 } PgxpTransformEntry;
 
@@ -247,8 +251,10 @@ internal const void *s_pgxpPackedSrc = NULL;
 internal u32 s_pgxpPackedSrcValue = 0;
 
 // Freshest push at these EXACT coordinates within the tight bind window (a
-// store follows its own GTE call within a handful of pushes).
-internal const PgxpCachedVertex *Pgxp_FindFreshPush(s16 sx, s16 sy)
+// store follows its own GTE call within a handful of pushes). When szLow >= 0
+// the raw SZ register must match too: (sx, sy, SZ) is essentially unique, so
+// a bind can no longer land on a different vertex that shares the pixel.
+internal const PgxpCachedVertex *Pgxp_FindFreshPush(s16 sx, s16 sy, int szLow)
 {
 	const u32 cHash = ((u32)(u16)sx * 73856093u) ^ ((u32)(u16)sy * 19349663u);
 	const PgxpCachedVertex *set = &s_pgxpCache[(cHash & (PGXP_CACHE_SETS - 1)) * PGXP_CACHE_WAYS];
@@ -259,6 +265,11 @@ internal const PgxpCachedVertex *Pgxp_FindFreshPush(s16 sx, s16 sy)
 		const PgxpCachedVertex *c = &set[way];
 
 		if ((c->valid == 0) || (c->sx != sx) || (c->sy != sy))
+		{
+			continue;
+		}
+
+		if ((szLow >= 0) && (c->szLow != (u16)szLow))
 		{
 			continue;
 		}
@@ -278,7 +289,8 @@ internal const PgxpCachedVertex *Pgxp_FindFreshPush(s16 sx, s16 sy)
 }
 
 // Called right after a raw GTE SXY store into a projected-vertex field.
-void Pgxp_NoteTransformStore(void *field, u32 packed)
+// szLow = the paired raw SZ register (MFC2 17/18/19), or -1 when unavailable.
+void Pgxp_NoteTransformStore(void *field, u32 packed, int szLow)
 {
 #if PGXP_MEMCACHE_ENABLE
 	const s16 sx = (s16)packed;
@@ -287,7 +299,7 @@ void Pgxp_NoteTransformStore(void *field, u32 packed)
 	const u32 hash = ((u32)(uintptr_t)field >> 2) * 2654435761u;
 	PgxpTransformEntry *e = &s_pgxpTransform[hash & (PGXP_TRANSFORM_SIZE - 1)];
 
-	const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy);
+	const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy, szLow);
 
 	if (best != NULL)
 	{
@@ -298,6 +310,7 @@ void Pgxp_NoteTransformStore(void *field, u32 packed)
 		e->py = best->py;
 		e->w = best->w;
 		e->valid = 1;
+		e->gen = (u16)s_pgxpEpoch;
 		s_pgxpStatTransformBinds++;
 	}
 	else
@@ -306,7 +319,7 @@ void Pgxp_NoteTransformStore(void *field, u32 packed)
 		e->valid = 0;
 	}
 #else
-	(void)field; (void)packed;
+	(void)field; (void)packed; (void)szLow;
 #endif
 }
 
@@ -360,7 +373,8 @@ void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed)
 		const u32 hSrc = ((u32)(uintptr_t)srcField >> 2) * 2654435761u;
 		const PgxpTransformEntry *s = &s_pgxpTransform[hSrc & (PGXP_TRANSFORM_SIZE - 1)];
 
-		if ((s->valid != 0) && (s->addr == srcField) && (s->sx == sx) && (s->sy == sy))
+		if ((s->valid != 0) && (s->addr == srcField) && (s->sx == sx) && (s->sy == sy) &&
+		    ((s_pgxpEpoch - s->gen) <= 4))
 		{
 			e->addr = dstField;
 			e->sx = sx;
@@ -381,7 +395,7 @@ void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed)
 	// No source address (RenderBucket-style writers, post-transform): bind
 	// against the freshest push at these coordinates within the tight window.
 	{
-		const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy);
+		const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy, -1);
 
 		if (best != NULL)
 		{
@@ -501,7 +515,7 @@ void Pgxp_AdvanceEpoch(void)
 	s_pgxpEpoch++;
 }
 
-void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
+void Pgxp_PushVertex(int sx, int sy, float px, float py, float w, int szLow)
 {
 	// NOTE(aalhendi): w is the view-space depth (must stay positive for the
 	// renderer's perspective divide); vertices behind the camera are dropped.
@@ -568,6 +582,7 @@ void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
 	v->px = px;
 	v->py = py;
 	v->seq = ++s_pgxpPushSeq;
+	v->szLow = (u16)szLow;
 	v->w = w;
 	}
 
