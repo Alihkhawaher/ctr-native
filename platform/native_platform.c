@@ -228,15 +228,46 @@ int g_cli_allowForeignDisc = 0;
 
 internal void Platform_SaveFrameBMP(const char *path)
 {
-	u8 *pixels = (u8 *)malloc(g_windowWidth * g_windowHeight * 4);
+	const int w = g_windowWidth;
+	const int h = g_windowHeight;
 
-	glReadPixels(0, 0, g_windowWidth, g_windowHeight, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
+	u8 *pixels = (u8 *)malloc((size_t)w * h * 4);
+	u8 *rgb = (u8 *)malloc((size_t)w * h * 3);
 
-	SDL_Surface *surface = SDL_CreateSurfaceFrom(g_windowWidth, g_windowHeight, SDL_PIXELFORMAT_BGRA8888, pixels, g_windowWidth * 4);
+	if ((pixels == NULL) || (rgb == NULL))
+	{
+		free(pixels);
+		free(rgb);
+		return;
+	}
 
-	SDL_SaveBMP(surface, path);
-	SDL_DestroySurface(surface);
+	glReadPixels(0, 0, w, h, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
 
+	// GL returns rows bottom-to-top (BMP wants top-first) and BGRA bytes;
+	// this converts both in one pass into the plain RGB order the VRAM dump
+	// preview proved correct through SDL_SaveBMP. Fixes the long-standing
+	// upside-down + color-swapped F12/boot_dump captures.
+	for (int y = 0; y < h; y++)
+	{
+		const u8 *src = pixels + (size_t)(h - 1 - y) * w * 4;
+		u8 *dst = rgb + (size_t)y * w * 3;
+
+		for (int x = 0; x < w; x++)
+		{
+			dst[x * 3 + 0] = src[x * 4 + 2]; // R
+			dst[x * 3 + 1] = src[x * 4 + 1]; // G
+			dst[x * 3 + 2] = src[x * 4 + 0]; // B
+		}
+	}
+
+	SDL_Surface *surface = SDL_CreateSurfaceFrom(w, h, SDL_PIXELFORMAT_RGB24, rgb, w * 3);
+	if (surface != NULL)
+	{
+		SDL_SaveBMP(surface, path);
+		SDL_DestroySurface(surface);
+	}
+
+	free(rgb);
 	free(pixels);
 }
 
