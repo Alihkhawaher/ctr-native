@@ -211,13 +211,16 @@ internal PgxpCachedVertex s_pgxpCache[PGXP_CACHE_SIZE];
 
 #define PGXP_MEMCACHE_ENABLE (1)
 #define PGXP_SHADOW_SIZE (32768)
-#define PGXP_BIND_WINDOW (1024) // pushes. The (sx,sy,SZ) match is the discriminator now;
-                                 // the window only has to cover batched transform->store
-                                 // distances (menu/logo scenes store a whole object's
-                                 // vertices after transforming them). A tight window
-                                 // there refused half of a batch and left the other half
-                                 // corrected -> the visible patchwork tearing (O view:
-                                 // mixed blue/yellow logo pieces).
+// Bind freshness is judged in FRAME ERAS (epochs), not push distance: this
+// port transforms whole frames of vertices before the draw pass, so the
+// transform->store distance routinely exceeds a frame of pushes. A push-count
+// window therefore refused most binds (2.4M stale refusals/minute measured -
+// and the menu logo's tears HEALED under freeze-frame, when nothing evicts and
+// the counts stop advancing: proof the bindings were valid, just too far).
+// (sx,sy,SZ) uniqueness carries specificity; the era check only rejects
+// genuinely old entries.
+#define PGXP_BIND_EPOCHS (8)      // ~4 frames for the SZ-matched path
+#define PGXP_XY_BIND_EPOCHS (2)   // coordinate-only fallback: same frame only
 
 typedef struct
 {
@@ -249,12 +252,50 @@ typedef struct
 
 internal PgxpTransformEntry s_pgxpTransform[PGXP_TRANSFORM_SIZE];
 internal u32 s_pgxpStatTransformBinds = 0;
+internal u32 s_pgxpStatTransformXYBinds = 0;
 internal u32 s_pgxpStatChainBinds = 0;
+
+
 
 // Sticky packed-source handoff between the DrawLevel vertex packer and the
 // prim writer (adjacent expression; the packed value doubles as the guard).
 internal const void *s_pgxpPackedSrc = NULL;
 internal u32 s_pgxpPackedSrcValue = 0;
+
+// Coordinate-only fallback: batched transform->store paths (the menu logo
+// transforms a whole object, then stores after further RTPTs rotated the SZ
+// registers) can never SZ-match. Refusing those outright left the whole logo
+// affine and its 1-px piece offsets got magnified by the internal resolution
+// (visible tearing). A tight coordinate window re-binds them - the pre-depth
+// behaviour - while the SZ path keeps priority when it does match.
+internal const PgxpCachedVertex *Pgxp_FindFreshPushByXY(s16 sx, s16 sy, int maxWindow)
+{
+	const u32 cHash = ((u32)(u16)sx * 73856093u) ^ ((u32)(u16)sy * 19349663u);
+	const PgxpCachedVertex *set = &s_pgxpCache[(cHash & (PGXP_CACHE_SETS - 1)) * PGXP_CACHE_WAYS];
+	const PgxpCachedVertex *best = NULL;
+
+	for (int way = 0; way < PGXP_CACHE_WAYS; way++)
+	{
+		const PgxpCachedVertex *c = &set[way];
+
+		if ((c->valid == 0) || (c->sx != sx) || (c->sy != sy))
+		{
+			continue;
+		}
+
+		if ((s_pgxpEpoch - c->gen) > (u32)maxWindow)
+		{
+			continue;
+		}
+
+		if ((best == NULL) || (c->seq > best->seq))
+		{
+			best = c;
+		}
+	}
+
+	return best;
+}
 
 // Freshest push at these EXACT coordinates within the tight bind window (a
 // store follows its own GTE call within a handful of pushes). When szLow >= 0
@@ -280,7 +321,7 @@ internal const PgxpCachedVertex *Pgxp_FindFreshPush(s16 sx, s16 sy, int szLow)
 			continue;
 		}
 
-		if ((s_pgxpPushSeq - c->seq) > PGXP_BIND_WINDOW)
+		if ((s_pgxpEpoch - c->gen) > PGXP_BIND_EPOCHS)
 		{
 			continue;
 		}
@@ -306,6 +347,15 @@ void Pgxp_NoteTransformStore(void *field, u32 packed, int szLow)
 	PgxpTransformEntry *e = &s_pgxpTransform[hash & (PGXP_TRANSFORM_SIZE - 1)];
 
 	const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy, szLow);
+	u8 viaXY = 0;
+
+	if (best == NULL)
+	{
+		// Batched store: the SZ registers rotated past this vertex. Fall
+		// back to a tight coordinate-only bind instead of refusing.
+		best = Pgxp_FindFreshPushByXY(sx, sy, PGXP_XY_BIND_EPOCHS);
+		viaXY = 1;
+	}
 
 	if (best != NULL)
 	{
@@ -317,7 +367,15 @@ void Pgxp_NoteTransformStore(void *field, u32 packed, int szLow)
 		e->w = best->w;
 		e->valid = 1;
 		e->gen = (u16)s_pgxpEpoch;
-		s_pgxpStatTransformBinds++;
+
+		if (viaXY != 0)
+		{
+			s_pgxpStatTransformXYBinds++;
+		}
+		else
+		{
+			s_pgxpStatTransformBinds++;
+		}
 	}
 	else
 	{
@@ -380,7 +438,7 @@ void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed, int sz
 		const PgxpTransformEntry *s = &s_pgxpTransform[hSrc & (PGXP_TRANSFORM_SIZE - 1)];
 
 		if ((s->valid != 0) && (s->addr == srcField) && (s->sx == sx) && (s->sy == sy) &&
-		    ((s_pgxpEpoch - s->gen) <= 4))
+		    ((s_pgxpEpoch - s->gen) <= 32))
 		{
 			e->addr = dstField;
 			e->sx = sx;
@@ -399,9 +457,15 @@ void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed, int sz
 	}
 
 	// No source address (RenderBucket-style writers, post-transform): bind
-	// against the freshest push at these coordinates within the tight window.
+	// against the freshest push at these coordinates within the tight window,
+	// with the same coordinate-only fallback as the transform store.
 	{
 		const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy, szLow);
+
+		if (best == NULL)
+		{
+			best = Pgxp_FindFreshPushByXY(sx, sy, PGXP_XY_BIND_EPOCHS);
+		}
 
 		if (best != NULL)
 		{
@@ -1816,9 +1880,10 @@ void DrawAllSplits()
 	{
 		s_pgxpStatFrames = 0;
 		s_pgxpMissProbes = 0;
-		Platform_LogWarn("[CTR Debug] PGXP stats: pushed=%u behind=%u hits=%u near=%u misses=%u contested=%u stale=%u addrH=%u addrM=%u epoch=%u (3D verts)\n",
+		Platform_LogWarn("[CTR Debug] PGXP stats: pushed=%u behind=%u hits=%u near=%u misses=%u contested=%u stale=%u addrH=%u addrM=%u epoch=%u tzX=%u (3D verts)\n",
 		                 s_pgxpStatPushes, s_pgxpStatBehind, s_pgxpStatHits, s_pgxpStatNear, s_pgxpStatMisses,
-		                 s_pgxpStatContested, s_pgxpStatStale, s_pgxpStatAddrHits, s_pgxpStatAddrMiss, s_pgxpEpoch);
+		                 s_pgxpStatContested, s_pgxpStatStale, s_pgxpStatAddrHits, s_pgxpStatAddrMiss,
+		                 s_pgxpEpoch, s_pgxpStatTransformXYBinds);
 	}
 
 	for (int i = 1; i <= s_gpu.splitIndex; i++)
