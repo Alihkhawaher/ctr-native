@@ -508,6 +508,15 @@ internal u32 s_pgxpMissProbes = 0;
 void Pgxp_ClearCache(void)
 {
 	memset(s_pgxpCache, 0, sizeof(s_pgxpCache));
+
+	// Memory-cache tables too (see debug log §16/§17): a toggle or a state
+	// load must not let any pre-existing association satisfy a lookup - the
+	// same discipline beetle-psx applies on init/toggle/load ("a recycled
+	// slot must not satisfy a pre-load association").
+	memset(s_pgxpShadow, 0, sizeof(s_pgxpShadow));
+	memset(s_pgxpTransform, 0, sizeof(s_pgxpTransform));
+	s_pgxpPackedSrc = NULL;
+	s_pgxpPackedSrcValue = 0;
 }
 
 void Pgxp_AdvanceEpoch(void)

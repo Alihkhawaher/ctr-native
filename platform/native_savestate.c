@@ -6,6 +6,7 @@
 #include "platform/native_checkpoint.h"
 #include "platform/native_checkpoint_file.h"
 #include "platform/native_log.h"
+#include "platform/native_renderer.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -141,7 +142,11 @@ internal s32 NativeSaveState_LoadQuick(void)
 	}
 
 	Platform_Log("[CTR State] loaded quick state checksum=0x%08x: %s\n", info.checksum, NATIVE_SAVESTATE_QUICK_PATH);
-	return 1;
+// PGXP state is not serialized: drop every association so nothing from
+	// before the load can satisfy a post-load lookup (beetle-psx does the same).
+	Pgxp_ClearCache();
+
+		return 1;
 }
 
 void NativeSaveState_RequestSave(void)
