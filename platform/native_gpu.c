@@ -157,6 +157,7 @@ typedef struct
 	u8 valid;
 	u8 contested; // two different vertices wanted this slot within one frame
 	u32 gen;
+	u32 seq;      // monotonic push sequence (tight store-time binding)
 	float px, py, w;
 } PgxpCachedVertex;
 
@@ -192,6 +193,280 @@ typedef struct
 #define PGXP_NEAR_MATCH_ENABLE (0)
 
 internal PgxpCachedVertex s_pgxpCache[PGXP_CACHE_SIZE];
+
+//------------------------------------------------------------------------------------------------------------------------
+// PGXP MEMORY CACHE (address-keyed provenance).
+// Coordinate matching - even exact - is a heuristic in a dense 320x240 pool:
+// a UI vertex can coincide with a live 3D vertex and inherit its w. External
+// review of the menu-shard incident (debug log 15) recommended provenance
+// instead: the game's RenderBucket prim writers call Pgxp_NoteSxyStore(),
+// which binds the FIELD ADDRESS to the full-precision transform while it is
+// still fresh in the push cache (a store follows its own GTE call within a
+// handful of pushes; a UI literal cannot match that fresh). The renderer
+// resolves vertices by address first, so bound content is exact and UI/static
+// content can never false-match. Coordinate matching remains as a fallback
+// for render paths that do not touch the instrumented writers.
+//------------------------------------------------------------------------------------------------------------------------
+
+#define PGXP_MEMCACHE_ENABLE (1)
+#define PGXP_SHADOW_SIZE (32768)
+#define PGXP_BIND_WINDOW (64) // pushes: push -> prim store distance is a handful
+
+typedef struct
+{
+	const void *addr; // the prim field the value was stored into (&p->x0)
+	s16 sx, sy;       // low-precision values as stored (validated at draw)
+	u16 valid;
+	float px, py, w;  // full-precision transform bound to that address
+} PgxpShadowEntry;
+
+internal PgxpShadowEntry s_pgxpShadow[PGXP_SHADOW_SIZE];
+internal u32 s_pgxpPushSeq = 0;
+internal u32 s_pgxpStatAddrHits = 0;
+internal u32 s_pgxpStatAddrMiss = 0;
+
+// Table A: a posScreen field address -> the full-precision transform bound to
+// it right after the GTE store (CTR_GteStoreSXY*); consumed by the prim
+// writers so the prim-field binding is a pure address chain.
+#define PGXP_TRANSFORM_SIZE (32768)
+typedef struct
+{
+	const void *addr;
+	s16 sx, sy;
+	u16 valid;
+	float px, py, w;
+} PgxpTransformEntry;
+
+internal PgxpTransformEntry s_pgxpTransform[PGXP_TRANSFORM_SIZE];
+internal u32 s_pgxpStatTransformBinds = 0;
+internal u32 s_pgxpStatChainBinds = 0;
+
+// Sticky packed-source handoff between the DrawLevel vertex packer and the
+// prim writer (adjacent expression; the packed value doubles as the guard).
+internal const void *s_pgxpPackedSrc = NULL;
+internal u32 s_pgxpPackedSrcValue = 0;
+
+// Freshest push at these EXACT coordinates within the tight bind window (a
+// store follows its own GTE call within a handful of pushes).
+internal const PgxpCachedVertex *Pgxp_FindFreshPush(s16 sx, s16 sy)
+{
+	const u32 cHash = ((u32)(u16)sx * 73856093u) ^ ((u32)(u16)sy * 19349663u);
+	const PgxpCachedVertex *set = &s_pgxpCache[(cHash & (PGXP_CACHE_SETS - 1)) * PGXP_CACHE_WAYS];
+	const PgxpCachedVertex *best = NULL;
+
+	for (int way = 0; way < PGXP_CACHE_WAYS; way++)
+	{
+		const PgxpCachedVertex *c = &set[way];
+
+		if ((c->valid == 0) || (c->sx != sx) || (c->sy != sy))
+		{
+			continue;
+		}
+
+		if ((s_pgxpPushSeq - c->seq) > PGXP_BIND_WINDOW)
+		{
+			continue;
+		}
+
+		if ((best == NULL) || (c->seq > best->seq))
+		{
+			best = c;
+		}
+	}
+
+	return best;
+}
+
+// Called right after a raw GTE SXY store into a projected-vertex field.
+void Pgxp_NoteTransformStore(void *field, u32 packed)
+{
+#if PGXP_MEMCACHE_ENABLE
+	const s16 sx = (s16)packed;
+	const s16 sy = (s16)(packed >> 16);
+
+	const u32 hash = ((u32)(uintptr_t)field >> 2) * 2654435761u;
+	PgxpTransformEntry *e = &s_pgxpTransform[hash & (PGXP_TRANSFORM_SIZE - 1)];
+
+	const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy);
+
+	if (best != NULL)
+	{
+		e->addr = field;
+		e->sx = sx;
+		e->sy = sy;
+		e->px = best->px;
+		e->py = best->py;
+		e->w = best->w;
+		e->valid = 1;
+		s_pgxpStatTransformBinds++;
+	}
+	else
+	{
+		e->addr = field;
+		e->valid = 0;
+	}
+#else
+	(void)field; (void)packed;
+#endif
+}
+
+// posScreen field copy (value chain): the destination resolves to the same
+// transform as the source.
+void Pgxp_NoteTransformCopy(void *dstField, const void *srcField)
+{
+#if PGXP_MEMCACHE_ENABLE
+	const u32 hDst = ((u32)(uintptr_t)dstField >> 2) * 2654435761u;
+	PgxpTransformEntry *d = &s_pgxpTransform[hDst & (PGXP_TRANSFORM_SIZE - 1)];
+
+	const u32 hSrc = ((u32)(uintptr_t)srcField >> 2) * 2654435761u;
+	const PgxpTransformEntry *s = &s_pgxpTransform[hSrc & (PGXP_TRANSFORM_SIZE - 1)];
+
+	if ((s->valid != 0) && (s->addr == srcField))
+	{
+		*d = *s;
+		d->addr = dstField;
+	}
+	else
+	{
+		d->addr = dstField;
+		d->valid = 0;
+	}
+#else
+	(void)dstField; (void)srcField;
+#endif
+}
+
+// DrawLevel packer -> prim writer handoff (see the header of this block).
+void Pgxp_SetPackedSource(const void *field, u32 packed)
+{
+	s_pgxpPackedSrc = field;
+	s_pgxpPackedSrcValue = packed;
+}
+
+// Prim-field write: resolve the source (sticky + value match) into a shadow
+// entry for the destination field.
+void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed)
+{
+#if PGXP_MEMCACHE_ENABLE
+	const s16 sx = (s16)packed;
+	const s16 sy = (s16)(packed >> 16);
+
+	const u32 hash = ((u32)(uintptr_t)dstField >> 2) * 2654435761u;
+	PgxpShadowEntry *e = &s_pgxpShadow[hash & (PGXP_SHADOW_SIZE - 1)];
+
+	if (srcField != NULL)
+	{
+		// Exact address chain: source field -> table A -> full precision.
+		const u32 hSrc = ((u32)(uintptr_t)srcField >> 2) * 2654435761u;
+		const PgxpTransformEntry *s = &s_pgxpTransform[hSrc & (PGXP_TRANSFORM_SIZE - 1)];
+
+		if ((s->valid != 0) && (s->addr == srcField) && (s->sx == sx) && (s->sy == sy))
+		{
+			e->addr = dstField;
+			e->sx = sx;
+			e->sy = sy;
+			e->px = s->px;
+			e->py = s->py;
+			e->w = s->w;
+			e->valid = 1;
+			s_pgxpStatChainBinds++;
+			return;
+		}
+
+		e->addr = dstField;
+		e->valid = 0;
+		return;
+	}
+
+	// No source address (RenderBucket-style writers, post-transform): bind
+	// against the freshest push at these coordinates within the tight window.
+	{
+		const PgxpCachedVertex *best = Pgxp_FindFreshPush(sx, sy);
+
+		if (best != NULL)
+		{
+			e->addr = dstField;
+			e->sx = sx;
+			e->sy = sy;
+			e->px = best->px;
+			e->py = best->py;
+			e->w = best->w;
+			e->valid = 1;
+			return;
+		}
+	}
+
+	// Negative binding: this address did NOT receive fresh GTE output
+	// (UI literal / static / interpolated split vertex). Clearing any older
+	// positive also protects against stale matches on reuse.
+	e->addr = dstField;
+	e->valid = 0;
+#else
+	(void)dstField; (void)srcField; (void)packed;
+#endif
+}
+
+void Pgxp_NotePrimWriteSticky(void *dstField, u32 packed)
+{
+	// Consume the sticky source only when the value matches exactly (the
+	// packer/writer pair is adjacent); otherwise this write is not
+	// transform-sourced.
+	if ((s_pgxpPackedSrc != NULL) && (s_pgxpPackedSrcValue == packed))
+	{
+		Pgxp_NotePrimWrite(dstField, s_pgxpPackedSrc, packed);
+	}
+	else
+	{
+		Pgxp_NotePrimWrite(dstField, NULL, packed);
+	}
+
+	s_pgxpPackedSrc = NULL;
+	s_pgxpPackedSrcValue = 0;
+}
+
+// RenderBucket writers (post-transform, no source address available): bind
+// against the fresh push window.
+void Pgxp_NoteSxyStore(const void *addrField, u32 packedSxy)
+{
+	Pgxp_NotePrimWrite((void *)addrField, NULL, packedSxy);
+}
+
+internal int Pgxp_LookupShadow(const void *v, float *px, float *py, float *w)
+{
+#if PGXP_MEMCACHE_ENABLE
+	const u32 hash = ((u32)(uintptr_t)v >> 2) * 2654435761u;
+	const PgxpShadowEntry *e = &s_pgxpShadow[hash & (PGXP_SHADOW_SIZE - 1)];
+
+	if (e->addr != v)
+	{
+		return 0; // no binding for this field: fallback matching may apply
+	}
+
+	if (e->valid == 0)
+	{
+		// Negative binding: this field was observed NOT to be transform-sourced
+		// (UI literal / static / interpolated). Block coordinate matching too -
+		// that is the whole point of the memory cache.
+		return -1;
+	}
+
+	// The field must still hold the exact values that were bound (guards
+	// against reuse/overwrite between the store and the draw).
+	if ((e->sx != (s16)((const VERTTYPE *)v)[0]) || (e->sy != (s16)((const VERTTYPE *)v)[1]))
+	{
+		return 0;
+	}
+
+	*px = e->px;
+	*py = e->py;
+	*w = e->w;
+	return 1;
+#else
+	(void)v; (void)px; (void)py; (void)w;
+	return 0;
+#endif
+}
+
 internal float s_pgxpVertexData[MAX_VERTEX_BUFFER_SIZE * 4]; // px, py, w, status per vertex, parallel to the vertex buffer
 
 // Status codes for the debug status view (O key / g_dbg_pgxpStatusView):
@@ -292,6 +567,7 @@ void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
 	v->gen = s_pgxpEpoch;
 	v->px = px;
 	v->py = py;
+	v->seq = ++s_pgxpPushSeq;
 	v->w = w;
 	}
 
@@ -481,6 +757,31 @@ internal void Pgxp_FillVertex(int index, VERTTYPE *p)
 		dst[3] = 5.0f; // 2D: not eligible
 		return;
 	}
+
+	// Address-keyed provenance (memory cache): this prim field was written
+	// from GTE output (RenderBucket writers call Pgxp_NoteSxyStore) and still
+	// holds the bound values - exact, no coordinate matching involved.
+	float shx, shy, shw;
+	const int shadow = Pgxp_LookupShadow(p, &shx, &shy, &shw);
+
+	if (shadow == 1)
+	{
+		dst[0] = shx;
+		dst[1] = shy;
+		dst[2] = shw;
+		dst[3] = 1.0f; // exact (provenance)
+		s_pgxpStatAddrHits++;
+		return;
+	}
+
+	if (shadow < 0)
+	{
+		// Proven non-transform content: stay affine, never coordinate-match.
+		s_pgxpStatAddrMiss++;
+		return;
+	}
+
+	s_pgxpStatAddrMiss++;
 
 	const int status = Pgxp_LookupVertex(p[0], p[1], dst);
 
@@ -1482,9 +1783,9 @@ void DrawAllSplits()
 	{
 		s_pgxpStatFrames = 0;
 		s_pgxpMissProbes = 0;
-		Platform_LogWarn("[CTR Debug] PGXP stats: pushed=%u behind=%u hits=%u near=%u misses=%u contested=%u stale=%u epoch=%u (3D verts)\n",
+		Platform_LogWarn("[CTR Debug] PGXP stats: pushed=%u behind=%u hits=%u near=%u misses=%u contested=%u stale=%u addrH=%u addrM=%u epoch=%u (3D verts)\n",
 		                 s_pgxpStatPushes, s_pgxpStatBehind, s_pgxpStatHits, s_pgxpStatNear, s_pgxpStatMisses,
-		                 s_pgxpStatContested, s_pgxpStatStale, s_pgxpEpoch);
+		                 s_pgxpStatContested, s_pgxpStatStale, s_pgxpStatAddrHits, s_pgxpStatAddrMiss, s_pgxpEpoch);
 	}
 
 	for (int i = 1; i <= s_gpu.splitIndex; i++)

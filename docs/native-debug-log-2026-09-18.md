@@ -781,4 +781,54 @@ sanity. Screen-aligned guard above is the first of these.
 the AI-MediaLens tool: `python openrouter_media.py <media> -p "<short prompt>"
 -m anthropic/claude-fable-5.1 --max-tokens 4000` (short prompts only — the
 model is expensive; `--max-tokens` is required on low balances because the
-model's 65k default reserves full credit and returns HTTP 402).
+model's 65k default reserves full credit and returns HTTP 402).---
+
+## 16. PGXP memory cache — address-keyed provenance (implemented)
+
+Background (§15 + external review): coordinate matching — even exact — is a
+heuristic in a dense 320x240 pool. The review recommended provenance instead:
+"memory cache" — bind the *addresses* the game stores GTE output into, and
+resolve prims by address. Implemented as an address chain across the two
+render paths:
+
+**1. Table A — transform stores.** `CTR_GteStoreSXY*` (include/ctr_gte.h, the
+helpers every path uses to store raw GTE SXY into projected-vertex
+`posScreen` fields) now call `Pgxp_NoteTransformStore(field, packed)`: the
+field ADDRESS binds to the full-precision transform found as the *freshest*
+push at those exact coordinates within a tight window
+(`PGXP_BIND_WINDOW = 64` pushes — a store follows its own GTE call within a
+handful of pushes, so a UI literal cannot match).
+
+**2. Copies chain.** `DrawLevelOvr1P_CopyProjectedScreenDepth` →
+`Pgxp_NoteTransformCopy(dst, src)` (A→A).
+
+**3. Table S — prim writes.** `Pgxp_NotePrimWrite(dstField, srcField, packed)`:
+- **Exact chain** (DrawLevel path): `DrawLevelOvr1P_PackProjectedSxy` sets a
+  sticky packed-source (the source `posScreen` address + the packed value);
+  `CtrGpu_WritePackedXY` consumes it when the value matches exactly →
+  A(srcAddr) → S(dstAddr). No coordinate matching anywhere.
+- **Window bind** (RenderBucket writers, post-transform MFC2): 4 writer
+  functions in `RenderBucket_QueueExecute.c` (12 sites) keep the tight
+  freshest-push binding.
+- **Negative bind**: a store that matched nothing fresh marks the address as
+  NOT transform-sourced.
+
+**4. Resolution (draw side).** `Pgxp_FillVertex` resolves by address first:
+positive → exact (status 1, blue); **negative → affine AND the coordinate
+fallback is blocked for that field** (proven non-transform content can never
+false-match); no entry → coordinate fallback (uninstrumented paths only).
+
+**Measured (130s run, PGXP on):** `addrH = 6,008,764` proven-exact vertices
+(~57% of all resolved; the menu/cinematic phase went from ~0 binds in v1 to
+1.5M+), fallback hits 4.3M, true misses 163k, contested ~1.6%, **0 crashes**.
+Visuals verified clean: main menu, title scenes, real-time cinematics (no
+shards, no warping). Note the intro/menu/cinematic phases — where the old
+coordinate matcher was weakest — are now almost entirely address-bound.
+
+**Knobs:** `PGXP_BIND_WINDOW` (64), `PGXP_SHADOW_SIZE` / `PGXP_TRANSFORM_SIZE`
+(32768, direct-mapped), `PGXP_MEMCACHE_ENABLE`.
+
+**Files touched:** `platform/native_gpu.c` (tables, hooks, resolver, stats),
+`include/ctr_gte.h` (store hooks), `include/gpu.h` (WritePackedXY hook),
+`game/226/226_00_DrawLevelOvr1P.c` (packer/copy hooks),
+`game/RenderBucket/RenderBucket_QueueExecute.c` (4 writers).

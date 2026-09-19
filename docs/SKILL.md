@@ -176,10 +176,16 @@ elements must be green** (blue/orange = the stale-slot 2D regression).
   panel (see debug log §15). Exact-only + the **screen-aligned quad guard**
   (`MakeVertexQuad` marks `x0==x3 && x1==x2 && y0==y1 && y2==y3` quads 2D -
   setXYWH-style UI never matches): hits 98.2%, true no-match ~0, contested 1.8%.
-- **Proper long-term fix (review-verified, not yet built):** address-keyed
-  shadow table written by the GTE SXY store macros (`gte_stsxy0..3`) -
-  provenance, not geometry ("memory cache" mode, ~40 lines); what we run is the
-  "vertex cache" fallback (DuckStation ships it off by default).
+- **Memory cache IMPLEMENTED (address-keyed provenance, debug log §16):** the
+  game's `CTR_GteStoreSXY*` helpers bind each `posScreen` field address to the
+  full-precision transform (freshest push within a tight window); prim writers
+  bind via exact address chain (`DrawLevelOvr1P_PackProjectedSxy` sticky ->
+  `CtrGpu_WritePackedXY`) or tight window (RenderBucket writers). The draw
+  resolves by address first: positive = exact; **negative = affine AND the
+  coordinate fallback is blocked** (proven non-transform never false-matches);
+  no entry = fallback. Measured: 6.0M proven-exact vertices, ~57% of all
+  resolved, menu/cinematic phases now address-bound; 0 crashes. Knobs:
+  `PGXP_BIND_WINDOW` (64), `PGXP_SHADOW_SIZE`/`PGXP_TRANSFORM_SIZE` (32768).
 - **External review channel ("Fable")**: `python
   C:/Developments/Tools/AI-MediaLens/openrouter_media.py <media> -p "<short
   prompt>" -m anthropic/claude-fable-5.1 --max-tokens 4000` - SHORT prompts

@@ -66,11 +66,20 @@ static inline void CtrGpu_WriteColorCode(u8 *r, u32 colorCode)
 #endif
 }
 
+#ifdef CTR_NATIVE
+void Pgxp_NotePrimWriteSticky(void *dstField, unsigned int packedXY);
+#endif
+
 static inline void CtrGpu_WritePackedXY(VERTTYPE *x, u32 xy)
 {
 #ifdef CTR_NATIVE
 	x[0] = (VERTTYPE)xy;
 	x[1] = (VERTTYPE)(xy >> 16);
+	// PGXP memory cache: bind this prim field by ADDRESS when the caller just
+	// packed a projected vertex (the DrawLevel packer sets the source); a
+	// non-matching value = not transform-sourced -> negative bind. No
+	// coordinate matching involved (see platform/native_gpu.c).
+	Pgxp_NotePrimWriteSticky((void *)x, xy);
 #else
 	*(CtrPackedU32 *)x = xy;
 #endif
