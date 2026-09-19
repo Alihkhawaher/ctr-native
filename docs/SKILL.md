@@ -98,6 +98,16 @@ panel (top-left) lists everything with live values.
   `E:\Games\CrashCTR-Win\version_diff\`.
 
 ## Hard-won pitfalls (do not repeat)
+- PSX-harmless NULL writes: decompiled code that writes to `(NULL + offset)`
+  was fine on PSX (low RAM is valid there) but is a hard crash on native.
+  Audit loops that span ALL driver slots (e.g. `CLOCK_DRIVER_COUNT` = 8) —
+  `numPlyrCurrGame`-bounded loops are safe. Fixed example:
+  `game/Vehicle/VehPickupItem.c` clock weapon (`drivers[i]->clockFlash` wrote
+  before the null check → crash with <8 drivers + a clock pickup).
+- The native exe is x86-32 — for crash addresses, disassemble with
+  `CS_ARCH_X86/CS_MODE_32`; MIPS disassembly applies only to the PSX disc
+  images (tools/version_diff.py). Crash sentinel prints `module+offset`
+  (RVA); map via the PE section table.
 - Gamepad slots: `s_controllerToSlotMapping` must be WRITTEN on open (and
   cleared on close); SDL sends `GAMEPAD_ADDED` for pads already connected at
   startup during `SDL_Init` AND whenever `gamecontrollerdb.txt` mappings load

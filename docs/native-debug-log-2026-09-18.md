@@ -627,3 +627,29 @@ per-region game builds (upstream territory).
   decompilation is US-only (per-region support there = mod-build tooling).
   ModSDK has a `LangMenu` module (prior art for stage 3) and an `EurLibcrypt`
   patch (PAL LibCrypt — irrelevant to this port, we never run the PSX exe).
+
+## 13. Crash fix: clock weapon NULL driver (2026-09-19)
+
+- Report: crash on the other PC (GTX 1060 / 560.94) during a session with two
+  Xbox pads; log `Crash Team Racing - Copy.log` → sentinel:
+  `UNHANDLED EXCEPTION code=0xC0000005 address=00B2CD2E (ctr_native.exe+0xACD2E)`,
+  eax=0, ebx=0x24F4 (drivers[2]), ecx=0x1E00, edx=0x7F.
+- Root cause (disassembled the faulting site, x86): the clock weapon handler
+  iterates ALL 8 driver slots — `for (i = 0; i < CLOCK_DRIVER_COUNT; i++)` —
+  and wrote `drivers[i]->clockFlash = CLOCK_FLASH_FRAMES` **before** the null
+  check. The original PSX code wrote to `NULL + 0x367`, which on PSX is valid
+  low RAM (harmless); on native it is a NULL dereference. Trigger: a race with
+  fewer than 8 drivers (e.g. 2-player modes) + a clock pickup → slot #2 NULL
+  → crash. (Disassembly note: the exe is x86-32 — do NOT disassemble the
+  native exe as MIPS; the MIPS path is only for the PSX images in
+  tools/version_diff.py.)
+- Fix: `game/Vehicle/VehPickupItem.c` — null-check first, then write
+  (`victim->clockFlash = ...`). Nothing reads clockFlash of an empty slot, so
+  behavior is preserved. Audited the other 9 `drivers[i]->` accesses: all loop
+  over `numPlyrCurrGame` (always-valid player slots) — only the clock loop
+  spans all 8. Deterministic re-trigger not re-run (needs 2P + clock pickup);
+  the fix is a strict null guard on the exact faulting path.
+- Visual issue from the same report ("opponent karts turn into distorted
+  images when ahead") did NOT reproduce on the main PC during an in-race
+  capture session (frames identical across toggles) — watch-list item; the
+  other PC's GTX 1060 / driver remains the only environment where it was seen.

@@ -862,12 +862,19 @@ void VehPickupItem_ShootNow(struct Driver *d, s32 weaponID, s32 flags)
 		{
 			struct Driver *victim;
 
-			GAME_TRACKER->drivers[i]->clockFlash = CLOCK_FLASH_FRAMES;
 			victim = GAME_TRACKER->drivers[i];
 			if (victim == 0)
 			{
 				continue;
 			}
+
+			// NOTE(CTR_NATIVE): the original PSX code wrote clockFlash to every
+			// slot BEFORE this null check. On PSX that wrote to address 0x367 of
+			// low RAM (harmless); on native it is a NULL dereference crash
+			// (hit with fewer than 8 drivers, e.g. 2-player modes + a clock
+			// pickup). Nothing reads clockFlash of an empty slot, so guarding
+			// the write preserves behavior.
+			victim->clockFlash = CLOCK_FLASH_FRAMES;
 			if (victim != d)
 			{
 				if (RB_Hazard_HurtDriver(victim, CLOCK_HURT_REASON, 0, 0) != 0)
