@@ -653,3 +653,77 @@ per-region game builds (upstream territory).
   images when ahead") did NOT reproduce on the main PC during an in-race
   capture session (frames identical across toggles) — watch-list item; the
   other PC's GTX 1060 / driver remains the only environment where it was seen.
+---
+
+## 14. PGXP review fixes (external critique — verified, implemented, falsified)
+
+An external review (Fable, 2026-09-19) audited the PGXP implementation. Every claim
+was verified against the code before acting. Verdict: high quality — nearly all of
+it actionable, two of the findings were real bugs.
+
+### What was implemented
+
+1. **Side channel corrected** (`native_gte_core.c`):
+   - `OFX/OFY` are full 16.16 fixed-point (hardware adds them before the `>>16`);
+     truncating to `(OFX >> 16)` biased positions by up to 1px.
+   - `w` must be in **SZ3 units** (`mac3f / 4096`) because `C2_H` is compared
+     against SZ3-scale values. The old `minW` divided by 4096 **again**, so the
+     near-camera clamp could never fire — dead code.
+   - Vertices at/behind the eye are now pushed with depth floored at `H/2` (the
+     hardware divide saturates there: `Lm_D`/`Lm_E`) instead of being dropped
+     entirely — dropped vertices forced whole near polygons affine.
+   - Sampled **self-check** against the integer register chain (clamped like
+     `Lm_G1`): three 75s runs, **0 divergences**. The float path and the register
+     path agree exactly now.
+2. **2D slots marked** (`MakeVertexRect`): the rect/tile/sprite family never calls
+   `Pgxp_FillVertex`, so its PGXP side-array slots held **stale data from earlier
+   3D primitives** — HUD sprites inherited a garbage per-corner `w` and warped
+   with PGXP on (O view: blue/orange instead of green). The builder now writes
+   `(0,0,0,5)` for all four slots; `TriangulateQuad` copies them into both
+   triangle copies. *The line builders were checked too — they go through
+   `MakeVertexQuad`, which does fill — only the rect family was affected.*
+3. **Contested = true ambiguity only**: the sticky `|| (v->contested != 0)` term
+   was removed. A contested slot no longer keeps refusing matches after a
+   *different-pixel* push takes it over. Refusals are confined to
+   same-epoch + same-pixel + different-depth.
+4. **4-way set-associative cache**: 65536 entries → 16384 sets × 4 ways (push and
+   lookup scan the set, eviction picks the oldest entry in it). The measured
+   true "no match" class fell **4.5% → ~1.1%**, matching the predicted
+   direct-mapped collision rate — the eviction theory was right.
+5. **`noperspective`** on `v_color` and `v_ditherCoord`: PSX Gouraud shading and
+   dithering are screen-linear; perspective-correct interpolation was a subtle
+   mismatch (GLSL 130+ supports it; our shaders are 140).
+6. **Geometry window** ±0.5px → **[-1.0, +2.5]** (floors bias the correction
+   positive; ±0.5 was clamping most of it away).
+
+### Falsified by measurement (do not re-apply)
+
+- **"Tighten the freshness window to 1–2 epochs"** — tested at 4 epochs:
+  stale refusals exploded to **1.70M** and the hit rate collapsed to ~70%.
+  This port draws from **order tables built over multiple frames**, so entries
+  legitimately live longer than one frame. Reverted to 16 (~8 frames); stale
+  fell to 49k. Keep 16; tighten only with a hit-age histogram.
+- **"Line builders also skip the PGXP fill"** — they don't (see above).
+
+### Not taken (on purpose)
+
+- Bilinear UV clamp — real, but the F3 path, not PGXP. Follow-up.
+- Address-keyed matching (the robust long-term design) — weeks of work; with
+  1.1% true no-match it is not needed now.
+- Depth-coherence resolution for contested pixels (keep both candidates) —
+  ambiguity class is ~1.9%; refusal is the safe choice; revisit if artifacts remain.
+
+### Measured results (same binary, PGXP on, 75s attract-mode run)
+
+| metric | before | after |
+| --- | --- | --- |
+| hit rate | ~95-96% | **96.1%** |
+| true no-match | ~4.5% | **1.1%** |
+| contested | 5.4% (sticky, over-refusing) | 1.9% |
+| behind (dropped) | >0 | **0** |
+| side-channel drift | unknown | **0** |
+| crashes | -- | 0 |
+
+PGXP remains **experimental and off by default** (user decision). To A/B:
+`P` toggles PGXP, `G` geometry, `O` status view — HUD elements should be all
+green with PGXP on (blue/orange = the 2D regression, reverted).

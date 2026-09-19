@@ -1064,9 +1064,9 @@ GLint u_psxTextureOutputStpLoc;
 	    "	}\n"
 
 global_variable const char *gpu_shader_common = "	varying vec4 v_texcoord;\n"
-                                                "	varying vec4 v_color;\n"
+                                                "	noperspective varying vec4 v_color;\n"
                                                 "	varying vec4 v_page_clut;\n"
-                                                "	varying vec2 v_ditherCoord;\n"
+                                                "	noperspective varying vec2 v_ditherCoord;\n"
                                                 "	varying float v_z;\n"
                                                 "	varying float v_pgxpStatus;\n"
                                                 "	uniform int pgxpDebugView;\n"
@@ -1100,7 +1100,7 @@ const char *gte_shader_32_rgba = "	uniform sampler2D s_texture;\n"
 	"	float grW = 1.0;\n"                                                                                              \
 	"	if ((pgxpMode != 0) && (a_pgxp.z > 0.0)) {\n"                                                                    \
 	"		grW = a_pgxp.z;\n"                                                                                             \
-	"		if (pgxpGeoMode != 0) { grPos = clamp(a_pgxp.xy, a_position.xy - vec2(0.5), a_position.xy + vec2(0.5)); }\n"   \
+	"		if (pgxpGeoMode != 0) { grPos = clamp(a_pgxp.xy, a_position.xy - vec2(1.0), a_position.xy + vec2(2.5)); }\n" \
 	"	}\n"                                                                                                             \
 	"	v_pgxpStatus = (pgxpMode != 0) ? a_pgxp.w : 0.0;\n"                                                              \
 	"	vec4 grOrtho = Projection * vec4(grPos, 0.0, 1.0);\n"                                                            \

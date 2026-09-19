@@ -98,6 +98,15 @@ panel (top-left) lists everything with live values.
   `E:\Games\CrashCTR-Win\version_diff\`.
 
 ## Hard-won pitfalls (do not repeat)
+- PGXP side-channel units: `w` must be SZ3-scale (`mac3f / 4096`) — `C2_H` is
+  compared against SZ3, so floor it at `H/2`. Dividing by 4096 a second time
+  silently disables the clamp (it never fires, no error anywhere).
+- Rect/tile/sprite builders bypass `Pgxp_FillVertex` — their PGXP slots hold
+  stale 3D data unless `MakeVertexRect` marks them 2D (status 5). Symptom:
+  HUD sprites warp with PGXP on; O view shows blue/orange where green is due.
+- This port draws from order tables built over multiple frames: PGXP cache
+  entries legitimately live >1 frame. The freshness window is 16 epochs for a
+  measured reason (4 → 1.7M stale refusals, 70% hit rate).
 - PSX-harmless NULL writes: decompiled code that writes to `(NULL + offset)`
   was fine on PSX (low RAM is valid there) but is a hard crash on native.
   Audit loops that span ALL driver slots (e.g. `CLOCK_DRIVER_COUNT` = 8) —
@@ -155,11 +164,28 @@ panel (top-left) lists everything with live values.
 - XA camera/voice blockers are IMAGE problems, not code (see §7).
 
 ## PGXP — EXPERIMENTAL, off by default
-Perspective-correct textures + subpixel geometry (0.5px clamp). User-verified
-tearing in some scenes; labeled experimental everywhere; `pgxp: false` is the
-default. Enable per-session with P (+G). Status view (O) legend: blue=exact,
-orange=near, red=none, magenta=ambiguous, yellow=discarded, cyan=stale,
-green=2D.
+Perspective-correct textures + subpixel geometry (window [-1.0, +2.5]px after the
+2026-09-19 review fixes; was ±0.5). User-verified tearing in some scenes; labeled
+experimental everywhere; `pgxp: false` is the default. Enable per-session with P
+(+G). Status view (O) legend: blue=exact, orange=near, red=none,
+magenta=ambiguous, yellow=discarded, cyan=stale, green=2D — with PGXP on, **HUD
+elements must be green** (blue/orange = the stale-slot 2D regression).
+
+Review fixes landed (verified against code, results measured — see debug log §14):
+- Side channel: `OFX/OFY` full 16.16 (no `>>16` truncation), `w` in SZ3 units,
+  depth floored at `H/2` for on/behind-eye vertices (pushed, not dropped) —
+  sampled self-check vs the register chain: 0 drift.
+- Rect/tile/sprite paths mark their PGXP slots 2D (status 5) in
+  `MakeVertexRect` — they bypass `Pgxp_FillVertex`, so stale 3D data used to
+  warp the HUD. Lines are fine (they go through `MakeVertexQuad`).
+- Contested = same-epoch + same-pixel + different-depth only (sticky clause
+  removed — it over-refused).
+- Cache is 4-way set associative (16384×4): true no-match 4.5% → 1.1%.
+- `noperspective` on `v_color`/`v_ditherCoord` (PSX shading/dither are
+  screen-linear).
+- Freshness window stays 16 (~8 frames): measured — this port draws from order
+  tables built over multiple frames; tightening to 4 restored 1.7M stale
+  refusals at 70% hit rate. Do not "optimize" it without a hit-age histogram.
 
 ## Defaults (final)
 `fullscreen: true`, `aspect_ratio: "4:3"`, `internal_resolution_scale: 0`

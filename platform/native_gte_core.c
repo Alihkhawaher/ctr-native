@@ -326,38 +326,65 @@ internal int GTE_RotTransPers(int idx, int lm)
 		const double mac2f = (double)((s64)C2_TRY << 12) + (double)C2_R21 * (double)VX(idx) + (double)C2_R22 * (double)VY(idx) + (double)C2_R23 * (double)VZ(idx);
 		const double mac3f = (double)((s64)C2_TRZ << 12) + (double)C2_R31 * (double)VX(idx) + (double)C2_R32 * (double)VY(idx) + (double)C2_R33 * (double)VZ(idx);
 
-		if (mac3f > 0.0)
+				// Corrected side channel (review findings):
+		//  - OFX/OFY are full 16.16 fixed-point (the hardware adds them
+		//    before the >>16); truncating to (OFX >> 16) biased positions by
+		//    up to 1px.
+		//  - w must be in SZ units (mac3f / 4096) because H is compared
+		//    against SZ3 units; the old minW divided by 4096 again, so the
+		//    near-camera clamp never fired.
+		//  - The hardware divide saturates SZ3 at H/2 (Lm_E / Lm_D), so
+		//    vertices at or behind the eye still get a position (depth
+		//    floors at H/2); dropping them forced whole near polygons affine.
 		{
-			const double invZ = (double)C2_H / mac3f;
+			const double xv = mac1f / 4096.0;
+			const double yv = mac2f / 4096.0;
+			const double zv = mac3f / 4096.0;
 
-			// NOTE: OFX/OFY are 16.16 fixed-point (hardware adds them before
-			// the >>16), so the integer screen offset is (OFX >> 16).
-			// The hardware SATURATES SX2/SY2 to [-0x400, 0x3FF] (Lm_G1/Lm_G2)
-			// and games rely on that clamping (off-screen geometry stays put
-			// at the screen edge). The float copy must clamp identically or
-			// saturated vertices render at their true off-screen position and
-			// tear the polygon apart.
-			double px = (double)(C2_OFX >> 16) + mac1f * invZ;
-			double py = (double)(C2_OFY >> 16) + mac2f * invZ;
+			const double h = (double)C2_H;
+			const double ofx = (double)C2_OFX / 65536.0;
+			const double ofy = (double)C2_OFY / 65536.0;
+
+			double w = zv;
+			if (w < (h * 0.5))
+			{
+				w = h * 0.5;
+			}
+
+			double px = ofx + ((xv * h) / w);
+			double py = ofy + ((yv * h) / w);
 
 			if (px > 0x3ff) { px = 0x3ff; } else if (px < -0x400) { px = -0x400; }
 			if (py > 0x3ff) { py = 0x3ff; } else if (py < -0x400) { py = -0x400; }
-
-			// Clamp W from below near the camera (PCSXR-PGXP does the same
-			// with max(H/2, Z)): extremely small depths blow up the
-			// perspective term and make close-up textures fling/jitter.
-			double w = mac3f / 4096.0;
-			const double minW = ((double)C2_H * 0.5) / 4096.0;
-
-			if ((minW > 0.0) && (w < minW))
-			{
-				w = minW;
-			}
 
 			Pgxp_PushVertex(C2_SX2, C2_SY2,
 			                (float)px,
 			                (float)py,
 			                (float)w);
+
+			// Self-check (sampled): the float path must reproduce the integer
+			// chain (floor of IR1/SZ3 + final >>16) within the divide table's
+			// rounding. Drift beyond +-1 means the side channel and the
+			// register path have diverged and the match table is fed wrong
+			// keys. Debug-logged only.
+			{
+				static u32 s_pgxpSideCheck = 0;
+
+				if (((++s_pgxpSideCheck) & 0xFFF) == 0)
+				{
+					const double zvf = floor(zv);
+					const double zClamped = (zvf < (h * 0.5)) ? (h * 0.5) : zvf;
+					double chk = floor(ofx + ((floor(xv) * h) / zClamped));
+
+					if (chk > 0x3ff) { chk = 0x3ff; } else if (chk < -0x400) { chk = -0x400; }
+
+					if ((chk > (double)(C2_SX2 + 1)) || (chk < (double)(C2_SX2 - 1)))
+					{
+						Platform_LogWarn("[CTR Debug] PGXP side-channel drift: float=%.2f int=%d (mac1f=%.1f mac3f=%.1f H=%d)\n",
+						                 chk, (int)C2_SX2, mac1f, mac3f, (int)C2_H);
+					}
+				}
+			}
 		}
 	}
 

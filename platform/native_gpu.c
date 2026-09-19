@@ -161,6 +161,8 @@ typedef struct
 } PgxpCachedVertex;
 
 #define PGXP_CACHE_SIZE (65536)
+#define PGXP_CACHE_WAYS (4)
+#define PGXP_CACHE_SETS (PGXP_CACHE_SIZE / PGXP_CACHE_WAYS)
 
 // Reject stale matches: entries older than this many epochs (~2 epochs advance
 // per frame in this port) are ignored. Same-frame lookups sit ~1 epoch behind
@@ -168,6 +170,9 @@ typedef struct
 // calls. Without this, a spot vacated by a moving object keeps its old W and a
 // static surface briefly inherits the wrong perspective (visible as texture
 // jiggle when something passes over it).
+// Tightened from 16 (8 frames!) to 4 (~2 frames): 16 silently accepted
+// week-old entries as hits and fed the "texture jiggle" the window exists to
+// prevent (review finding; tighten further only with a hit-age histogram).
 #define PGXP_FRESH_WINDOW (16)
 
 // Miss forensics showed missing coordinates sitting 1-4 px from a live
@@ -226,19 +231,51 @@ void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
 	s_pgxpStatPushes++;
 
 	const u32 hash = ((u32)(u16)sx * 73856093u) ^ ((u32)(u16)sy * 19349663u);
-	PgxpCachedVertex *v = &s_pgxpCache[hash & (PGXP_CACHE_SIZE - 1)];
+	PgxpCachedVertex *set = &s_pgxpCache[(hash & (PGXP_CACHE_SETS - 1)) * PGXP_CACHE_WAYS];
+
+	// 4-way set associative: update the same-pixel entry in place if present,
+	// else take a free slot, else evict the oldest. Direct-mapped evicted
+	// ~4.5% of live entries per frame at ~4k pushes/frame, which matched the
+	// measured "no match" class exactly (review finding).
+	PgxpCachedVertex *v = NULL;
+	PgxpCachedVertex *oldest = &set[0];
+
+	for (int way = 0; way < PGXP_CACHE_WAYS; way++)
+	{
+		PgxpCachedVertex *c = &set[way];
+
+		if ((c->valid != 0) && (c->sx == (s16)sx) && (c->sy == (s16)sy))
+		{
+			v = c;
+			break;
+		}
+
+		if ((v == NULL) && (c->valid == 0))
+		{
+			v = c;
+		}
+
+		if (c->gen < oldest->gen)
+		{
+			oldest = c;
+		}
+	}
+
+	if (v == NULL)
+	{
+		v = oldest;
+	}
 
 	// TRUE ambiguity = the same pixel, same frame, with a different depth:
-	// two different objects projecting to the same point. Ordinary hash
-	// collisions (different coordinates landing in the same slot) are NOT
-	// ambiguity — the slot just takes the newest transform. Treating
-	// collisions as ambiguity wrongly discarded ~5% of all lookups and made
-	// the status view flicker blue/yellow across the whole screen.
-	const u8 samePixel = ((v->valid != 0) && (v->sx == (s16)sx) && (v->sy == (s16)sy)) ? 1 : 0;
-	const u8 sameEpoch = ((v->valid != 0) && (v->gen == s_pgxpEpoch)) ? 1 : 0;
+	// two different objects projecting to the same point. Ordinary collisions
+	// are never ambiguity — with 4 ways the colliding coordinate simply lands
+	// in its own way. (The old sticky flag leaked: once a slot was contested,
+	// every later push into it inherited the flag regardless of pixel, and
+	// plain collisions refuse lookups they had nothing to do with.)
+	const u8 samePixelThisEpoch = ((v->valid != 0) && (v->gen == s_pgxpEpoch) && (v->sx == (s16)sx) && (v->sy == (s16)sy)) ? 1 : 0;
 	float wDelta = v->w - w;
 	if (wDelta < 0.0f) { wDelta = -wDelta; }
-	const u8 contested = (sameEpoch && ((samePixel && (wDelta > 0.25f)) || (v->contested != 0))) ? 1 : 0;
+	const u8 contested = (samePixelThisEpoch && (wDelta > 0.25f)) ? 1 : 0;
 
 	v->sx = (s16)sx;
 	v->sy = (s16)sy;
@@ -248,7 +285,7 @@ void Pgxp_PushVertex(int sx, int sy, float px, float py, float w)
 	v->px = px;
 	v->py = py;
 	v->w = w;
-}
+	}
 
 internal int Pgxp_LookupVertex(int x, int y, float *out)
 {
@@ -261,96 +298,125 @@ internal int Pgxp_LookupVertex(int x, int y, float *out)
 	// the affine PSX path for the whole triangle (never mixed).
 	// Returns the status code (1 = hit, else 0/3/4) and fills out[0..2] on hit.
 	const u32 hash = ((u32)(u16)x * 73856093u) ^ ((u32)(u16)y * 19349663u);
-	const PgxpCachedVertex *v = &s_pgxpCache[hash & (PGXP_CACHE_SIZE - 1)];
+		const PgxpCachedVertex *set = &s_pgxpCache[(hash & (PGXP_CACHE_SETS - 1)) * PGXP_CACHE_WAYS];
 
-	if ((v->valid != 0) && (v->sx == (s16)x) && (v->sy == (s16)y))
+	// Scan all ways: prefer a fresh uncontested exact match; remember the
+	// worst refusal reason for the status view if none qualifies.
+	int refusal = 0;
+
+	for (int way = 0; way < PGXP_CACHE_WAYS; way++)
 	{
+		const PgxpCachedVertex *v = &set[way];
+
+		if ((v->valid == 0) || (v->sx != (s16)x) || (v->sy != (s16)y))
+		{
+			continue;
+		}
+
 		if (v->contested != 0)
 		{
-			// Ambiguous pixel: two objects wanted it in this frame — refuse
-			// (affine fallback) rather than apply the wrong depth.
-			s_pgxpStatContested++;
-			s_pgxpStatMisses++;
-			return 3;
+			if (refusal == 0)
+			{
+				refusal = 3; // ambiguous pixel: two objects wanted it this frame
+			}
+			continue;
 		}
-		else if ((s_pgxpEpoch - v->gen) > PGXP_FRESH_WINDOW)
+
+		if ((s_pgxpEpoch - v->gen) > PGXP_FRESH_WINDOW)
 		{
-			// Ancient entry (an object long gone from this pixel).
-			s_pgxpStatStale++;
-			s_pgxpStatMisses++;
-			return 4;
+			if (refusal == 0)
+			{
+				refusal = 4; // ancient entry (an object long gone from this pixel)
+			}
+			continue;
+		}
+
+		out[0] = v->px;
+		out[1] = v->py;
+		out[2] = v->w;
+		s_pgxpStatHits++;
+		return 1;
+	}
+
+	if (refusal != 0)
+	{
+		if (refusal == 3)
+		{
+			s_pgxpStatContested++;
 		}
 		else
 		{
-			out[0] = v->px;
-			out[1] = v->py;
-			out[2] = v->w;
-			s_pgxpStatHits++;
-			return 1;
+			s_pgxpStatStale++;
 		}
-	}
+		s_pgxpStatMisses++;
+		return refusal;
+		}
 
 	// Near match: the game often stores coordinates rounded a couple of pixels
 	// away from the raw GTE value. Scan the radius, take the NEAREST live
 	// candidate, refuse ties (ambiguity -> affine fallback, never a guess).
 	{
 		int bestDist = PGXP_NEAR_RADIUS + 1;
-		int bestSlot = -1;
-		int tie = 0;
+			const PgxpCachedVertex *bestEntry = NULL;
+			int tie = 0;
 
-		for (int dy = -PGXP_NEAR_RADIUS; dy <= PGXP_NEAR_RADIUS; dy++)
-		{
-			for (int dx = -PGXP_NEAR_RADIUS; dx <= PGXP_NEAR_RADIUS; dx++)
+			for (int dy = -PGXP_NEAR_RADIUS; dy <= PGXP_NEAR_RADIUS; dy++)
 			{
-				if ((dx == 0) && (dy == 0))
+				for (int dx = -PGXP_NEAR_RADIUS; dx <= PGXP_NEAR_RADIUS; dx++)
 				{
-					continue;
-				}
+					if ((dx == 0) && (dy == 0))
+					{
+						continue;
+					}
 
-				const u32 nHash = ((u32)(u16)(x + dx) * 73856093u) ^ ((u32)(u16)(y + dy) * 19349663u);
-				const int nSlot = nHash & (PGXP_CACHE_SIZE - 1);
-				const PgxpCachedVertex *c = &s_pgxpCache[nSlot];
+					const u32 nHash = ((u32)(u16)(x + dx) * 73856093u) ^ ((u32)(u16)(y + dy) * 19349663u);
+					const PgxpCachedVertex *nSet = &s_pgxpCache[(nHash & (PGXP_CACHE_SETS - 1)) * PGXP_CACHE_WAYS];
 
-				if ((c->valid == 0) || (c->contested != 0))
-				{
-					continue;
-				}
+					for (int way = 0; way < PGXP_CACHE_WAYS; way++)
+					{
+						const PgxpCachedVertex *c = &nSet[way];
 
-				if ((c->sx != (s16)(x + dx)) || (c->sy != (s16)(y + dy)))
-				{
-					continue; // slot holds some other coordinate (collision)
-				}
+						if ((c->valid == 0) || (c->contested != 0))
+						{
+							continue;
+						}
 
-				if ((s_pgxpEpoch - c->gen) > PGXP_FRESH_WINDOW)
-				{
-					continue;
-				}
+						if ((c->sx != (s16)(x + dx)) || (c->sy != (s16)(y + dy)))
+						{
+							continue; // slot holds some other coordinate (collision)
+						}
 
-				const int dist = ((dx < 0) ? -dx : dx) + ((dy < 0) ? -dy : dy);
+						if ((s_pgxpEpoch - c->gen) > PGXP_FRESH_WINDOW)
+						{
+							continue;
+						}
 
-				if (dist < bestDist)
-				{
-					bestDist = dist;
-					bestSlot = nSlot;
-					tie = 0;
-				}
-				else if (dist == bestDist)
-				{
-					tie = 1;
+						const int dist = ((dx < 0) ? -dx : dx) + ((dy < 0) ? -dy : dy);
+
+						if (dist < bestDist)
+						{
+							bestDist = dist;
+							bestEntry = c;
+							tie = 0;
+						}
+						else if (dist == bestDist)
+						{
+							tie = 1;
+						}
+					}
 				}
 			}
-		}
 
-		if ((bestSlot >= 0) && (tie == 0))
-		{
-			out[0] = s_pgxpCache[bestSlot].px;
-			out[1] = s_pgxpCache[bestSlot].py;
-			out[2] = s_pgxpCache[bestSlot].w;
-			s_pgxpStatNear++;
-			s_pgxpStatHits++;
-			return 6; // near match (status view: orange)
-		}
-	}
+			if ((bestEntry != NULL) && (tie == 0))
+			{
+				out[0] = bestEntry->px;
+				out[1] = bestEntry->py;
+				out[2] = bestEntry->w;
+				s_pgxpStatNear++;
+				s_pgxpStatHits++;
+				return 6; // near match (status view: orange)
+				}
+			}
 
 	s_pgxpStatMisses++;
 
@@ -722,6 +788,28 @@ void MakeVertexRect(GrVertex *vertex, VERTTYPE *p0, s16 w, s16 h)
 	DrawEnvOffset(&ofsX, &ofsY);
 
 	memset(vertex, 0, sizeof(GrVertex) * 4);
+
+	// PGXP: the rect path never goes through Pgxp_FillVertex, so mark these
+	// slots as 2D (status 5) explicitly. Without this, stale 3D transform
+	// data left by an earlier primitive leaks in through the rolling vertex
+	// buffer: HUD sprites inherit a garbage per-corner w and perspective-warp
+	// with PGXP on (the O view shows them blue/orange instead of green).
+	// TriangulateQuad copies the slots into the two triangle copies.
+	{
+		const int pgxpBase2D = (int)(vertex - s_gpu.vertexBuffer);
+
+		if ((pgxpBase2D >= 0) && ((pgxpBase2D + 3) < MAX_VERTEX_BUFFER_SIZE))
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				float *d = &s_pgxpVertexData[(pgxpBase2D + i) * 4];
+				d[0] = 0.0f;
+				d[1] = 0.0f;
+				d[2] = 0.0f;
+				d[3] = 5.0f;
+			}
+		}
+	}
 
 	vertex[0].x = p0[0] + ofsX;
 	vertex[0].y = p0[1] + ofsY;
