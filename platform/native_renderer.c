@@ -917,6 +917,58 @@ internal void NativeRenderer_InitRG8LUT(void);
 internal void NativeRenderer_Ortho2D(float left, float right, float bottom, float top, float znear, float zfar);
 internal void NativeRenderer_SetShader(const ShaderID shader);
 internal void NativeRenderer_SyncGpuVRAMToCPU(int x, int y, int w, int h);
+
+// Diagnostic VRAM dump (F7). Writes, under <dirPath>/:
+//   vram_<stamp>.bin - the exact 1024x512 16-bit VRAM, little-endian u16
+//                      per pixel, row 0 = top (PSX address order); feed it
+//                      to any PSX VRAM viewer, or diff two dumps byte-wise.
+//   vram_<stamp>.bmp - decoded 24-bit preview (5551 -> 888, STP ignored) so
+//                      the dump can be eyeballed directly.
+// A full GPU->CPU sync runs first, so the dump matches what was on screen
+// at the moment the key was pressed.
+void NativeRenderer_DumpVRAM(const char *dirPath, const char *stamp)
+{
+	NativeRenderer_SyncGpuVRAMToCPU(0, 0, VRAM_WIDTH, VRAM_HEIGHT);
+
+	char path[512];
+	FILE *fp;
+
+	snprintf(path, sizeof(path), "%s/vram_%s.bin", dirPath, stamp);
+	fp = fopen(path, "wb");
+	if (fp != NULL)
+	{
+		fwrite(s_vram.cpuPixels, sizeof(u16), (size_t)VRAM_WIDTH * VRAM_HEIGHT, fp);
+		fclose(fp);
+	}
+
+	u8 *rgb = (u8 *)malloc((size_t)VRAM_WIDTH * VRAM_HEIGHT * 3);
+	if (rgb != NULL)
+	{
+		for (int i = 0; i < VRAM_WIDTH * VRAM_HEIGHT; i++)
+		{
+			const u16 px = s_vram.cpuPixels[i];
+			const u8 r5 = (u8)(px & 31);
+			const u8 g5 = (u8)((px >> 5) & 31);
+			const u8 b5 = (u8)((px >> 10) & 31);
+
+			rgb[i * 3 + 0] = (u8)((r5 << 3) | (r5 >> 2));
+			rgb[i * 3 + 1] = (u8)((g5 << 3) | (g5 >> 2));
+			rgb[i * 3 + 2] = (u8)((b5 << 3) | (b5 >> 2));
+		}
+
+		SDL_Surface *surf = SDL_CreateSurfaceFrom(VRAM_WIDTH, VRAM_HEIGHT, SDL_PIXELFORMAT_RGB24, rgb, VRAM_WIDTH * 3);
+		if (surf != NULL)
+		{
+			snprintf(path, sizeof(path), "%s/vram_%s.bmp", dirPath, stamp);
+			SDL_SaveBMP(surf, path);
+			SDL_DestroySurface(surf);
+		}
+
+		free(rgb);
+	}
+}
+
+internal void NativeRenderer_SyncGpuVRAMToCPU(int x, int y, int w, int h);
 internal void NativeRenderer_ResolveVRAMRead(int x, int y, int w, int h);
 internal void NativeRenderer_GpuPackTextureToVRAM(TextureID sourceTexture, int x, int y, int w, int h, b32 flipY, int sourceScale);
 

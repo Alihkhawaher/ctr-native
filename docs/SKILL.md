@@ -26,6 +26,10 @@ tried-and-reverted ledger).
   `Start-Process`. The user plays in the background — never steal focus.
 
 ## Runtime keys
+- F7 = diagnostic VRAM dump pack into `vram_dump/`: raw 1024x512 .bin (exact
+  PSX VRAM, LE u16, row0=top) + decoded .bmp preview + frame .bmp, timestamped,
+  taken at the moment of the press (full VRAM sync first). Capture issues at
+  the spot (debug log §18).
 PgUp/PgDn internal resolution 1/2/3/4/8/Auto · F3 bilinear · Tab anti-aliasing
 · P PGXP master (EXPERIMENTAL) · O PGXP status view · G PGXP geometry
 (experimental) · H debug freeze · F12 screenshot · F5/F8 save/load state ·

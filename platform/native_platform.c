@@ -324,8 +324,30 @@ internal void Platform_HandleKey(int key, char down)
 			NativeReplayScheduler_RequestStop();
 			break;
 		case SDL_SCANCODE_F7:
-			Platform_LogWarn("[CTR Native] saving VRAM.TGA\n");
-			NativeRenderer_SaveVRAM("VRAM.TGA", 0, 0, VRAM_WIDTH, VRAM_HEIGHT, 1);
+		{
+			// Full diagnostic VRAM dump at the moment of the press: raw 16-bit
+			// .bin (exact PSX VRAM), decoded .bmp preview, plus the on-screen
+			// frame. Timestamped so repeat captures do not clobber each other.
+			SDL_CreateDirectory("vram_dump");
+
+			time_t dumpTime = time(NULL);
+			struct tm *dumpTm = localtime(&dumpTime);
+			char stamp[32];
+			char framePath[160];
+
+			snprintf(stamp, sizeof(stamp), "%04d%02d%02d_%02d%02d%02d",
+			         dumpTm->tm_year + 1900, dumpTm->tm_mon + 1, dumpTm->tm_mday,
+			         dumpTm->tm_hour, dumpTm->tm_min, dumpTm->tm_sec);
+
+			NativeRenderer_DumpVRAM("vram_dump", stamp);
+
+			snprintf(framePath, sizeof(framePath), "vram_dump/frame_%s.bmp", stamp);
+			Platform_SaveFrameBMP(framePath);
+
+			Platform_LogWarn("[CTR Native] VRAM dump saved: vram_dump/vram_%s.bin + vram_%s.bmp + frame_%s.bmp\n",
+			                 stamp, stamp, stamp);
+		}
+
 			break;
 		case SDL_SCANCODE_F12:
 			Platform_LogWarn("[CTR Native] Saving screenshot...\n");

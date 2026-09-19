@@ -36,6 +36,7 @@ void NativeRenderer_SetupClipMode(const RECT16 *clipRect, const DISPENV *display
 void NativeRenderer_SetTexture(TextureID texture, TexFormat texFormat);
 void NativeRenderer_SetDrawIs2D(b32 is2D);
 void Pgxp_ClearCache(void);
+void NativeRenderer_DumpVRAM(const char *dirPath, const char *stamp);
 void Pgxp_AdvanceEpoch(void);
 void Pgxp_PushVertex(int sx, int sy, float px, float py, float w, int szLow);
 void NativeRenderer_PresentRenderTarget(void);

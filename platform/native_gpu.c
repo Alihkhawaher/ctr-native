@@ -211,7 +211,13 @@ internal PgxpCachedVertex s_pgxpCache[PGXP_CACHE_SIZE];
 
 #define PGXP_MEMCACHE_ENABLE (1)
 #define PGXP_SHADOW_SIZE (32768)
-#define PGXP_BIND_WINDOW (8) // pushes: push -> store distance is a handful; tighter = fewer collisions
+#define PGXP_BIND_WINDOW (1024) // pushes. The (sx,sy,SZ) match is the discriminator now;
+                                 // the window only has to cover batched transform->store
+                                 // distances (menu/logo scenes store a whole object's
+                                 // vertices after transforming them). A tight window
+                                 // there refused half of a batch and left the other half
+                                 // corrected -> the visible patchwork tearing (O view:
+                                 // mixed blue/yellow logo pieces).
 
 typedef struct
 {
@@ -803,6 +809,7 @@ internal void Pgxp_FillVertex(int index, VERTTYPE *p)
 	if (shadow < 0)
 	{
 		// Proven non-transform content: stay affine, never coordinate-match.
+		dst[3] = 2.0f; // discarded (status view: yellow) - keeps the O view honest
 		s_pgxpStatAddrMiss++;
 		return;
 	}

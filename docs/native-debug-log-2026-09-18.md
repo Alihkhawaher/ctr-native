@@ -867,4 +867,27 @@ refuse — those fields render affine rather than wrong).
 
 **Lesson:** a tight window on `(x,y)` alone is not exact in a dense pool —
 match on everything the store site has (coordinates **and** depth) before
-binding, or refuse.
+binding, or refuse.---
+
+## 18. Diagnostic VRAM dump (F7) — for issue-site capture
+
+F7 previously wrote a fixed `VRAM.TGA`; it now writes a timestamped **dump
+pack** under `vram_dump/` next to the executable, taken at the exact moment
+of the press (full GPU->CPU VRAM sync first, so it matches the screen):
+
+- `vram_<stamp>.bin` — the **exact PSX VRAM**: 1024x512, little-endian u16
+  per pixel, row 0 = top (PSX address order), 1,048,576 bytes. Feed to any
+  PSX VRAM viewer or diff two dumps byte-wise.
+- `vram_<stamp>.bmp` — decoded 24-bit preview (5551 -> 888, STP ignored) so
+  the dump can be eyeballed directly (menu framebuffer, texture pages and
+  CLUT strips are all recognisable).
+- `frame_<stamp>.bmp` — the on-screen frame at the same moment.
+
+Verified end-to-end with a background F7 into a live sandbox instance:
+1,048,576-byte .bin, decoded .bmp shows the menu framebuffer + texture pages
++ palette strips exactly as expected.
+
+Use this to capture glitches **at the location of the issue**: press F7 the
+moment something looks wrong; the dump then contains the textures/CLUTs and
+framebuffer that produced it. Report the timestamp of the dump along with a
+description of the artifact.
