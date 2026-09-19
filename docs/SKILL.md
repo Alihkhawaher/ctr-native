@@ -171,6 +171,20 @@ experimental everywhere; `pgxp: false` is the default. Enable per-session with P
 magenta=ambiguous, yellow=discarded, cyan=stale, green=2D — with PGXP on, **HUD
 elements must be green** (blue/orange = the stale-slot 2D regression).
 
+- **Near-match DISABLED** (`PGXP_NEAR_MATCH_ENABLE = 0`): on the main menu it
+  snapped UI vertices onto unrelated live 3D vertices -> yellow shards + ghost
+  panel (see debug log §15). Exact-only + the **screen-aligned quad guard**
+  (`MakeVertexQuad` marks `x0==x3 && x1==x2 && y0==y1 && y2==y3` quads 2D -
+  setXYWH-style UI never matches): hits 98.2%, true no-match ~0, contested 1.8%.
+- **Proper long-term fix (review-verified, not yet built):** address-keyed
+  shadow table written by the GTE SXY store macros (`gte_stsxy0..3`) -
+  provenance, not geometry ("memory cache" mode, ~40 lines); what we run is the
+  "vertex cache" fallback (DuckStation ships it off by default).
+- **External review channel ("Fable")**: `python
+  C:/Developments/Tools/AI-MediaLens/openrouter_media.py <media> -p "<short
+  prompt>" -m anthropic/claude-fable-5.1 --max-tokens 4000` - SHORT prompts
+  only (expensive model); `--max-tokens` required (65k default reserves full
+  credit -> HTTP 402 on low balances).
 Review fixes landed (verified against code, results measured — see debug log §14):
 - Side channel: `OFX/OFY` full 16.16 (no `>>16` truncation), `w` in SZ3 units,
   depth floored at `H/2` for on/behind-eye vertices (pushed, not dropped) —

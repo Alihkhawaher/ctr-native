@@ -726,4 +726,59 @@ it actionable, two of the findings were real bugs.
 
 PGXP remains **experimental and off by default** (user decision). To A/B:
 `P` toggles PGXP, `G` geometry, `O` status view — HUD elements should be all
-green with PGXP on (blue/orange = the 2D regression, reverted).
+green with PGXP on (blue/orange = the 2D regression, reverted).---
+
+## 15. Main-menu shard corruption — near-match disable + screen-aligned guard
+
+**Symptom** (user screenshot, PGXP on): main menu rendered with scattered yellow
+polygon shards across the left half, a shifted olive "ghost panel" behind the
+menu box, and a warped icon — while the menu text itself stayed readable.
+
+**Root cause.** The menu art is drawn as textured *triangles* (prim types
+0x2C/0x3C — classified as 3D). Those vertices are not produced by the GTE in
+that frame, so their exact cache lookups MISSED — and the radius-4 **near-match
+snapped them onto unrelated live 3D vertices** in the dense 320x240 pool. The
+miss probes from the live session are the smoking gun:
+
+```
+[CTR Debug] PGXP miss probe: (0,51)  nearest delta=(1,1) dist=2 w=947.3
+[CTR Debug] PGXP miss probe: (512,51) nearest delta=(0,-1) dist=1 w=394.2
+[CTR Debug] PGXP miss probe: (0,12)  nearest delta=(3,0) dist=3 w=401.2
+```
+
+UI vertices inheriting racing depths (w≈400-950) → the shader perspective-warps
+them → shards + ghost panel + UV warp.
+
+**Fix 1 — near-match disabled** (`PGXP_NEAR_MATCH_ENABLE = 0` in
+`native_gpu.c`). Exact matching carries >95% of hits; the near class was <1%
+with a catastrophic failure mode. The near-scan code stays behind the flag.
+Stats after: `near=0`, hit rate 95.5%, menu clean (verified by capture).
+
+**Fix 2 — screen-aligned quad guard** (external review's interim guard): a quad
+with `x0==x3 && x1==x2 && y0==y1 && y2==y3` is a `setXYWH`-style sprite/UI
+element in practice (menus, text, panels — PSX quad order TL, TR, BR, BL). It
+never came from a GTE projection, so `MakeVertexQuad` marks it 2D (status 5)
+instead of matching. Result: hits **98.2%**, true no-match ≈ **16** out of
+3.5M lookups in a 50s run (was 162k misses with near off, 1.94M with near on),
+contested 1.8%, stale 0, behind 0.
+
+**Verified:** sandbox capture of the same menu scene — corrupted before,
+clean after (side-by-side in `%LOCALAPPDATA%\Temp\ctr_retest\menu2_*.png`).
+
+**Residual risk (review's caveat).** Exact matching has a weaker version of the
+same disease: in a dense pool a UI vertex still has a small false-hit chance,
+and a UI quad with one bogus w gets subtly warped UVs (easy to miss on a
+screenshot). The proper fix is **provenance, not geometry**: an address-keyed
+shadow table written by the GTE SXY store macros (`gte_stsxy0..3`) — UI code
+never goes through them, so UI simply never matches. That is PGXP's
+"memory cache" mode; the (x,y) matching we use is its "vertex cache" fallback
+(DuckStation ships vertex-cache off by default for exactly this reason).
+Estimated ~40 lines in a native port — future work. Interim layered guards if
+needed: same-batch check (all verts of a prim from one RTPT/RTPS batch), depth
+sanity. Screen-aligned guard above is the first of these.
+
+**Consult channel.** Questions to the external reviewer ("Fable") go through
+the AI-MediaLens tool: `python openrouter_media.py <media> -p "<short prompt>"
+-m anthropic/claude-fable-5.1 --max-tokens 4000` (short prompts only — the
+model is expensive; `--max-tokens` is required on low balances because the
+model's 65k default reserves full credit and returns HTTP 402).

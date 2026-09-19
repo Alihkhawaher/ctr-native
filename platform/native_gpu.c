@@ -183,6 +183,14 @@ typedef struct
 // smeared because unrelated neighbours could win.
 #define PGXP_NEAR_RADIUS (4)
 
+// Near-match snapping is DISABLED since 2026-09-19: on the main menu the
+// dense 320x240 pool let UI vertices near-match UNRELATED live 3D vertices
+// (miss probe: (0,51) -> dist=2 grabbing w=947) and the menu art warped
+// into yellow shards + a shifted ghost panel. Exact matching carries >95%
+// of all hits; the near class was <1% with a catastrophic failure mode.
+// Re-enable only with a proper UI/3D discriminator (see debug log §15).
+#define PGXP_NEAR_MATCH_ENABLE (0)
+
 internal PgxpCachedVertex s_pgxpCache[PGXP_CACHE_SIZE];
 internal float s_pgxpVertexData[MAX_VERTEX_BUFFER_SIZE * 4]; // px, py, w, status per vertex, parallel to the vertex buffer
 
@@ -350,73 +358,75 @@ internal int Pgxp_LookupVertex(int x, int y, float *out)
 		}
 		s_pgxpStatMisses++;
 		return refusal;
-		}
+	}
 
+#if PGXP_NEAR_MATCH_ENABLE
 	// Near match: the game often stores coordinates rounded a couple of pixels
 	// away from the raw GTE value. Scan the radius, take the NEAREST live
 	// candidate, refuse ties (ambiguity -> affine fallback, never a guess).
 	{
 		int bestDist = PGXP_NEAR_RADIUS + 1;
-			const PgxpCachedVertex *bestEntry = NULL;
-			int tie = 0;
+		const PgxpCachedVertex *bestEntry = NULL;
+		int tie = 0;
 
-			for (int dy = -PGXP_NEAR_RADIUS; dy <= PGXP_NEAR_RADIUS; dy++)
+		for (int dy = -PGXP_NEAR_RADIUS; dy <= PGXP_NEAR_RADIUS; dy++)
+		{
+			for (int dx = -PGXP_NEAR_RADIUS; dx <= PGXP_NEAR_RADIUS; dx++)
 			{
-				for (int dx = -PGXP_NEAR_RADIUS; dx <= PGXP_NEAR_RADIUS; dx++)
+				if ((dx == 0) && (dy == 0))
 				{
-					if ((dx == 0) && (dy == 0))
+					continue;
+				}
+
+				const u32 nHash = ((u32)(u16)(x + dx) * 73856093u) ^ ((u32)(u16)(y + dy) * 19349663u);
+				const PgxpCachedVertex *nSet = &s_pgxpCache[(nHash & (PGXP_CACHE_SETS - 1)) * PGXP_CACHE_WAYS];
+
+				for (int way = 0; way < PGXP_CACHE_WAYS; way++)
+				{
+					const PgxpCachedVertex *c = &nSet[way];
+
+					if ((c->valid == 0) || (c->contested != 0))
 					{
 						continue;
 					}
 
-					const u32 nHash = ((u32)(u16)(x + dx) * 73856093u) ^ ((u32)(u16)(y + dy) * 19349663u);
-					const PgxpCachedVertex *nSet = &s_pgxpCache[(nHash & (PGXP_CACHE_SETS - 1)) * PGXP_CACHE_WAYS];
-
-					for (int way = 0; way < PGXP_CACHE_WAYS; way++)
+					if ((c->sx != (s16)(x + dx)) || (c->sy != (s16)(y + dy)))
 					{
-						const PgxpCachedVertex *c = &nSet[way];
+						continue; // slot holds some other coordinate (collision)
+					}
 
-						if ((c->valid == 0) || (c->contested != 0))
-						{
-							continue;
-						}
+					if ((s_pgxpEpoch - c->gen) > PGXP_FRESH_WINDOW)
+					{
+						continue;
+					}
 
-						if ((c->sx != (s16)(x + dx)) || (c->sy != (s16)(y + dy)))
-						{
-							continue; // slot holds some other coordinate (collision)
-						}
+					const int dist = ((dx < 0) ? -dx : dx) + ((dy < 0) ? -dy : dy);
 
-						if ((s_pgxpEpoch - c->gen) > PGXP_FRESH_WINDOW)
-						{
-							continue;
-						}
-
-						const int dist = ((dx < 0) ? -dx : dx) + ((dy < 0) ? -dy : dy);
-
-						if (dist < bestDist)
-						{
-							bestDist = dist;
-							bestEntry = c;
-							tie = 0;
-						}
-						else if (dist == bestDist)
-						{
-							tie = 1;
-						}
+					if (dist < bestDist)
+					{
+						bestDist = dist;
+						bestEntry = c;
+						tie = 0;
+					}
+					else if (dist == bestDist)
+					{
+						tie = 1;
 					}
 				}
 			}
+		}
 
-			if ((bestEntry != NULL) && (tie == 0))
-			{
-				out[0] = bestEntry->px;
-				out[1] = bestEntry->py;
-				out[2] = bestEntry->w;
-				s_pgxpStatNear++;
-				s_pgxpStatHits++;
-				return 6; // near match (status view: orange)
-				}
-			}
+		if ((bestEntry != NULL) && (tie == 0))
+		{
+			out[0] = bestEntry->px;
+			out[1] = bestEntry->py;
+			out[2] = bestEntry->w;
+			s_pgxpStatNear++;
+			s_pgxpStatHits++;
+			return 6; // near match (status view: orange)
+		}
+	}
+#endif
 
 	s_pgxpStatMisses++;
 
@@ -760,12 +770,36 @@ void MakeVertexQuad(GrVertex *vertex, VERTTYPE *p0, VERTTYPE *p1, VERTTYPE *p2, 
 	memset(vertex, 0, sizeof(GrVertex) * 4);
 
 	const int pgxpBase = s_gpu.vertexIndex;
-	Pgxp_FillVertex(pgxpBase + 0, p0);
-	Pgxp_FillVertex(pgxpBase + 1, p1);
-	Pgxp_FillVertex(pgxpBase + 2, p2);
-	Pgxp_FillVertex(pgxpBase + 3, p3);
-	Pgxp_RequireConsistent(pgxpBase, 4);
-	Pgxp_ApplyOffset(pgxpBase, 4, ofsX, ofsY);
+
+		// Screen-aligned integer quad (PSX order TL, TR, BR, BL) = a
+	// setXYWH-style sprite/UI element in practice: menus, text, panels. It
+	// never came from a GTE projection, so mark it 2D (status 5) instead of
+	// matching - otherwise it can exact-match unrelated live 3D vertices and
+	// inherit a bogus w (the residual exact-match class; see debug log §15,
+	// guard suggested by the external review). Non-aligned quads fill as usual.
+	const u8 screenAligned = ((p0[0] == p3[0]) && (p1[0] == p2[0]) &&
+	                          (p0[1] == p1[1]) && (p2[1] == p3[1])) ? 1 : 0;
+
+	if (screenAligned != 0)
+	{
+		for (int i = 0; i < 4; i++)
+		{
+			float *d = &s_pgxpVertexData[(pgxpBase + i) * 4];
+			d[0] = 0.0f;
+			d[1] = 0.0f;
+			d[2] = 0.0f;
+			d[3] = 5.0f;
+		}
+	}
+	else
+	{
+		Pgxp_FillVertex(pgxpBase + 0, p0);
+		Pgxp_FillVertex(pgxpBase + 1, p1);
+		Pgxp_FillVertex(pgxpBase + 2, p2);
+		Pgxp_FillVertex(pgxpBase + 3, p3);
+		Pgxp_RequireConsistent(pgxpBase, 4);
+		Pgxp_ApplyOffset(pgxpBase, 4, ofsX, ofsY);
+	}
 
 	vertex[0].x = p0[0] + ofsX;
 	vertex[0].y = p0[1] + ofsY;
