@@ -230,3 +230,7 @@ Engine + launcher defaults aligned.
   the repo (`docs/`) and as a Hermes skill.
 - The user tests live while working — capture via background grabs/F12, never
   steal focus.
+
+## Pitfalls
+
+- **Fullscreen toggle vs window size (debug log 20):** the persisted window size is the separate s_windowedWidth/Height preference, updated only while windowed; never store a fullscreen size as the window preference.

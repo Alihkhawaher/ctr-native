@@ -950,4 +950,31 @@ subpixel geometry correction is the opt-in extra (`G`) for those who want it.
    for that content is known-good.
 3. If geometry must stay on: freeze (`H`) at the spot — heals => binding
    availability; doesn't heal => a different bug. `F7` (VRAM dump, §18)
-   captures the moment either way.
+   captures the moment either way.---
+
+## 20. Fullscreen toggle stored the display size as the window size (window-stays-big)
+
+Reported: "when I disable fullscreen with res 1x, the window stays big, it does
+not get smaller".
+
+**Root cause:** entering fullscreen reports the DISPLAY size through
+SDL_GetWindowSize / `SDL_EVENT_WINDOW_RESIZED` -> `g_windowWidth/Height` (which
+the Auto internal resolution legitimately needs), and `Platform_SaveSettings`
+stored those values as the *config's* `window_width/height`. Leaving fullscreen
+then restored a fullscreen-sized "windowed" window - and the pollution persisted
+across launches (the live config had 1920x1200 as the window size).
+
+**Fix:** a separate `s_windowedWidth/Height` preference:
+
+- Updated **only while windowed** (the resize handler ignores size events that
+  arrive in fullscreen - those belong to the display, not the user).
+- Saved to the config instead of the live size.
+- Leaving fullscreen applies it **explicitly** (`SDL_SetWindowSize` +
+  `SDL_SyncWindow`): drivers that report the fullscreen size on exit no longer
+  strand the window at display size.
+- `End` cycle: `{320,240}` and `{480,360}` presets added (1x-friendly windows);
+  while fullscreen the cycle only updates the preference (it applies on exit).
+
+Pitfall for future work: **never let a transient fullscreen size reach the
+persisted window size.** The live size and the windowed preference are two
+different things.

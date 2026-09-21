@@ -38,6 +38,15 @@ extern int g_dbg_wireframeMode;
 extern int g_windowHeight;
 extern int g_windowWidth;
 
+// NOTE: The windowed-size preference - what the config stores and what
+// leaving fullscreen restores. Kept separate from g_windowWidth/Height,
+// which track the LIVE size: entering fullscreen reports the display size
+// through those (needed by the Auto internal resolution), and treating
+// that as the window preference made the window come back fullscreen-
+// sized (the window-stays-big bug).
+internal int s_windowedWidth = 0;
+internal int s_windowedHeight = 0;
+
 #define HOST_ALT_LEFT  (1 << 0)
 #define HOST_ALT_RIGHT (1 << 1)
 global_variable int s_hostAltKeyState = 0;
@@ -103,6 +112,15 @@ internal void Platform_HandleWindowResize(int width, int height)
 {
 	g_windowWidth = width;
 	g_windowHeight = height;
+
+	if ((g_window == NULL) || ((SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN) == 0))
+	{
+		// Windowed sizes are the user's preference (config + fullscreen-exit
+		// restore); fullscreen sizes are the display's and must not stick.
+		s_windowedWidth = width;
+		s_windowedHeight = height;
+	}
+
 	NativeRenderer_ResolveAutoResolution();
 	NativeRenderer_ResetDevice();
 }
@@ -131,6 +149,19 @@ internal void Platform_HandleFullscreenToggle(void)
 	int fullscreen = (SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN) != 0;
 
 	SDL_SetWindowFullscreen(g_window, fullscreen == 0);
+
+	if (fullscreen != 0)
+	{
+		// Leaving fullscreen: restore the windowed preference explicitly -
+		// some drivers report the fullscreen size here instead of restoring
+		// the pre-fullscreen window, which left the window display-sized.
+		if ((s_windowedWidth > 0) && (s_windowedHeight > 0))
+		{
+			SDL_SetWindowSize(g_window, s_windowedWidth, s_windowedHeight);
+			SDL_SyncWindow(g_window);
+		}
+	}
+
 	SDL_GetWindowSize(g_window, &g_windowWidth, &g_windowHeight);
 	Platform_UpdateCursorVisibility();
 	NativeRenderer_ResetDevice();
@@ -144,8 +175,8 @@ internal void Platform_SaveSettings(void)
 {
 	NativeConfig config;
 
-	config.windowWidth = g_windowWidth;
-	config.windowHeight = g_windowHeight;
+	config.windowWidth = (s_windowedWidth > 0) ? s_windowedWidth : g_windowWidth;
+	config.windowHeight = (s_windowedHeight > 0) ? s_windowedHeight : g_windowHeight;
 	config.fullscreen = ((SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN) != 0) ? 1 : 0;
 	config.aspectRatio = g_cfg_aspectRatio;
 	config.internalResolutionScale = g_cfg_internalResolutionScale;
@@ -169,14 +200,14 @@ internal void Platform_SaveSettings(void)
 internal void Platform_CycleWindowSize(void)
 {
 	static const int sizePresets[][2] = {
-	    {640, 480}, {800, 600}, {1024, 768}, {1280, 720}, {1280, 960}, {1920, 1080}, {2560, 1440}, {3840, 2160},
+	    {320, 240}, {480, 360}, {640, 480}, {800, 600}, {1024, 768}, {1280, 720}, {1280, 960}, {1920, 1080}, {2560, 1440}, {3840, 2160},
 	};
 	const int presetCount = (int)(sizeof(sizePresets) / sizeof(sizePresets[0]));
 	int presetIndex = -1;
 
 	for (int i = 0; i < presetCount; i++)
 	{
-		if ((sizePresets[i][0] == g_windowWidth) && (sizePresets[i][1] == g_windowHeight))
+		if ((sizePresets[i][0] == s_windowedWidth) && (sizePresets[i][1] == s_windowedHeight))
 		{
 			presetIndex = i;
 			break;
@@ -185,9 +216,20 @@ internal void Platform_CycleWindowSize(void)
 
 	presetIndex = (presetIndex + 1) % presetCount;
 
-	SDL_SetWindowSize(g_window, sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
-	Platform_HandleWindowResize(sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
-	Platform_LogWarn("[CTR Native] window size: %dx%d\n", sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
+	if ((SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN) != 0)
+	{
+		// In fullscreen the window itself stays as-is; the pick becomes the
+		// preference that applies when leaving fullscreen.
+		s_windowedWidth = sizePresets[presetIndex][0];
+		s_windowedHeight = sizePresets[presetIndex][1];
+		Platform_LogWarn("[CTR Native] window size (applies when leaving fullscreen): %dx%d\n", sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
+	}
+	else
+	{
+		SDL_SetWindowSize(g_window, sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
+		Platform_HandleWindowResize(sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
+		Platform_LogWarn("[CTR Native] window size: %dx%d\n", sizePresets[presetIndex][0], sizePresets[presetIndex][1]);
+	}
 	NativeOverlay_Show();
 	Platform_SaveSettings();
 }
@@ -509,6 +551,9 @@ void Platform_Init(const char *title, int width, int height, int fullscreen)
 	Platform_GetWindowName(title, windowName, sizeof(windowName));
 
 	Platform_Log("[CTR Native] Initialising platform\n");
+
+	s_windowedWidth = width;
+	s_windowedHeight = height;
 
 	if (SDL_Init(SDL_INIT_VIDEO) == 0)
 	{
