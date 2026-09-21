@@ -143,7 +143,12 @@ void NativeGpu_ResetFrameDraws(void)
 }
 
 //------------------------------------------------------------------------------------------------------------------------
-// PGXP (Perspective Geometry eXPerience Project): the GTE keeps a high-
+// PGXP - independent reimplementation written for this port. The PGXP concept
+// originates with iCatButler (PCSX-Reloaded, GPL-3.0); beetle-psx-libretro's
+// pgxp/ (GPL-2.0) and DuckStation were studied as architectural references
+// only - no code was copied. See CREDITS.md.
+//
+// PGXP (Parallel/Precision Geometry Transform Pipeline): the GTE keeps a high-
 // precision side channel of every transformed vertex (see native_gte_core.c).
 // The game copies the clamped s16 screen position into its primitives, so we
 // match those back by their exact (sx, sy) pair and hand the renderer the
