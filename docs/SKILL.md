@@ -167,10 +167,11 @@ panel (top-left) lists everything with live values.
 - Log truncates per session and interleaves at kill — grep markers, not tails.
 - XA camera/voice blockers are IMAGE problems, not code (see §7).
 
-## PGXP — EXPERIMENTAL, off by default
+## PGXP — two modes, both working; run one at a time
 Perspective-correct textures + subpixel geometry (window [-1.0, +2.5]px after the
-2026-09-19 review fixes; was ±0.5). User-verified tearing in some scenes; labeled
-experimental everywhere; `pgxp: false` is the default. **Tearing rule (debug log §19):** P alone = perspective-correct
+2026-09-19 review fixes; was ±0.5). Both modes work; **never enable both simultaneously**
+(that combination tears - user-verified); `pgxp: false` is the default in config, and
+`pgxp_geometry` defaults off too. **Tearing rule (debug log §19):** P alone = perspective-correct
 *textures* only (vertices stay on the integer grid - nothing moves,
 cannot tear). G adds subpixel *vertex* positions, which seam wherever a
 neighbouring triangle is not bound and the internal resolution magnifies it. Check the
