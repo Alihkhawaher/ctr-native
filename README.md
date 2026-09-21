@@ -9,6 +9,17 @@ A native PC port of Crash Team Racing (PS1, 1999), built on top of the [CTR-ModS
 > [PR #57](https://github.com/CTR-tools/ctr-native/pull/57) (closed; development
 > continues here).
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Main menu](screenshots/menu.png) | ![Live controls overlay](screenshots/controls-overlay.png) |
+| Assembled main menu — true-resolution rendering (Auto = 5×) | In-game controls overlay — every toggle and key, live |
+| ![Attract demo race](screenshots/demo-race.png) | ![Arcade character select](screenshots/arcade-select.png) |
+| Attract-mode demo race | Arcade character select |
+| ![Track flyover](screenshots/track-flyover.png) | ![Intro cinematic](screenshots/intro-earth.png) |
+| Attract-mode track flyover | Intro cinematic |
+
 ## Philosophy
 
 - **No byte budget.** Game source lives in `game/` as our own copies. Edit freely.
