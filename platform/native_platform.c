@@ -468,7 +468,7 @@ internal void Platform_HandleKey(int key, char down)
 		{
 			g_cfg_pgxp ^= 1;
 			Pgxp_ClearCache();
-			Platform_LogWarn("[CTR Native] PGXP (experimental): %s\n", (g_cfg_pgxp != 0) ? "ON" : "OFF");
+			Platform_LogWarn("[CTR Native] PGXP textures (perspective-correct interpolation, experimental): %s\n", (g_cfg_pgxp != 0) ? "ON" : "OFF");
 			NativeOverlay_Show();
 			Platform_SaveSettings();
 		}
@@ -487,7 +487,7 @@ internal void Platform_HandleKey(int key, char down)
 		else if (key == SDL_SCANCODE_G)
 		{
 			g_cfg_pgxpGeometry ^= 1;
-			Platform_LogWarn("[CTR Native] PGXP geometry (subpixel, 0.5px clamp): %s\n", (g_cfg_pgxpGeometry != 0) ? "ON" : "OFF");
+			Platform_LogWarn("[CTR Native] PGXP geometry (subpixel vertex positions, experimental): %s\n", (g_cfg_pgxpGeometry != 0) ? "ON" : "OFF");
 			NativeOverlay_Show();
 			Platform_SaveSettings();
 		}

@@ -263,13 +263,17 @@ class ConfigApp:
         )
 
         self.pgxp_var = tk.BooleanVar()
-        ttk.Checkbutton(gfx, text="PGXP — EXPERIMENTAL, may cause tearing (perspective-correct textures, P)", variable=self.pgxp_var).grid(
+        ttk.Checkbutton(gfx, text="PGXP textures — perspective-correct texture interpolation (experimental; P; no vertex movement, cannot tear)", variable=self.pgxp_var).grid(
             row=6, column=0, columnspan=2, sticky="w", **pad
         )
 
         self.pgxp_geo_var = tk.BooleanVar()
-        ttk.Checkbutton(gfx, text="PGXP geometry — EXPERIMENTAL (subpixel positions; may seam at high internal res, G)", variable=self.pgxp_geo_var).grid(
+        ttk.Checkbutton(gfx, text="PGXP geometry — subpixel vertex positions (experimental; G; may seam at high internal res)", variable=self.pgxp_geo_var).grid(
             row=7, column=0, columnspan=2, sticky="w", **pad
+        )
+
+        ttk.Label(gfx, text="PGXP: run one mode at a time — textures (P) or geometry (G), not both (both on can tear).").grid(
+            row=8, column=0, columnspan=2, sticky="w", **pad
         )
 
         # Gamepad group

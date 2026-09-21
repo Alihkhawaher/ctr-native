@@ -2,6 +2,13 @@
 
 A native PC port of Crash Team Racing (PS1, 1999), built on top of the [CTR-ModSDK](https://github.com/CTR-tools/CTR-ModSDK) decompilation project.
 
+> **Fork notes:** this repository is the development checkpoint for the
+> native-layer work (on-screen overlay + runtime graphics controls, true-resolution
+> SSAA, 2D-crisp AA, scaled dithering, F7 VRAM dump pack, and an independent PGXP
+> implementation - see `CREDITS.md`). Originally proposed upstream as
+> [PR #57](https://github.com/CTR-tools/ctr-native/pull/57) (closed; development
+> continues here).
+
 ## Philosophy
 
 - **No byte budget.** Game source lives in `game/` as our own copies. Edit freely.

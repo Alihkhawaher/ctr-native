@@ -388,11 +388,11 @@ void NativeOverlay_Draw(void)
 	snprintf(values[6], sizeof(values[6]), "%s", (g_cfg_antialiasing != 0) ? "ON" : "OFF");
 	snprintf(hints[6], sizeof(hints[6]), "Tab");
 
-	snprintf(labels[7], sizeof(labels[7]), "PGXP (experimental)");
+	snprintf(labels[7], sizeof(labels[7]), "PGXP textures (exp.)");
 	snprintf(values[7], sizeof(values[7]), "%s", (g_cfg_pgxp != 0) ? "ON" : "OFF");
 	snprintf(hints[7], sizeof(hints[7]), "P");
 
-	snprintf(labels[8], sizeof(labels[8]), "PGXP geometry");
+	snprintf(labels[8], sizeof(labels[8]), "PGXP geometry (exp.)");
 	snprintf(values[8], sizeof(values[8]), "%s", (g_cfg_pgxpGeometry != 0) ? "ON" : "OFF");
 	snprintf(hints[8], sizeof(hints[8]), "G");
 
