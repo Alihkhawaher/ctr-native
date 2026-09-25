@@ -9,7 +9,8 @@ tried-and-reverted ledger).
 - Repo: `E:\Games\ctr-native` — unity build (`main.c` includes all
   `platform/native_*.c`). MSVC x86 via CMake presets.
 - Deployed game: `E:\Games\CrashCTR-Win` — exe, `ctr-native-config.json`,
-  launcher `ctr_config_launcher.py`, log `Crash Team Racing.log`,
+  native launcher `ctr_config.exe` (legacy Python `ctr_config_launcher.py`),
+  log `Crash Team Racing.log`,
   `screenshots/` (F12), `boot_dump/` (--dump-boot), `ab/` (A/B harness),
   `debug/states/quick.ctrstates` (F5/F8).
 - GitHub: `origin` = private checkpoint (Alihkhawaher/ctr-native);
@@ -24,6 +25,49 @@ tried-and-reverted ledger).
   `powershell Stop-Process -Name ctr_native -Force`, then copy
   `build-msvc-x86/Release/ctr_native.exe` to the game dir and relaunch with
   `Start-Process`. The user plays in the background — never steal focus.
+
+## Config launcher (native, `ctr_config.exe`)
+- `tools/ctr_config.c` → CMake target `ctr_config` (WIN32 subsystem, static
+  CRT, links only user32/gdi32/comdlg32/shell32; reuses
+  `resources/ctr_native.rc` for the CTR icon). Build with the same preset:
+  `cmake --build --preset windows-msvc-x86-release --target ctr_config`;
+  the exe lands next to `ctr_native.exe` in the build dir.
+- Schema authority = `platform/native_config.c`. Keys: window_width,
+  window_height, fullscreen, aspect_ratio (Auto/4:3/16:9),
+  internal_resolution_scale (0=Auto, 1..8), bilinear_filtering,
+  antialiasing, pgxp, pgxp_geometry, show_fps, pad_mode (0..2), keyboard_slot
+  (-2..3), gamepad_deadzone (0..50), gamepad_analog, gamepad_rumble,
+  launcher.game_executable, game_data.disc_image. Round-trip rule: a
+  no-change resave is byte-identical to the engine's own writer output
+  (LF endings, 2-space indent, engine key order).
+- CLI: `--dump` (exit 2 = config missing), `--resave`, `--write-defaults`,
+  `--config PATH`, `--out PATH` (tee text into a file — use it in tests;
+  MSYS terminals don't capture the attached console), `--verbose`
+  (appends `ctr_config.log`; errors always log), `--help`.
+- Deploy: copy `ctr_config.exe` next to the game exe; the launcher folder is
+  where the config lives. Paths inside the folder are stored relative, others
+  stay absolute (portable install). Disc region detector = PVD + SYSTEM.CNF
+  reader (port of the Python one).
+- Verification pattern: (1) `--dump` on the real config; (2) `--resave` +
+  normalized diff (must be identical); (3) GUI screenshot via a DPI-AWARE
+  capture; (4) end-to-end: launcher-written config → boot the game → the
+  engine log shows the applied settings.
+- Pitfalls (all learned the hard way):
+  * Never probe the launcher's edit controls cross-process:
+    `GetWindowText`/`SetDlgItemText` from another process touch a cached copy
+    (pointer lParams aren't marshaled for messages below WM_USER) — probes
+    see '' and their writes don't reach the real edit. Verify through the
+    app's own `--verbose` readbacks (`ui-loaded:`, `save:` lines) or real
+    input. `BM_SETCHECK` and keyboard messages are pointer-free and do work
+    cross-process.
+  * The exe carries no DPI manifest — it INHERITS awareness from its parent.
+    Under Windows "custom scaling": unaware parent → dpi 120 (×1.25 layout),
+    aware parent → dpi 96 (×1.0). Same logical layout, two physical sizes;
+    both render correctly. Keep labels ≤ ~62 chars to avoid clipping at 120.
+  * Save/Launch message boxes are modal — click via PostMessage, never
+    SendMessage (SendMessage blocks the caller inside the modal loop).
+  * `ctr_config_launcher.py` stays as the legacy Python version; players use
+    the exe (that was the whole point: no Python on fresh PCs).
 
 ## Runtime keys
 - F7 = diagnostic VRAM dump pack into `vram_dump/`: raw 1024x512 .bin (exact

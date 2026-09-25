@@ -151,6 +151,33 @@ ctr-native/
     ctr-u.bin
 ```
 
+### Configuration (ctr_config.exe)
+
+`ctr_config.exe` — shipped next to the game in release builds — is a small
+native settings window (no Python required). It reads and writes
+`ctr-native-config.json` next to the game executable and can start the game:
+
+- Graphics: window resolution, aspect ratio, internal resolution
+  (Auto/1x..8x), fullscreen, bilinear filtering, anti-aliasing, PGXP
+  textures (P) / PGXP geometry (G) — run one PGXP mode at a time — and the
+  FPS counter.
+- Gamepad: pad layout (4 pads / auto / 2 pads), keyboard player slot, stick
+  deadzone, analog sticks and rumble.
+- Game data: disc image path, with NTSC-U / PAL / NTSC-J region detection
+  shown live.
+
+Settings are applied when the game starts. Every option also exists in-game:
+the overlay panel (top-left) plus hotkeys — PgUp/PgDn internal resolution,
+Tab anti-aliasing, P/G PGXP modes, Insert FPS, End window size,
+F11/Alt+Enter fullscreen.
+
+For scripting: `ctr_config.exe --dump`, `--resave`, `--write-defaults`,
+`--config PATH`, `--out PATH`, `--verbose` (appends `ctr_config.log`),
+`--help`.
+
+`tools/ctr_config_launcher.py` is the legacy Python/tkinter version of the
+same form — kept for contributors; players should use the native exe.
+
 ### Extracted Asset Override
 
 You do not need extracted assets for normal play.

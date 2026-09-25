@@ -1,8 +1,9 @@
-// Reads the graphics options written by ctr_config_launcher.py
-// (ctr-native-config.json). The engine intentionally avoids a JSON
-// dependency: the document is small and flat, so a scanner for the handful of
-// known quoted keys is enough. Unknown keys and formatting are ignored, and
-// malformed values leave the default in place.
+// Reads the graphics options written by ctr_config.exe (native launcher) or
+// the legacy tools/ctr_config_launcher.py (ctr-native-config.json). The
+// engine intentionally avoids a JSON dependency: the document is small and
+// flat, so a scanner for the handful of known quoted keys is enough. Unknown
+// keys and formatting are ignored, and malformed values leave the default in
+// place.
 
 #include "platform/native_config.h"
 

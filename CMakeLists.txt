@@ -142,6 +142,27 @@ if(MINGW)
     target_link_options(ctr_native PRIVATE -static)
 endif()
 
+# CTR Native configuration launcher (Windows only, zero dependencies).
+# Replaces tools/ctr_config_launcher.py for end users: same JSON schema as
+# platform/native_config.c, no Python required. Ships next to ctr_native.exe.
+if(WIN32)
+    add_executable(ctr_config WIN32 tools/ctr_config.c resources/ctr_native.rc)
+    set_target_properties(ctr_config PROPERTIES
+        C_STANDARD 17
+        C_STANDARD_REQUIRED ON
+        C_EXTENSIONS OFF
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+    target_link_libraries(ctr_config PRIVATE user32 gdi32 comdlg32 shell32)
+    if(CTR_NATIVE_MSVC_FRONTEND)
+        target_compile_options(ctr_config PRIVATE
+            /W4
+            /wd4244
+            /wd4310
+        )
+    endif()
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
     add_test(NAME ctr_native_version COMMAND $<TARGET_FILE:ctr_native> --version)
