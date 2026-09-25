@@ -1,5 +1,9 @@
 #include <common.h>
 
+#ifdef CTR_NATIVE
+#include <platform/native_input.h>
+#endif
+
 
 void GAMEPAD_Init(struct GamepadSystem *gGamepads)
 {
@@ -880,6 +884,23 @@ void GAMEPAD_ProcessMotors(struct GamepadSystem *gGS)
 		pad->motorSubmit[0] = pad->motorDesired[0];
 		pad->motorSubmit[1] = pad->motorDesired[1];
 	}
+
+#ifdef CTR_NATIVE
+	// Native: on retail the PSX libpad poll pushes actuator data out to the
+	// pad; the native shim only ever sees the init-time PadSetAct, so forward
+	// the per-frame submitted values here. Platform_InputPadVibrate
+	// change-gates them and traces every change ([CTR Debug] line).
+	{
+		b32 multitapBus = ((gGS->slotBuffer[0].plugged == PLUGGED) && (gGS->slotBuffer[0].controllerData == (PAD_ID_MULTITAP << 4)));
+
+		for (int i = 0; i < gGS->numGamepadsConnected; i++)
+		{
+			int padPort = multitapBus ? i : (i << 4);
+
+			Platform_InputPadVibrate(padPort, &gGS->gamepad[i].motorSubmit[0], 2);
+		}
+	}
+#endif
 }
 
 

@@ -78,7 +78,8 @@ PgUp/PgDn internal resolution 1/2/3/4/8/Auto · F3 bilinear · Tab anti-aliasing
 · P PGXP master (EXPERIMENTAL) · O PGXP status view · G PGXP geometry
 (experimental) · H debug freeze · F12 screenshot · F5/F8 save/load state ·
 F1/F2 wireframe/texless · F7 VRAM dump · F9/F10 replay · Home aspect · End
-window size · F11/Alt+Enter fullscreen · Insert FPS. F4/F6 are consumed by the
+window size · F11/Alt+Enter fullscreen · Insert FPS · R rumble test pulse (all
+pads, 700 ms). F4/F6 are consumed by the
 keyboard/gamepad-assign handlers — never bind options to them. The overlay
 panel (top-left) lists everything with live values.
 
@@ -161,6 +162,11 @@ panel (top-left) lists everything with live values.
   `numPlyrCurrGame`-bounded loops are safe. Fixed example:
   `game/Vehicle/VehPickupItem.c` clock weapon (`drivers[i]->clockFlash` wrote
   before the null check → crash with <8 drivers + a clock pickup).
+- Matching-decomp page tricks: `*((X **)((u32)page + MM_…_PAGE_OFFSET))` with
+  the native fallback defines (page=0, offset=0) constant-folds to a literal
+  `mov ecx,[0]`. Every raw page deref needs a `#ifdef CTR_NATIVE` branch — the
+  one unguarded spot (`MM_Battle_MenuProc`, battle START row) crashed battle
+  mode; fix = `timeTracker = GAME_TRACKER`. Audit with `grep -E "u32\)[a-zA-Z_]*Page[a-zA-Z_]*\) \+"`.
 - The native exe is x86-32 — for crash addresses, disassemble with
   `CS_ARCH_X86/CS_MODE_32`; MIPS disassembly applies only to the PSX disc
   images (tools/version_diff.py). Crash sentinel prints `module+offset`
@@ -190,6 +196,13 @@ panel (top-left) lists everything with live values.
   Log lines: `gamepad connected/reconnected to pad slot N`, `duplicate gamepad
   add ignored`, `pad slot N disconnected (device remembered for
   auto-reconnect)`.
+- Vibration is GAME-driven (`motorSubmit`, `P1_VIBRATE` per-driver flags,
+  per-save OPTIONS toggle). Retail pushes actuators over the libpad poll; the
+  native shim only sees the init-time `PadSetAct`, so `GAMEPAD_ProcessMotors`
+  forwards `motorSubmit` per frame (CTR_NATIVE ifdef) →
+  `Platform_InputPadVibrate` (change-gated `[CTR Debug] pad slot N vibrate:
+  low=… high=…` + SDL failure log). `R` = diagnostic pulse on all pads.
+  Working end-to-end (user-verified 2026-09-26).
 - Launcher gotcha: tk grid rows must not collide — the status note and the
   button row both sat at row=3 and the note (drawn later) hid Save / Save &
   Play / Quit. When adding a group, renumber EVERYTHING below it.

@@ -1194,6 +1194,11 @@ int Platform_InputRestoreState(const void *src, int srcSize)
 	return 1;
 }
 
+// Last actuator values pushed per slot — the game re-submits every frame, so
+// this gates both the debug trace and the SDL call to real changes only.
+static u16 s_vibrateLow[NATIVE_INPUT_MAX_CONTROLLERS];
+static u16 s_vibrateHigh[NATIVE_INPUT_MAX_CONTROLLERS];
+
 void Platform_InputPadVibrate(int port, unsigned char *table, int len)
 {
 	s32 physicalSlot = (port >> 4) & 1;
@@ -1241,8 +1246,40 @@ void Platform_InputPadVibrate(int port, unsigned char *table, int len)
 		freqHigh = 4096;
 	}
 
+	// Debug trace on change (verbose-gated via the [CTR Debug] prefix): shows
+	// exactly what the game wants the pad to do and which slot it maps to.
+	if ((s_vibrateLow[slot] != freqLow) || (s_vibrateHigh[slot] != freqHigh))
+	{
+		s_vibrateLow[slot] = freqLow;
+		s_vibrateHigh[slot] = freqHigh;
+		Platform_LogWarn("[CTR Debug] pad slot %d vibrate: low=%u high=%u (port=0x%X len=%d)\n",
+		                 slot, (unsigned)freqLow, (unsigned)freqHigh, (unsigned)port, len);
+	}
+
 	if (g_cfg_gamepadRumble != 0)
 	{
-		SDL_RumbleGamepad(controller->controller, freqLow, freqHigh, 200);
+		if (SDL_RumbleGamepad(controller->controller, freqLow, freqHigh, 200) == false)
+		{
+			Platform_LogWarn("[CTR Native] SDL_RumbleGamepad failed: %s\n", SDL_GetError());
+		}
 	}
+}
+
+// Diagnostic tool (runtime key R): fires a short rumble on every connected pad
+// so the SDL/pad path can be verified independently of any game event.
+void Platform_InputRumbleTest(void)
+{
+	int slot;
+	int fired = 0;
+
+	for (slot = 0; slot < NATIVE_INPUT_MAX_CONTROLLERS; slot++)
+	{
+		if (s_controllers[slot].controller != NULL)
+		{
+			SDL_RumbleGamepad(s_controllers[slot].controller, 0x8000, 0x8000, 700);
+			fired++;
+		}
+	}
+
+	Platform_LogWarn("[CTR Native] rumble test: fired %d pad(s), 700ms\n", fired);
 }

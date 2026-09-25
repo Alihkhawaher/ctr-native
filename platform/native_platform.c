@@ -446,6 +446,11 @@ internal void Platform_HandleKey(int key, char down)
 		case SDL_SCANCODE_F8:
 			NativeSaveState_RequestLoad();
 			break;
+		case SDL_SCANCODE_R:
+			// Diagnostic: fire a rumble pulse on every connected pad so the
+			// pad/SDL path can be verified without any game event.
+			Platform_InputRumbleTest();
+			break;
 		}
 	}
 #endif

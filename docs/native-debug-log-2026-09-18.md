@@ -978,3 +978,41 @@ across launches (the live config had 1920x1200 as the window size).
 Pitfall for future work: **never let a transient fullscreen size reach the
 persisted window size.** The live size and the windowed preference are two
 different things.
+
+## 21. Battle-mode crash (raw page deref) + rumble forwarding (2026-09-26)
+
+**Report:** battle mode crashed in the battle setup menu the moment confirm was
+pressed on the START row — `UNHANDLED EXCEPTION … 005A5A68
+(ctr_native.exe+0x5A68)`, faulting instruction `mov ecx,[0]`.
+
+**Root cause:** `MM_Battle_MenuProc` (`game/230/MM_Battle.c`, time-limit apply
+block) still contained one RAW retail page deref:
+`timeTracker = *((struct GameTracker **)(((u32)gameTrackerPage) + MM_GAME_TRACKER_PAGE_OFFSET));`
+— both the page value and the offset are 0 in the native build, so the
+expression constant-folds to a literal `mov ecx,[0]`. On PSX this read the
+canonical GT pointer from retail low RAM; on native it is an AV. This is the
+"page trick without a native branch" class: the only other raw deref
+(`MM_TrackSelect.c:1056`) already sits inside `#ifndef CTR_NATIVE`; a repo-wide
+audit (`((u32)*Page*) + MM_…_PAGE_OFFSET`) found no others.
+
+**Fix:** `#ifdef CTR_NATIVE timeTracker = GAME_TRACKER; #else <retail form> #endif`
+— same pattern as the neighbouring `selectMenu` use. **User-verified:** battle
+mode enters, settings apply, battle starts.
+
+**Rumble — was dead by design gap, now working end-to-end.** The game drives
+vibration via `pad->motorSubmit` (`GAMEPAD_ProcessMotors`, gated per driver by
+`P1_VIBRATE` gameMode1 bits, persisted per-save via the OPTIONS VIBRATE row).
+On retail, actuator data leaves through the PSX libpad poll; the native shim
+only ever received the init-time `PadSetAct` — no motor value ever reached SDL,
+so rumble could never fire. Fix: `GAMEPAD_ProcessMotors` forwards
+`motorSubmit` per pad per frame (CTR_NATIVE ifdef) →
+`Platform_InputPadVibrate`, which change-gates + traces every change
+(`[CTR Debug] pad slot N vibrate: low=… high=…`) and logs SDL failures.
+Diagnostic: **`R` = 700 ms rumble pulse on every connected pad** (works with no
+game event; logs `rumble test: fired N pad(s)`). **User-verified:** rumble
+works in game; test key fires.
+
+Watch item **REOPENED — opponent-kart distortion**: originally reported on the
+GTX 1060/560.94 PC ("opponent karts turn into distorted images when ahead"),
+previously not reproduced on the main PC — now reported again on the main PC,
+**also in normal race mode** (2026-09-26). Repro + capture pending.

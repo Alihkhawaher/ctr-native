@@ -573,7 +573,15 @@ LAB_Battle_ValidSetup:
 							eventTimeMinutes = MM_BATTLE_LIFE_TIME_LIMIT_MINUTES[MM_MENU_BATTLE_LENGTH_LIFE_TIME.rowSelected];
 						}
 						gameTrackerPage = MM_GAME_TRACKER_PAGE_VALUE;
+						#ifdef CTR_NATIVE
+						// Retail uses the page trick (`lw $s5, lo(RETAIL_GAME_TRACKER)`),
+						// which resolves to a null page on the native build; read the
+						// live pointer instead.
+						timeTracker = GAME_TRACKER;
+						(void)gameTrackerPage;
+						#else
 						timeTracker = *((struct GameTracker **)(((u32)gameTrackerPage) + MM_GAME_TRACKER_PAGE_OFFSET));
+						#endif
 						battleTracker->originalEventTime = eventTimeMinutes;
 						CTR_PSX_MEMORY_BARRIER();
 						originalEventTime = timeTracker->originalEventTime;
