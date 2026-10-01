@@ -9,9 +9,13 @@
 // "find the quoted key, then parse the value" approach the engine uses so the
 // two stay interchangeable:
 //
-//   graphics: window_width, window_height, fullscreen, aspect_ratio,
-//             internal_resolution_scale (0 = Auto), bilinear_filtering,
-//             antialiasing, pgxp, pgxp_geometry, show_fps
+//   graphics: window_width, window_height, fullscreen,
+//             aspect_ratio ("Auto" | "4:3" | "16:9" | "16:10" | "21:9"),
+//             true_widescreen (default true), internal_resolution_scale
+//             (0 = Auto, 1..8), bilinear_filtering, antialiasing, pgxp,
+//             pgxp_geometry, show_fps, reuse_fifo_self_heal (default false,
+//             experimental), force_high_lod (default false, diagnostic),
+//             disable_mp_impostors (default true)
 //   input:    pad_mode (0..2), keyboard_slot (-2..3), gamepad_deadzone (0..50),
 //             gamepad_analog, gamepad_rumble
 //   launcher: game_executable
@@ -75,6 +79,10 @@ enum
 	IDC_PGXP_GEO,
 	IDC_SHOWFPS,
 	IDC_HINT_PGXP,
+	IDC_TRUEWIDE,
+	IDC_MPREAL3D,
+	IDC_HIGHLOD,
+	IDC_FIFOHEAL,
 	IDC_PADMODE = 120,
 	IDC_KBSLOT,
 	IDC_DEADZONE,
@@ -108,6 +116,7 @@ static wchar_t g_launcherDirW[WSTR_MAX];
 static char g_configPathUtf8[STR_MAX];
 static wchar_t g_configPathW[WSTR_MAX];
 static char g_logPathUtf8[STR_MAX];
+static wchar_t g_logPathW[WSTR_MAX];
 static COLORREF g_regionColor = RGB(110, 110, 110);
 
 typedef struct
@@ -115,13 +124,17 @@ typedef struct
 	int windowWidth;
 	int windowHeight;
 	int fullscreen;
-	int aspect;         // 0 Auto, 1 4:3, 2 16:9
+	int aspect;         // 0 Auto, 1 4:3, 2 16:9, 3 16:10, 4 21:9
+	int trueWidescreen; // Hor+ FOV when wider than 4:3 (0 = stretch)
 	int scale;          // 0 Auto, 1..8
 	int bilinear;
 	int antialiasing;
 	int pgxp;
 	int pgxpGeometry;
 	int showFps;
+	int reuseFifoSelfHeal;  // experimental diagnostic (tearing); no main UI
+	int forceHighLod;       // diagnostic
+	int disableMpImpostors; // split-screen rivals as real 3D (restart)
 	int padMode;
 	int keyboardSlot;
 	int deadzone;
@@ -132,6 +145,10 @@ typedef struct
 } LauncherConfig;
 
 static LauncherConfig g_cfg;
+
+// aspect_ratio strings, indexed like the engine (platform/native_config.c).
+static const char *g_aspectNames[] = { "Auto", "4:3", "16:9", "16:10", "21:9" };
+#define ASPECT_COUNT (int)(sizeof(g_aspectNames) / sizeof(g_aspectNames[0]))
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -167,7 +184,7 @@ static void LogWrite(const char *line)
 {
 	FILE *file;
 
-	file = fopen(g_logPathUtf8, "a");
+	file = _wfopen(g_logPathW, L"a");
 	if (file != NULL)
 	{
 		fputs(line, file);
@@ -359,15 +376,76 @@ static int JsonReadBool(const char *text, const char *key, int *value)
 	return 0;
 }
 
-// Copies a quoted JSON string, UNESCAPING \\ and \" (unlike the engine's raw
-// copy, the UI needs the human-readable form). Other escape sequences are
-// passed through literally.
+// Parses 4 hex digits; returns -1 if any is not a hex digit.
+static long JsonHex4(const char *p)
+{
+	long value = 0;
+
+	for (int i = 0; i < 4; i++)
+	{
+		char c = p[i];
+
+		value <<= 4;
+		if ((c >= '0') && (c <= '9'))
+		{
+			value |= c - '0';
+		}
+		else if ((c >= 'a') && (c <= 'f'))
+		{
+			value |= c - 'a' + 10;
+		}
+		else if ((c >= 'A') && (c <= 'F'))
+		{
+			value |= c - 'A' + 10;
+		}
+		else
+		{
+			return -1; // also stops at the terminator
+		}
+	}
+
+	return value;
+}
+
+// Encodes one code point as UTF-8; returns the byte count (1..4).
+static size_t Utf8Encode(long cp, unsigned char *enc)
+{
+	if (cp < 0x80)
+	{
+		enc[0] = (unsigned char)cp;
+		return 1;
+	}
+	if (cp < 0x800)
+	{
+		enc[0] = (unsigned char)(0xC0 | (cp >> 6));
+		enc[1] = (unsigned char)(0x80 | (cp & 0x3F));
+		return 2;
+	}
+	if (cp < 0x10000)
+	{
+		enc[0] = (unsigned char)(0xE0 | (cp >> 12));
+		enc[1] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+		enc[2] = (unsigned char)(0x80 | (cp & 0x3F));
+		return 3;
+	}
+	enc[0] = (unsigned char)(0xF0 | (cp >> 18));
+	enc[1] = (unsigned char)(0x80 | ((cp >> 12) & 0x3F));
+	enc[2] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+	enc[3] = (unsigned char)(0x80 | (cp & 0x3F));
+	return 4;
+}
+
+// Copies a quoted JSON string, UNESCAPING it (unlike the engine's raw copy,
+// the UI needs the human-readable form): \\ \" \/ \b \f \n \r \t and \uXXXX
+// (surrogate pairs combined, lone surrogates -> U+FFFD) decode to UTF-8.
+// Unknown escapes pass through literally. A value that does not fit fails
+// (returns 0, empty output) rather than being silently truncated.
 static int JsonReadStringUnescaped(const char *text, const char *key, char *out, size_t outCount)
 {
 	const char *cursor = JsonFindValue(text, key);
 	size_t length = 0;
 
-	if ((cursor == NULL) || (*cursor != '"'))
+	if ((cursor == NULL) || (*cursor != '"') || (outCount == 0))
 	{
 		return 0;
 	}
@@ -376,11 +454,67 @@ static int JsonReadStringUnescaped(const char *text, const char *key, char *out,
 
 	while ((cursor[0] != 0) && (cursor[0] != '"') && ((length + 1) < outCount))
 	{
-		if ((cursor[0] == '\\') && ((cursor[1] == '\\') || (cursor[1] == '"')))
+		if (cursor[0] == '\\')
 		{
-			out[length++] = cursor[1];
-			cursor += 2;
-			continue;
+			char simple = 0;
+
+			switch (cursor[1])
+			{
+				case '\\': simple = '\\'; break;
+				case '"': simple = '"'; break;
+				case '/': simple = '/'; break;
+				case 'b': simple = '\b'; break;
+				case 'f': simple = '\f'; break;
+				case 'n': simple = '\n'; break;
+				case 'r': simple = '\r'; break;
+				case 't': simple = '\t'; break;
+				default: break;
+			}
+
+			if (simple != 0)
+			{
+				out[length++] = simple;
+				cursor += 2;
+				continue;
+			}
+
+			if (cursor[1] == 'u')
+			{
+				long cp = JsonHex4(cursor + 2);
+
+				if (cp >= 0)
+				{
+					unsigned char enc[4];
+					size_t encLen;
+					size_t consumed = 6;
+
+					// High surrogate + \uDC00..DFFF low surrogate -> one code point.
+					if ((cp >= 0xD800) && (cp <= 0xDBFF) && (cursor[6] == '\\') && (cursor[7] == 'u'))
+					{
+						long low = JsonHex4(cursor + 8);
+
+						if ((low >= 0xDC00) && (low <= 0xDFFF))
+						{
+							cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
+							consumed = 12;
+						}
+					}
+					if ((cp >= 0xD800) && (cp <= 0xDFFF))
+					{
+						cp = 0xFFFD;
+					}
+
+					encLen = Utf8Encode(cp, enc);
+					if ((length + encLen + 1) > outCount)
+					{
+						break; // does not fit: never split a UTF-8 sequence
+					}
+					memcpy(out + length, enc, encLen);
+					length += encLen;
+					cursor += consumed;
+					continue;
+				}
+			}
 		}
 
 		out[length++] = cursor[0];
@@ -389,10 +523,7 @@ static int JsonReadStringUnescaped(const char *text, const char *key, char *out,
 
 	if (cursor[0] != '"')
 	{
-		if (outCount > 0)
-		{
-			out[0] = 0;
-		}
+		out[0] = 0;
 		return 0;
 	}
 
@@ -400,19 +531,37 @@ static int JsonReadStringUnescaped(const char *text, const char *key, char *out,
 	return 1;
 }
 
-// JSON-escapes a UTF-8 string (backslash and quote only; both are all a
-// Windows path can contain).
+// JSON-escapes a UTF-8 string: backslash and quote (all a Windows path can
+// normally contain), plus control characters as \u00XX so anything the
+// reader above decodes is written back as valid JSON. Non-ASCII stays UTF-8.
 static void JsonEscape(const char *in, char *out, size_t outCount)
 {
 	size_t w = 0;
 
-	for (size_t r = 0; (in[r] != 0) && ((w + 2) < outCount); r++)
+	for (size_t r = 0; in[r] != 0; r++)
 	{
-		if ((in[r] == '\\') || (in[r] == '"'))
+		unsigned char c = (unsigned char)in[r];
+
+		if (c < 0x20)
+		{
+			if ((w + 6) >= outCount)
+			{
+				break;
+			}
+			snprintf(out + w, outCount - w, "\\u%04x", c);
+			w += 6;
+			continue;
+		}
+
+		if ((w + 2) >= outCount)
+		{
+			break;
+		}
+		if ((c == '\\') || (c == '"'))
 		{
 			out[w++] = '\\';
 		}
-		out[w++] = in[r];
+		out[w++] = (char)c;
 	}
 
 	out[w] = 0;
@@ -436,27 +585,36 @@ static void ConfigSetDefaults(LauncherConfig *cfg)
 	cfg->pgxp = 0;
 	cfg->pgxpGeometry = 0;
 	cfg->showFps = 0;
+	cfg->trueWidescreen = 1;     // engine default: Hor+ when wider than 4:3
+	cfg->disableMpImpostors = 1; // engine default: split-screen rivals as real 3D
+	cfg->forceHighLod = 0;       // diagnostic
+	cfg->reuseFifoSelfHeal = 0;  // experimental diagnostic (tearing)
 	cfg->padMode = 1;         // 4 pads (always on)
 	cfg->keyboardSlot = -2;   // Pads only
 	cfg->deadzone = 5;
 	cfg->analog = 1;
 	cfg->rumble = 1;
 	wcsncpy(cfg->gameExeW, L"ctr_native.exe", WSTR_MAX - 1);
+	cfg->gameExeW[WSTR_MAX - 1] = 0;
 	cfg->discImageW[0] = 0;
 }
 
-static int ConfigLoad(LauncherConfig *cfg, const char *path)
+// Paths are wide end to end (_wfopen): a UTF-8 string handed to narrow fopen
+// is read in the ANSI code page and breaks on non-ASCII folder names.
+static int ConfigLoad(LauncherConfig *cfg, const wchar_t *pathW)
 {
 	FILE *file;
 	char *text;
 	long size;
 	int value;
+	char path[STR_MAX]; // UTF-8 copy for log messages only
 	char buffer[STR_MAX];
 	wchar_t wide[WSTR_MAX];
 
 	ConfigSetDefaults(cfg);
+	WideToUtf8(pathW, path, sizeof(path));
 
-	file = fopen(path, "rb");
+	file = _wfopen(pathW, L"rb");
 	if (file == NULL)
 	{
 		LogLine("[ctr_config] config not found: %s (defaults in use)\n", path);
@@ -503,17 +661,15 @@ static int ConfigLoad(LauncherConfig *cfg, const char *path)
 	}
 	if (JsonReadStringUnescaped(text, "aspect_ratio", buffer, sizeof(buffer)) != 0)
 	{
-		if (strcmp(buffer, "4:3") == 0)
+		// Same mapping as the engine: unknown strings mean Auto.
+		cfg->aspect = 0;
+		for (int i = 1; i < ASPECT_COUNT; i++)
 		{
-			cfg->aspect = 1;
-		}
-		else if (strcmp(buffer, "16:9") == 0)
-		{
-			cfg->aspect = 2;
-		}
-		else
-		{
-			cfg->aspect = 0;
+			if (strcmp(buffer, g_aspectNames[i]) == 0)
+			{
+				cfg->aspect = i;
+				break;
+			}
 		}
 	}
 	if ((JsonReadInt(text, "internal_resolution_scale", &value) != 0) && (value >= 0) && (value <= MAX_SCALE))
@@ -540,6 +696,22 @@ static int ConfigLoad(LauncherConfig *cfg, const char *path)
 	{
 		cfg->showFps = value;
 	}
+	if (JsonReadBool(text, "true_widescreen", &value) != 0)
+	{
+		cfg->trueWidescreen = value;
+	}
+	if (JsonReadBool(text, "disable_mp_impostors", &value) != 0)
+	{
+		cfg->disableMpImpostors = value;
+	}
+	if (JsonReadBool(text, "force_high_lod", &value) != 0)
+	{
+		cfg->forceHighLod = value;
+	}
+	if (JsonReadBool(text, "reuse_fifo_self_heal", &value) != 0)
+	{
+		cfg->reuseFifoSelfHeal = value;
+	}
 	if ((JsonReadInt(text, "pad_mode", &value) != 0) && (value >= 0) && (value <= 2))
 	{
 		cfg->padMode = value;
@@ -564,55 +736,66 @@ static int ConfigLoad(LauncherConfig *cfg, const char *path)
 	{
 		Utf8ToWide(buffer, wide, WSTR_MAX);
 		wcsncpy(cfg->gameExeW, wide, WSTR_MAX - 1);
+		cfg->gameExeW[WSTR_MAX - 1] = 0;
 	}
 	if (JsonReadStringUnescaped(text, "disc_image", buffer, sizeof(buffer)) != 0)
 	{
 		Utf8ToWide(buffer, wide, WSTR_MAX);
 		wcsncpy(cfg->discImageW, wide, WSTR_MAX - 1);
+		cfg->discImageW[WSTR_MAX - 1] = 0;
 	}
 
 	free(text);
 	return 1;
 }
 
-static int ConfigSave(const LauncherConfig *cfg, const char *path)
+// Writes path.tmp, then MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH) over
+// the real file, so a failed or partial write never destroys the old config.
+static int ConfigSave(const LauncherConfig *cfg, const wchar_t *pathW)
 {
-	static const char *aspectNames[3] = { "Auto", "4:3", "16:9" };
-	char tempPath[STR_MAX];
+	char path[STR_MAX]; // UTF-8 copy for log messages only
+	wchar_t tempPathW[WSTR_MAX];
 	char gameExeUtf8[STR_MAX];
 	char gameExeEscaped[STR_MAX * 2];
 	char discUtf8[STR_MAX];
 	char discEscaped[STR_MAX * 2];
+	char document[8192];
 	FILE *file;
-	int written;
+	int length;
+	int ok;
 
+	WideToUtf8(pathW, path, sizeof(path));
 	WideToUtf8(cfg->gameExeW, gameExeUtf8, sizeof(gameExeUtf8));
 	WideToUtf8(cfg->discImageW, discUtf8, sizeof(discUtf8));
 	JsonEscape(gameExeUtf8, gameExeEscaped, sizeof(gameExeEscaped));
 	JsonEscape(discUtf8, discEscaped, sizeof(discEscaped));
 
-	snprintf(tempPath, sizeof(tempPath), "%s.tmp", path);
-
-	file = fopen(tempPath, "wb");
-	if (file == NULL)
+	if (_snwprintf(tempPathW, WSTR_MAX, L"%s.tmp", pathW) < 0)
 	{
-		LogError("[ctr_config] ERROR: cannot write %s\n", tempPath);
+		LogError("[ctr_config] ERROR: path too long: %s\n", path);
 		return 0;
 	}
+	tempPathW[WSTR_MAX - 1] = 0;
 
-	written = fprintf(file,
+	// Format the whole document first so a truncated buffer is detected
+	// before anything touches the disk.
+	length = snprintf(document, sizeof(document),
 	                  "{\n"
 	                  "  \"graphics\": {\n"
 	                  "    \"window_width\": %d,\n"
 	                  "    \"window_height\": %d,\n"
 	                  "    \"fullscreen\": %s,\n"
 	                  "    \"aspect_ratio\": \"%s\",\n"
+	                  "    \"true_widescreen\": %s,\n"
 	                  "    \"internal_resolution_scale\": %d,\n"
 	                  "    \"bilinear_filtering\": %s,\n"
 	                  "    \"antialiasing\": %s,\n"
 	                  "    \"pgxp\": %s,\n"
 	                  "    \"pgxp_geometry\": %s,\n"
-	                  "    \"show_fps\": %s\n"
+	                  "    \"show_fps\": %s,\n"
+	                  "    \"reuse_fifo_self_heal\": %s,\n"
+	                  "    \"force_high_lod\": %s,\n"
+	                  "    \"disable_mp_impostors\": %s\n"
 	                  "  },\n"
 	                  "  \"input\": {\n"
 	                  "    \"pad_mode\": %d,\n"
@@ -631,13 +814,17 @@ static int ConfigSave(const LauncherConfig *cfg, const char *path)
 	                  cfg->windowWidth,
 	                  cfg->windowHeight,
 	                  (cfg->fullscreen != 0) ? "true" : "false",
-	                  aspectNames[(cfg->aspect >= 0 && cfg->aspect < 3) ? cfg->aspect : 0],
+	                  g_aspectNames[(cfg->aspect >= 0 && cfg->aspect < ASPECT_COUNT) ? cfg->aspect : 0],
+	                  (cfg->trueWidescreen != 0) ? "true" : "false",
 	                  cfg->scale,
 	                  (cfg->bilinear != 0) ? "true" : "false",
 	                  (cfg->antialiasing != 0) ? "true" : "false",
 	                  (cfg->pgxp != 0) ? "true" : "false",
 	                  (cfg->pgxpGeometry != 0) ? "true" : "false",
 	                  (cfg->showFps != 0) ? "true" : "false",
+	                  (cfg->reuseFifoSelfHeal != 0) ? "true" : "false",
+	                  (cfg->forceHighLod != 0) ? "true" : "false",
+	                  (cfg->disableMpImpostors != 0) ? "true" : "false",
 	                  cfg->padMode,
 	                  cfg->keyboardSlot,
 	                  cfg->deadzone,
@@ -646,19 +833,36 @@ static int ConfigSave(const LauncherConfig *cfg, const char *path)
 	                  gameExeEscaped,
 	                  discEscaped);
 
-	fclose(file);
-
-	if (written <= 0)
+	if ((length <= 0) || ((size_t)length >= sizeof(document)))
 	{
-		remove(tempPath);
-		LogError("[ctr_config] ERROR: short write to %s\n", tempPath);
+		LogError("[ctr_config] ERROR: config document did not fit (%d bytes)\n", length);
 		return 0;
 	}
 
-	remove(path);
-	if (rename(tempPath, path) != 0)
+	file = _wfopen(tempPathW, L"wb");
+	if (file == NULL)
 	{
-		LogError("[ctr_config] ERROR: rename %s -> %s failed\n", tempPath, path);
+		LogError("[ctr_config] ERROR: cannot write %s.tmp\n", path);
+		return 0;
+	}
+
+	// A partial fwrite, a failed flush or a failed fclose (deferred write
+	// error) all count as failure; the old config stays in place.
+	ok = (fwrite(document, 1, (size_t)length, file) == (size_t)length);
+	ok = (fflush(file) == 0) && ok;
+	ok = (fclose(file) == 0) && ok;
+
+	if (!ok)
+	{
+		_wremove(tempPathW);
+		LogError("[ctr_config] ERROR: short write to %s.tmp\n", path);
+		return 0;
+	}
+
+	if (!MoveFileExW(tempPathW, pathW, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+	{
+		LogError("[ctr_config] ERROR: replace %s.tmp -> %s failed (err %lu)\n", path, path, (unsigned long)GetLastError());
+		_wremove(tempPathW);
 		return 0;
 	}
 
@@ -804,6 +1008,10 @@ static int DiscDetectRegion(const wchar_t *pathW, char *bootIdOut, size_t bootId
 		}
 
 		nameLen = data[pos + 32];
+		if (((size_t)pos + 33 + nameLen) > dataLen)
+		{
+			break; // truncated/corrupt record: the name would run past the data
+		}
 		if (nameLen >= sizeof(name))
 		{
 			nameLen = sizeof(name) - 1;
@@ -943,8 +1151,16 @@ static const int g_resSizes[][2] = {
 };
 #define RES_COUNT (int)(sizeof(g_resLabels) / sizeof(g_resLabels[0]))
 
-static const wchar_t *g_scaleLabels[] = { L"Auto (screen)", L"1x  (native PSX)", L"2x", L"3x", L"4x", L"8x" };
-static const int g_scaleValues[] = { 0, 1, 2, 3, 4, 8 };
+// Every value the engine accepts (0 = Auto, 1..MAX_SCALE); a missing entry
+// would make ComboFill fall back to Auto and silently rewrite it on save.
+static const wchar_t *g_scaleLabels[] = {
+	L"Auto (screen)", L"1x  (native PSX)", L"2x", L"3x", L"4x", L"5x", L"6x", L"7x", L"8x"
+};
+static const int g_scaleValues[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+#define SCALE_COUNT (int)(sizeof(g_scaleValues) / sizeof(g_scaleValues[0]))
+
+static const wchar_t *g_aspectLabels[] = { L"Auto (window shape)", L"4:3", L"16:9", L"16:10", L"21:9" };
+static const int g_aspectValues[] = { 0, 1, 2, 3, 4 }; // indices into g_aspectNames
 
 static const wchar_t *g_padLabels[] = {
 	L"4 pads (always on, even if disconnected)",
@@ -1024,6 +1240,14 @@ static int GetEditInt(int id, int fallback)
 	return (int)value;
 }
 
+// The engine only runs PGXP geometry when BOTH pgxp and pgxp_geometry are on
+// (native_renderer.c), so the geometry box is greyed out without PGXP. Its
+// checked state is kept (and saved) so re-enabling PGXP restores it.
+static void UpdatePgxpGeometryEnabled(void)
+{
+	EnableWindow(GetDlgItem(g_hWnd, IDC_PGXP_GEO), IsDlgButtonChecked(g_hWnd, IDC_PGXP) == BST_CHECKED);
+}
+
 static void UpdateRegionLabel(void);
 
 static void UpdateRegionLabel(void)
@@ -1046,6 +1270,7 @@ static void UpdateRegionLabel(void)
 	if (IsAbsolutePathW(disc))
 	{
 		wcsncpy(full, disc, WSTR_MAX - 1);
+		full[WSTR_MAX - 1] = 0;
 	}
 	else
 	{
@@ -1106,20 +1331,20 @@ static void LoadConfigIntoUi(void)
 	buffer[WSTR_MAX - 1] = 0;
 	SetEditText(IDC_RES_H, buffer);
 
-	{
-		static const wchar_t *aspectLabels[] = { L"Auto", L"4:3", L"16:9" };
-		static const int aspectValues[] = { 0, 1, 2 };
-
-		ComboFill(GetDlgItem(g_hWnd, IDC_ASPECT), aspectLabels, aspectValues, 3, g_cfg.aspect);
-		ComboFill(GetDlgItem(g_hWnd, IDC_SCALE), g_scaleLabels, g_scaleValues, 6, g_cfg.scale);
-	}
+	ComboFill(GetDlgItem(g_hWnd, IDC_ASPECT), g_aspectLabels, g_aspectValues, ASPECT_COUNT, g_cfg.aspect);
+	ComboFill(GetDlgItem(g_hWnd, IDC_SCALE), g_scaleLabels, g_scaleValues, SCALE_COUNT, g_cfg.scale);
 
 	CheckDlgButton(g_hWnd, IDC_FULLSCREEN, g_cfg.fullscreen ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton(g_hWnd, IDC_BILINEAR, g_cfg.bilinear ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton(g_hWnd, IDC_AA, g_cfg.antialiasing ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton(g_hWnd, IDC_PGXP, g_cfg.pgxp ? BST_CHECKED : BST_UNCHECKED);
 	CheckDlgButton(g_hWnd, IDC_PGXP_GEO, g_cfg.pgxpGeometry ? BST_CHECKED : BST_UNCHECKED);
+	UpdatePgxpGeometryEnabled();
 	CheckDlgButton(g_hWnd, IDC_SHOWFPS, g_cfg.showFps ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(g_hWnd, IDC_TRUEWIDE, g_cfg.trueWidescreen ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(g_hWnd, IDC_MPREAL3D, g_cfg.disableMpImpostors ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(g_hWnd, IDC_HIGHLOD, g_cfg.forceHighLod ? BST_CHECKED : BST_UNCHECKED);
+	CheckDlgButton(g_hWnd, IDC_FIFOHEAL, g_cfg.reuseFifoSelfHeal ? BST_CHECKED : BST_UNCHECKED);
 
 	ComboFill(GetDlgItem(g_hWnd, IDC_PADMODE), g_padLabels, g_padValues, 3, g_cfg.padMode);
 	ComboFill(GetDlgItem(g_hWnd, IDC_KBSLOT), g_kbLabels, g_kbValues, 6, g_cfg.keyboardSlot);
@@ -1141,6 +1366,7 @@ static void LoadConfigIntoUi(void)
 		if (FileExistsW(candidate))
 		{
 			wcsncpy(g_cfg.discImageW, L"assets\\ctr-u.bin", WSTR_MAX - 1);
+			g_cfg.discImageW[WSTR_MAX - 1] = 0;
 		}
 	}
 	SetEditText(IDC_DISC, g_cfg.discImageW);
@@ -1252,9 +1478,13 @@ static int SaveConfigFromUi(int quiet)
 	g_cfg.pgxp = (IsDlgButtonChecked(g_hWnd, IDC_PGXP) == BST_CHECKED) ? 1 : 0;
 	g_cfg.pgxpGeometry = (IsDlgButtonChecked(g_hWnd, IDC_PGXP_GEO) == BST_CHECKED) ? 1 : 0;
 	g_cfg.showFps = (IsDlgButtonChecked(g_hWnd, IDC_SHOWFPS) == BST_CHECKED) ? 1 : 0;
+	g_cfg.trueWidescreen = (IsDlgButtonChecked(g_hWnd, IDC_TRUEWIDE) == BST_CHECKED) ? 1 : 0;
+	g_cfg.disableMpImpostors = (IsDlgButtonChecked(g_hWnd, IDC_MPREAL3D) == BST_CHECKED) ? 1 : 0;
+	g_cfg.forceHighLod = (IsDlgButtonChecked(g_hWnd, IDC_HIGHLOD) == BST_CHECKED) ? 1 : 0;
+	g_cfg.reuseFifoSelfHeal = (IsDlgButtonChecked(g_hWnd, IDC_FIFOHEAL) == BST_CHECKED) ? 1 : 0;
 
 	value = ComboSelectedValue(GetDlgItem(g_hWnd, IDC_PADMODE));
-	g_cfg.padMode = (value >= -1) ? value : 1;
+	g_cfg.padMode = (value >= 0) ? value : 1; // 0..2; -999 = no selection
 
 	value = ComboSelectedValue(GetDlgItem(g_hWnd, IDC_KBSLOT));
 	g_cfg.keyboardSlot = (value >= -2) ? value : -2;
@@ -1277,14 +1507,17 @@ static int SaveConfigFromUi(int quiet)
 	if (portable[0] == 0)
 	{
 		wcsncpy(portable, L"ctr_native.exe", WSTR_MAX - 1);
+		portable[WSTR_MAX - 1] = 0;
 	}
 	wcsncpy(g_cfg.gameExeW, portable, WSTR_MAX - 1);
+	g_cfg.gameExeW[WSTR_MAX - 1] = 0;
 
 	GetEditText(IDC_DISC, buffer, WSTR_MAX);
 	PortablePathW(buffer, portable, WSTR_MAX);
 	wcsncpy(g_cfg.discImageW, portable, WSTR_MAX - 1);
+	g_cfg.discImageW[WSTR_MAX - 1] = 0;
 
-	ok = ConfigSave(&g_cfg, g_configPathUtf8);
+	ok = ConfigSave(&g_cfg, g_configPathW);
 
 	if (g_verbose)
 	{
@@ -1295,9 +1528,10 @@ static int SaveConfigFromUi(int quiet)
 		GetEditText(IDC_DEADZONE, dzRaw, 64);
 		WideToUtf8(g_cfg.gameExeW, exeUtf8, sizeof(exeUtf8));
 		WideToUtf8(g_cfg.discImageW, discUtf8, sizeof(discUtf8));
-		LogLine("[ctr_config] save: window=%dx%d fullscreen=%d aspect=%d scale=%d bilinear=%d aa=%d pgxp=%d pgxpGeo=%d fps=%d pad=%d kb=%d dz=%d dzEdit='%ls' analog=%d rumble=%d exe='%s' disc='%s'\n",
-		        g_cfg.windowWidth, g_cfg.windowHeight, g_cfg.fullscreen, g_cfg.aspect, g_cfg.scale,
+		LogLine("[ctr_config] save: window=%dx%d fullscreen=%d aspect=%d trueWide=%d scale=%d bilinear=%d aa=%d pgxp=%d pgxpGeo=%d fps=%d mpReal3d=%d highLod=%d fifoHeal=%d pad=%d kb=%d dz=%d dzEdit='%ls' analog=%d rumble=%d exe='%s' disc='%s'\n",
+		        g_cfg.windowWidth, g_cfg.windowHeight, g_cfg.fullscreen, g_cfg.aspect, g_cfg.trueWidescreen, g_cfg.scale,
 		        g_cfg.bilinear, g_cfg.antialiasing, g_cfg.pgxp, g_cfg.pgxpGeometry, g_cfg.showFps,
+		        g_cfg.disableMpImpostors, g_cfg.forceHighLod, g_cfg.reuseFifoSelfHeal,
 		        g_cfg.padMode, g_cfg.keyboardSlot, g_cfg.deadzone, dzRaw, g_cfg.analog, g_cfg.rumble,
 		        exeUtf8, discUtf8);
 	}
@@ -1313,7 +1547,7 @@ static int SaveConfigFromUi(int quiet)
 	if (!quiet)
 	{
 		wchar_t message[WSTR_MAX + 64];
-		_snwprintf(message, WSTR_MAX + 64, L"Configuration saved to:\n%hs", g_configPathUtf8);
+		_snwprintf(message, WSTR_MAX + 64, L"Configuration saved to:\n%s", g_configPathW);
 		message[WSTR_MAX + 63] = 0;
 		MessageBoxW(g_hWnd, message, APP_TITLE, MB_ICONINFORMATION | MB_OK);
 	}
@@ -1357,6 +1591,7 @@ static int ResolveGamePathW(wchar_t *out, size_t outCount)
 	if (exe[0] == 0)
 	{
 		wcsncpy(exe, L"ctr_native.exe", WSTR_MAX - 1);
+		exe[WSTR_MAX - 1] = 0;
 	}
 
 	if (IsAbsolutePathW(exe))
@@ -1402,6 +1637,7 @@ static void SaveAndPlay(void)
 		if (IsAbsolutePathW(disc))
 		{
 			wcsncpy(full, disc, WSTR_MAX - 1);
+			full[WSTR_MAX - 1] = 0;
 		}
 		else
 		{
@@ -1436,10 +1672,8 @@ static void SaveAndPlay(void)
 		}
 	}
 
-	if (MessageBoxW(g_hWnd, L"Launch the game now?", APP_TITLE, MB_ICONQUESTION | MB_YESNO) != IDYES)
-	{
-		return;
-	}
+	// No extra "Launch now?" prompt: pressing Save & Play is the confirmation
+	// (the region/missing-disc warnings above still ask when relevant).
 
 	{
 		STARTUPINFOW si;
@@ -1483,7 +1717,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 			g_hWnd = hWnd;
 
 			// Graphics group
-			MkCtl(L"BUTTON", L"Graphics", BS_GROUPBOX, 12, 12, 436, 286, -1);
+			MkCtl(L"BUTTON", L"Graphics", BS_GROUPBOX, 12, 12, 436, 328, -1);
 			MkCtl(L"STATIC", L"Window resolution:", SS_LEFT, 24, 38, 110, 20, -1);
 			MkCtl(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 138, 34, 166, 200, IDC_RES_COMBO);
 			MkCtl(L"EDIT", L"", ES_NUMBER | WS_BORDER | WS_TABSTOP, 310, 34, 48, 22, IDC_RES_W);
@@ -1497,15 +1731,19 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 			MkCtl(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 138, 94, 166, 200, IDC_SCALE);
 
 			MkCtl(L"BUTTON", L"Fullscreen", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 124, 420, 20, IDC_FULLSCREEN);
-			MkCtl(L"BUTTON", L"Bilinear filtering (smoothing)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 146, 420, 20, IDC_BILINEAR);
-			MkCtl(L"BUTTON", L"Anti-aliasing (smooths 3D edges only)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 168, 420, 20, IDC_AA);
-			MkCtl(L"BUTTON", L"PGXP textures (P) - perspective-correct interpolation (exp.)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 190, 420, 20, IDC_PGXP);
-			MkCtl(L"BUTTON", L"PGXP geometry (G) - subpixel vertex positions (exp.; may seam)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 212, 420, 20, IDC_PGXP_GEO);
-			MkCtl(L"STATIC", L"PGXP: run one mode at a time - textures (P) or geometry (G),\nnot both (both on can tear).", SS_LEFT, 24, 234, 410, 34, IDC_HINT_PGXP);
-			MkCtl(L"BUTTON", L"Show FPS counter (Insert)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 270, 420, 20, IDC_SHOWFPS);
+			MkCtl(L"BUTTON", L"True widescreen (wider view instead of stretching)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 146, 420, 20, IDC_TRUEWIDE);
+			MkCtl(L"BUTTON", L"Bilinear filtering (smoothing)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 168, 420, 20, IDC_BILINEAR);
+			// The engine applies this as a linear filter on the whole presented
+			// image, not as edge-only MSAA.
+			MkCtl(L"BUTTON", L"Smooth presentation filter (anti-aliasing)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 190, 420, 20, IDC_AA);
+			MkCtl(L"BUTTON", L"PGXP (perspective-correct textures)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 212, 420, 20, IDC_PGXP);
+			MkCtl(L"BUTTON", L"+ Subpixel geometry (requires PGXP)", BS_AUTOCHECKBOX | WS_TABSTOP, 40, 234, 404, 20, IDC_PGXP_GEO);
+			MkCtl(L"STATIC", L"Geometry only takes effect with PGXP on; it may open seams at high internal resolution.", SS_LEFT, 40, 256, 396, 34, IDC_HINT_PGXP);
+			MkCtl(L"BUTTON", L"Show FPS counter (Insert)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 292, 420, 20, IDC_SHOWFPS);
+			MkCtl(L"BUTTON", L"Split-screen rivals as real 3D (fixes distorted karts; restart)", BS_AUTOCHECKBOX | WS_TABSTOP, 24, 314, 420, 20, IDC_MPREAL3D);
 
 			// Gamepad group
-			MkCtl(L"BUTTON", L"Gamepad", BS_GROUPBOX, 460, 12, 432, 286, -1);
+			MkCtl(L"BUTTON", L"Gamepad", BS_GROUPBOX, 460, 12, 432, 236, -1);
 			MkCtl(L"STATIC", L"Pad layout:", SS_LEFT, 472, 38, 100, 20, -1);
 			MkCtl(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, 586, 34, 260, 200, IDC_PADMODE);
 			MkCtl(L"STATIC", L"Keyboard plays as:", SS_LEFT, 472, 68, 110, 20, -1);
@@ -1516,25 +1754,31 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 			MkCtl(L"BUTTON", L"Rumble", BS_AUTOCHECKBOX | WS_TABSTOP, 472, 146, 420, 20, IDC_RUMBLE);
 			MkCtl(L"STATIC", L"Pads auto-attach to players 1-4; drops reconnect to the same\nslot. In-game: F6 swaps pads, F4 assigns the keyboard.", SS_LEFT, 472, 172, 410, 60, IDC_PADNOTE);
 
+			// Diagnostics group: developer toggles kept small and out of the
+			// way, but shown so a save never silently drops them.
+			MkCtl(L"BUTTON", L"Diagnostics", BS_GROUPBOX, 460, 256, 432, 84, -1);
+			MkCtl(L"BUTTON", L"Force high LOD (diagnostic)", BS_AUTOCHECKBOX | WS_TABSTOP, 472, 278, 410, 20, IDC_HIGHLOD);
+			MkCtl(L"BUTTON", L"FIFO reuse self-heal (EXPERIMENTAL - causes tearing)", BS_AUTOCHECKBOX | WS_TABSTOP, 472, 302, 410, 20, IDC_FIFOHEAL);
+
 			// Game executable group
-			MkCtl(L"BUTTON", L"Game executable", BS_GROUPBOX, 12, 310, 436, 66, -1);
-			MkCtl(L"EDIT", L"", ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 24, 336, 316, 22, IDC_GAMEEXE);
-			MkCtl(L"BUTTON", L"Browse...", BS_PUSHBUTTON | WS_TABSTOP, 346, 335, 90, 24, IDC_BROWSE_EXE);
+			MkCtl(L"BUTTON", L"Game executable", BS_GROUPBOX, 12, 352, 436, 66, -1);
+			MkCtl(L"EDIT", L"", ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 24, 378, 316, 22, IDC_GAMEEXE);
+			MkCtl(L"BUTTON", L"Browse...", BS_PUSHBUTTON | WS_TABSTOP, 346, 377, 90, 24, IDC_BROWSE_EXE);
 
 			// Game data group
-			MkCtl(L"BUTTON", L"Game data", BS_GROUPBOX, 460, 310, 432, 122, -1);
-			MkCtl(L"STATIC", L"Disc image (ctr-u.bin / ISO):", SS_LEFT, 472, 324, 150, 20, -1);
-			MkCtl(L"EDIT", L"", ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 472, 346, 300, 22, IDC_DISC);
-			MkCtl(L"BUTTON", L"Browse...", BS_PUSHBUTTON | WS_TABSTOP, 780, 345, 100, 24, IDC_BROWSE_DISC);
-			MkCtl(L"STATIC", L"Pick any BIN/ISO, or leave empty for assets/ctr-u.bin.", SS_LEFT, 472, 374, 410, 20, IDC_DISCHINT);
-			MkCtl(L"STATIC", L"", SS_LEFT, 472, 396, 410, 32, IDC_REGION);
+			MkCtl(L"BUTTON", L"Game data", BS_GROUPBOX, 460, 352, 432, 122, -1);
+			MkCtl(L"STATIC", L"Disc image (ctr-u.bin / ISO):", SS_LEFT, 472, 366, 150, 20, -1);
+			MkCtl(L"EDIT", L"", ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP, 472, 388, 300, 22, IDC_DISC);
+			MkCtl(L"BUTTON", L"Browse...", BS_PUSHBUTTON | WS_TABSTOP, 780, 387, 100, 24, IDC_BROWSE_DISC);
+			MkCtl(L"STATIC", L"Pick any BIN/ISO, or leave empty for assets/ctr-u.bin.", SS_LEFT, 472, 416, 410, 20, IDC_DISCHINT);
+			MkCtl(L"STATIC", L"", SS_LEFT, 472, 438, 410, 32, IDC_REGION);
 
 			// Buttons
-			MkCtl(L"BUTTON", L"Save", BS_PUSHBUTTON | WS_TABSTOP, 12, 448, 90, 30, IDC_SAVE);
-			MkCtl(L"BUTTON", L"Save & Play", BS_PUSHBUTTON | WS_TABSTOP, 112, 448, 110, 30, IDC_SAVEPLAY);
-			MkCtl(L"BUTTON", L"Quit", BS_PUSHBUTTON | WS_TABSTOP, 232, 448, 90, 30, IDC_QUIT);
+			MkCtl(L"BUTTON", L"Save", BS_PUSHBUTTON | WS_TABSTOP, 12, 490, 90, 30, IDC_SAVE);
+			MkCtl(L"BUTTON", L"Save & Play", BS_PUSHBUTTON | WS_TABSTOP, 112, 490, 110, 30, IDC_SAVEPLAY);
+			MkCtl(L"BUTTON", L"Quit", BS_PUSHBUTTON | WS_TABSTOP, 232, 490, 90, 30, IDC_QUIT);
 
-			MkCtl(L"STATIC", L"Settings are written to ctr-native-config.json next to the game and\napplied when the game starts; paths inside the folder are kept relative.", SS_LEFT, 12, 490, 500, 36, IDC_NOTE);
+			MkCtl(L"STATIC", L"Settings are written to ctr-native-config.json next to the game and\napplied when the game starts; paths inside the folder are kept relative.", SS_LEFT, 12, 532, 500, 36, IDC_NOTE);
 
 			LoadConfigIntoUi();
 			return 0;
@@ -1584,6 +1828,13 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 							buffer[31] = 0;
 							SetEditText(IDC_RES_H, buffer);
 						}
+					}
+					return 0;
+
+				case IDC_PGXP:
+					if (notify == BN_CLICKED)
+					{
+						UpdatePgxpGeometryEnabled();
 					}
 					return 0;
 
@@ -1639,7 +1890,15 @@ static int RunGui(void)
 	NONCLIENTMETRICSW ncm;
 	RECT rect;
 
-	g_dpi = GetDeviceCaps(GetDC(NULL), LOGPIXELSX);
+	{
+		HDC screen = GetDC(NULL);
+
+		g_dpi = (screen != NULL) ? GetDeviceCaps(screen, LOGPIXELSX) : 96;
+		if (screen != NULL)
+		{
+			ReleaseDC(NULL, screen);
+		}
+	}
 	if (g_dpi <= 0)
 	{
 		g_dpi = 96;
@@ -1675,7 +1934,7 @@ static int RunGui(void)
 	rect.left = 0;
 	rect.top = 0;
 	rect.right = SX(906);
-	rect.bottom = SX(536);
+	rect.bottom = SX(578);
 	AdjustWindowRect(&rect, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, FALSE);
 
 	g_hWnd = CreateWindowExW(0, L"CtrConfigWnd", APP_TITLE,
@@ -1736,7 +1995,6 @@ static int RunGui(void)
 static void PrintConfig(void)
 {
 	LauncherConfig *cfg = &g_cfg;
-	static const char *aspectNames[3] = { "Auto", "4:3", "16:9" };
 	char exeUtf8[STR_MAX];
 	char discUtf8[STR_MAX];
 
@@ -1747,13 +2005,17 @@ static void PrintConfig(void)
 	Print("window_width=%d\n", cfg->windowWidth);
 	Print("window_height=%d\n", cfg->windowHeight);
 	Print("fullscreen=%s\n", cfg->fullscreen ? "true" : "false");
-	Print("aspect_ratio=%s\n", aspectNames[(cfg->aspect >= 0 && cfg->aspect < 3) ? cfg->aspect : 0]);
+	Print("aspect_ratio=%s\n", g_aspectNames[(cfg->aspect >= 0 && cfg->aspect < ASPECT_COUNT) ? cfg->aspect : 0]);
+	Print("true_widescreen=%s\n", cfg->trueWidescreen ? "true" : "false");
 	Print("internal_resolution_scale=%d\n", cfg->scale);
 	Print("bilinear_filtering=%s\n", cfg->bilinear ? "true" : "false");
 	Print("antialiasing=%s\n", cfg->antialiasing ? "true" : "false");
 	Print("pgxp=%s\n", cfg->pgxp ? "true" : "false");
 	Print("pgxp_geometry=%s\n", cfg->pgxpGeometry ? "true" : "false");
 	Print("show_fps=%s\n", cfg->showFps ? "true" : "false");
+	Print("reuse_fifo_self_heal=%s\n", cfg->reuseFifoSelfHeal ? "true" : "false");
+	Print("force_high_lod=%s\n", cfg->forceHighLod ? "true" : "false");
+	Print("disable_mp_impostors=%s\n", cfg->disableMpImpostors ? "true" : "false");
 	Print("pad_mode=%d\n", cfg->padMode);
 	Print("keyboard_slot=%d\n", cfg->keyboardSlot);
 	Print("gamepad_deadzone=%d\n", cfg->deadzone);
@@ -1835,22 +2097,34 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 		}
 	}
 
-	// Launcher dir: the folder containing this exe.
-	GetModuleFileNameW(NULL, g_launcherDirW, WSTR_MAX);
+	// Launcher dir: the folder containing this exe. A truncated module path
+	// (return == buffer size) would yield a wrong folder, so refuse it.
+	{
+		DWORD length = GetModuleFileNameW(NULL, g_launcherDirW, WSTR_MAX);
+
+		if ((length == 0) || (length >= WSTR_MAX))
+		{
+			MessageBoxW(NULL, L"The install path is too long (or unreadable).\nMove CTR Native to a shorter folder.",
+			            APP_TITLE, MB_ICONERROR | MB_OK);
+			LocalFree(argv);
+			return 1;
+		}
+	}
 	GetDirPartW(g_launcherDirW, g_launcherDirW, WSTR_MAX); // in-place is fine (shortens)
 	WideToUtf8(g_launcherDirW, g_launcherDirUtf8, sizeof(g_launcherDirUtf8));
 
 	snprintf(g_logPathUtf8, sizeof(g_logPathUtf8), "%s%s", g_launcherDirUtf8, LOG_FILENAME);
+	JoinPathW(g_launcherDirW, L"ctr_config.log", g_logPathW, WSTR_MAX); // = LOG_FILENAME
 
 	if (configOverride != NULL)
 	{
-		wchar_t full[WSTR_MAX];
-		DWORD length = GetFullPathNameW(configOverride, WSTR_MAX, full, NULL);
+		DWORD length = GetFullPathNameW(configOverride, WSTR_MAX, g_configPathW, NULL);
 		if ((length == 0) || (length >= WSTR_MAX))
 		{
-			wcsncpy(full, configOverride, WSTR_MAX - 1);
+			wcsncpy(g_configPathW, configOverride, WSTR_MAX - 1);
+			g_configPathW[WSTR_MAX - 1] = 0;
 		}
-		WideToUtf8(full, g_configPathUtf8, sizeof(g_configPathUtf8));
+		WideToUtf8(g_configPathW, g_configPathUtf8, sizeof(g_configPathUtf8));
 	}
 	else
 	{
@@ -1870,9 +2144,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 	}
 	if (outPath != NULL)
 	{
-		char outUtf8[STR_MAX];
-		WideToUtf8(outPath, outUtf8, sizeof(outUtf8));
-		g_outCopy = fopen(outUtf8, "wb");
+		g_outCopy = _wfopen(outPath, L"wb");
 	}
 
 	if (cliAction != 0)
@@ -1884,7 +2156,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 		}
 		else
 		{
-			loaded = ConfigLoad(&g_cfg, g_configPathUtf8);
+			loaded = ConfigLoad(&g_cfg, g_configPathW);
 
 			switch (cliAction)
 			{
@@ -1894,7 +2166,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 					break;
 
 				case 2:
-					if (!ConfigSave(&g_cfg, g_configPathUtf8))
+					if (!ConfigSave(&g_cfg, g_configPathW))
 					{
 						Print("resave: FAILED (%s)\n", g_configPathUtf8);
 						exitCode = 3;
@@ -1908,7 +2180,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 
 				case 3:
 					ConfigSetDefaults(&g_cfg);
-					if (!ConfigSave(&g_cfg, g_configPathUtf8))
+					if (!ConfigSave(&g_cfg, g_configPathW))
 					{
 						Print("write-defaults: FAILED (%s)\n", g_configPathUtf8);
 						exitCode = 3;
@@ -1933,7 +2205,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLi
 		return exitCode;
 	}
 
-	(void)ConfigLoad(&g_cfg, g_configPathUtf8);
+	(void)ConfigLoad(&g_cfg, g_configPathW);
 	exitCode = RunGui();
 
 	if (g_outCopy != NULL)

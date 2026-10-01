@@ -187,6 +187,17 @@ int NativeRenderer_IsAutoResolution(void)
 // NOTE: Presentation aspect for the displayed VRAM region.
 // 0 = auto (match the window aspect), 1 = force 4:3, 2 = force 16:9.
 int g_cfg_aspectRatio = 0;
+// True widescreen (Hor+): 1 = a presentation wider than 4:3 widens the field
+// of view (include/widescreen.h); 0 = plain stretch of the 4:3 frame.
+int g_cfg_trueWidescreen = 1;
+// 1000 = 4:3/off; < 1000 squeezes X. Recomputed every frame from the
+// presentation aspect in NativeRenderer_UpdatePresentationViewport.
+int g_widescreenFactor = 1000;
+
+int Widescreen_GetFactor(void)
+{
+	return g_widescreenFactor;
+}
 
 // NOTE(aalhendi): Pack native RGBA render targets into the persistent RG8 VRAM
 // texture on the GPU instead of a GPU-to-CPU-to-GPU round trip.
@@ -540,6 +551,17 @@ void NativeRenderer_ApplyPresentationAspect(void)
 		s_presentAspectW = 16;
 		s_presentAspectH = 9;
 	}
+	else if (g_cfg_aspectRatio == 3)
+	{
+		s_presentAspectW = 16;
+		s_presentAspectH = 10;
+	}
+	else if (g_cfg_aspectRatio == 4)
+	{
+		// 21:9 as marketed is 64:27 (2.370)
+		s_presentAspectW = 64;
+		s_presentAspectH = 27;
+	}
 	else
 	{
 		NativeRenderer_SetPresentationAspect(g_windowWidth, g_windowHeight);
@@ -550,6 +572,28 @@ void NativeRenderer_ApplyPresentationAspect(void)
 
 internal void NativeRenderer_UpdatePresentationViewport(void)
 {
+	// True widescreen factor: 1000 * (4/3) / presentedAspect, clamped. Only a
+	// presentation WIDER than 4:3 widens the view (no Hor- for tall windows).
+	if ((g_cfg_trueWidescreen != 0) && (s_presentAspectW > 0) && (s_presentAspectH > 0))
+	{
+		int factor = (4000 * s_presentAspectH) / (3 * s_presentAspectW);
+
+		if (factor > 1000)
+		{
+			factor = 1000;
+		}
+		else if (factor < 250)
+		{
+			factor = 250;
+		}
+
+		g_widescreenFactor = factor;
+	}
+	else
+	{
+		g_widescreenFactor = 1000;
+	}
+
 	if ((g_windowWidth <= 0) || (g_windowHeight <= 0) || (s_presentAspectW <= 0) || (s_presentAspectH <= 0))
 	{
 		s_presentViewport.x = 0;

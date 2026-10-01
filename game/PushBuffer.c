@@ -403,6 +403,21 @@ void PushBuffer_SetMatrixVP(struct PushBuffer *pb)
 	// scale Y axis (3)
 	pb->matrix_ViewProj.m[1][2] = pb->matrix_ViewProj.m[1][2] * r360 / r600;
 
+	// True widescreen (Hor+, see include/widescreen.h): scale the X row so a
+	// wider slice of the world fits the 512-wide frame; the presenter
+	// stretches it back to the display aspect.
+	{
+		const int wsFactor = Widescreen_GetFactor();
+
+		if (wsFactor < 1000)
+		{
+			pb->matrix_ViewProj.t[0] = pb->matrix_ViewProj.t[0] * wsFactor / 1000;
+			pb->matrix_ViewProj.m[0][0] = pb->matrix_ViewProj.m[0][0] * wsFactor / 1000;
+			pb->matrix_ViewProj.m[0][1] = pb->matrix_ViewProj.m[0][1] * wsFactor / 1000;
+			pb->matrix_ViewProj.m[0][2] = pb->matrix_ViewProj.m[0][2] * wsFactor / 1000;
+		}
+	}
+
 	// store camera matrix,
 	// otherwise oxide intro cutscene bugs out,
 	// when crash is sleeping on the grassy hill
@@ -585,6 +600,17 @@ void PushBuffer_UpdateFrustum(struct PushBuffer *pb)
 
 	val_X = pb->rect.w;
 	val_X = val_X / 2;
+
+	// True widescreen: widen the X frustum by the same factor as the
+	// projection, or the extra side view would be culled.
+	{
+		const int wsFactor = Widescreen_GetFactor();
+
+		if (wsFactor < 1000)
+		{
+			val_X = val_X * 1000 / wsFactor;
+		}
+	}
 
 	val_Y = ((pb->rect.h * 0x600) / 0x360);
 	val_Y = val_Y / 2;

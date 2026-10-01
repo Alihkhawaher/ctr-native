@@ -19,6 +19,7 @@
 #include "../externals/SDL/src/render/SDL_render_debug_font.h"
 
 extern int g_cfg_aspectRatio;
+int Widescreen_GetFactor(void);
 extern int g_cfg_bilinearFiltering;
 extern int g_cfg_pgxp;
 extern int g_cfg_pgxpGeometry;
@@ -251,7 +252,7 @@ void NativeOverlay_Show(void)
 
 void NativeOverlay_Draw(void)
 {
-	static const char *s_aspectNames[3] = {"Auto", "4:3", "16:9"};
+	static const char *s_aspectNames[5] = {"Auto", "4:3", "16:9", "16:10", "21:9"};
 	char labels[NATIVE_OVERLAY_LINES][24];
 	char values[NATIVE_OVERLAY_LINES][24];
 	char hints[NATIVE_OVERLAY_LINES][24];
@@ -369,7 +370,8 @@ void NativeOverlay_Draw(void)
 	snprintf(hints[1], sizeof(hints[1]), "F3");
 
 	snprintf(labels[2], sizeof(labels[2]), "Aspect");
-	snprintf(values[2], sizeof(values[2]), "%s", s_aspectNames[(g_cfg_aspectRatio >= 0 && g_cfg_aspectRatio < 3) ? g_cfg_aspectRatio : 0]);
+	snprintf(values[2], sizeof(values[2]), "%s%s", s_aspectNames[(g_cfg_aspectRatio >= 0 && g_cfg_aspectRatio < 5) ? g_cfg_aspectRatio : 0],
+	         (Widescreen_GetFactor() < 1000) ? " wide" : "");
 	snprintf(hints[2], sizeof(hints[2]), "Home");
 
 	snprintf(labels[3], sizeof(labels[3]), "Window");

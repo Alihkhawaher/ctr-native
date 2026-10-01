@@ -142,6 +142,7 @@ void NativeConfig_SetDefaults(NativeConfig *config)
 	                          // open visible seams at high internal resolutions
 	                          // (texture-only PGXP cannot tear - nothing moves).
 	config->forceHighLod = 0;       // DIAGNOSTIC (2026-10-01): blob-follows-LOD experiment
+	config->trueWidescreen = 1; // Hor+ widescreen (thecodingbob PR #16 port); only acts when aspect is wider than 4:3
 	config->disableMpImpostors = 1; // FIX (2026-10-01): split-screen rival karts as real 3D. The retail
 	                                // DecalMP impostor (rival rendered into a 96x64 VRAM tile, pasted as a
 	                                // sprite) goes stale/partial through the native offscreen VRAM path and
@@ -196,6 +197,14 @@ int NativeConfig_LoadFile(NativeConfig *config, const char *path)
 			{
 				config->aspectRatio = 2;
 			}
+			else if (strcmp(aspect, "16:10") == 0)
+			{
+				config->aspectRatio = 3;
+			}
+			else if (strcmp(aspect, "21:9") == 0)
+			{
+				config->aspectRatio = 4;
+			}
 			else
 			{
 				config->aspectRatio = 0;
@@ -242,6 +251,11 @@ int NativeConfig_LoadFile(NativeConfig *config, const char *path)
 	if (NativeConfig_ReadBool(text, "force_high_lod", &value) != 0)
 	{
 		config->forceHighLod = value;
+	}
+
+	if (NativeConfig_ReadBool(text, "true_widescreen", &value) != 0)
+	{
+		config->trueWidescreen = value;
 	}
 
 	if (NativeConfig_ReadBool(text, "disable_mp_impostors", &value) != 0)
@@ -320,7 +334,7 @@ internal void NativeConfig_CopyLauncherExecutable(const char *text, char *out, s
 
 int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 {
-	static const char *s_aspectNames[3] = {"Auto", "4:3", "16:9"};
+	static const char *s_aspectNames[5] = {"Auto", "4:3", "16:9", "16:10", "21:9"};
 	char tempPath[512];
 	char launcherExecutable[512];
 	char discImage[512];
@@ -360,6 +374,7 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  "    \"window_height\": %d,\n"
 	                  "    \"fullscreen\": %s,\n"
 	                  "    \"aspect_ratio\": \"%s\",\n"
+	                  "    \"true_widescreen\": %s,\n"
 	                  "    \"internal_resolution_scale\": %d,\n"
 	                  "    \"bilinear_filtering\": %s,\n"
 	                  "    \"antialiasing\": %s,\n"
@@ -387,7 +402,8 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  config->windowWidth,
 	                  config->windowHeight,
 	                  (config->fullscreen != 0) ? "true" : "false",
-	                  s_aspectNames[(config->aspectRatio >= 0 && config->aspectRatio < 3) ? config->aspectRatio : 0],
+	                  s_aspectNames[(config->aspectRatio >= 0 && config->aspectRatio < 5) ? config->aspectRatio : 0],
+	                  (config->trueWidescreen != 0) ? "true" : "false",
 	                  ((config->internalResolutionAuto != 0) ? 0 : config->internalResolutionScale),
 	                  (config->bilinearFiltering != 0) ? "true" : "false",
 	                  (config->antialiasing != 0) ? "true" : "false",
@@ -405,16 +421,22 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  launcherExecutable,
 	                  discImage);
 
-	fclose(file);
-
-	if (written <= 0)
+	// fclose flushes: a failed close means the temp file may be incomplete.
+	if ((fclose(file) != 0) || (written <= 0))
 	{
 		remove(tempPath);
 		return 0;
 	}
 
-	remove(path);
-	return rename(tempPath, path) == 0;
+	// Atomic replace (MoveFileExW REPLACE_EXISTING on Windows, UTF-8 paths):
+	// the old remove()+rename() lost the config entirely if the rename failed.
+	if (!SDL_RenamePath(tempPath, path))
+	{
+		remove(tempPath);
+		return 0;
+	}
+
+	return 1;
 }
 
 int NativeConfig_SaveDefaultLocation(const NativeConfig *config)

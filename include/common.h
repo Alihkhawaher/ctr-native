@@ -45,6 +45,7 @@
 // Game declarations and GPU helpers that depend on the layout headers above.
 #include <functions.h>
 #include <gpu.h>
+#include <widescreen.h>
 
 #if defined(CTR_NATIVE)
 static inline void *CTR_PsyqMemmove(void *dest, const void *src, s32 count)

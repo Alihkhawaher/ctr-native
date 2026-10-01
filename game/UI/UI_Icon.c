@@ -162,6 +162,19 @@ void UI_WeaponBG_DrawShine(struct Icon *icon, s16 posX, s16 posY, struct PrimMem
 			break;
 		}
 
+		// True widescreen: squeeze all four mirrored quadrants around the shared
+		// centre (rightX) so the frame stays closed and matches the squeezed icon.
+		{
+			const int wsFactor = Widescreen_GetFactor();
+			if (wsFactor < 1000)
+			{
+				p->x0 = rightX + ((p->x0 - rightX) * wsFactor) / 1000;
+				p->x1 = rightX + ((p->x1 - rightX) * wsFactor) / 1000;
+				p->x2 = rightX + ((p->x2 - rightX) * wsFactor) / 1000;
+				p->x3 = rightX + ((p->x3 - rightX) * wsFactor) / 1000;
+			}
+		}
+
 		CtrGpu_WriteColorCode(&p->r0, CTR_ReadU32LE(&shineColors[UI_WEAPON_SHINE_COLOR_DARK_ROW * sizeof(u32)]));
 		CtrGpu_WriteColorCode(&p->r1, CTR_ReadU32LE(&shineColors[UI_WEAPON_SHINE_COLOR_MID_ROW * sizeof(u32)]));
 		CtrGpu_WriteColorCode(&p->r2, CTR_ReadU32LE(&shineColors[UI_WEAPON_SHINE_COLOR_MID_ROW * sizeof(u32)]));
@@ -293,6 +306,8 @@ void UI_DrawDriverIcon(struct Icon *icon, s16 posX, s16 posY, struct PrimMem *pr
 	p->v[2].pos.y = bottomY;
 	p->v[3].pos.x = bottomX;
 	p->v[3].pos.y = bottomY;
+
+	WIDESCREEN_SQUEEZE_X4(p->v[0].pos.x, p->v[1].pos.x, p->v[2].pos.x, p->v[3].pos.x); // true widescreen
 
 	p->polyClut.self = icon->texLayout.clut;
 	p->polyTpage.self = icon->texLayout.tpage;

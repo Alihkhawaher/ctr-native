@@ -257,6 +257,7 @@ int main(int argc, char *argv[])
 	extern int g_cfg_reuseFifoSelfHeal;
 	extern int g_cfg_forceHighLod;
 	extern int g_cfg_disableMpImpostors;
+	extern int g_cfg_trueWidescreen;
 
 	for (int argIndex = 1; argIndex < argc; argIndex++)
 	{
@@ -392,6 +393,7 @@ int main(int argc, char *argv[])
 		int windowHeight;
 
 		g_cfg_aspectRatio = nativeConfig.aspectRatio;
+		g_cfg_trueWidescreen = nativeConfig.trueWidescreen;
 		g_cfg_internalResolutionScale = nativeConfig.internalResolutionScale;
 		g_cfg_internalResolutionAuto = nativeConfig.internalResolutionAuto;
 		g_cfg_bilinearFiltering = nativeConfig.bilinearFiltering;

@@ -54,6 +54,7 @@ void DecalHUD_DrawPolyFT4(struct Icon *icon, s32 posX, s32 posY, struct PrimMem 
 
 	p->tag = *ot | 0x09000000;
 	*ot = CtrGpu_PrimToOTLink24(p);
+	WIDESCREEN_SQUEEZE_X4(p->x0, p->x1, p->x2, p->x3); // true widescreen: keep HUD shape after the stretch
 	primMem->cursor = p + 1;
 }
 
@@ -145,6 +146,7 @@ void DecalHUD_DrawWeapon(struct Icon *icon, s32 posX, s32 posY, struct PrimMem *
 	}
 	p->tag = *ot | 0x09000000;
 	*ot = CtrGpu_PrimToOTLink24(p);
+	WIDESCREEN_SQUEEZE_X4(p->x0, p->x1, p->x2, p->x3); // true widescreen: keep HUD shape after the stretch
 	primMem->cursor = p + 1;
 }
 
@@ -211,6 +213,7 @@ void DecalHUD_DrawPolyGT4(struct Icon *icon, s32 posX, s32 inputY, struct PrimMe
 
 	p->tag = *ot | DECAL_HUD_GPU_TAG_LENGTH_POLY_GT4;
 	*ot = CtrGpu_PrimToOTLink24(p);
+	WIDESCREEN_SQUEEZE_X4(p->x0, p->x1, p->x2, p->x3); // true widescreen: keep HUD shape after the stretch
 	primMem->cursor = p + 1;
 }
 
@@ -337,5 +340,6 @@ void DecalHUD_Arrow2D(struct Icon *icon, s32 posX, s32 posY, struct PrimMem *pri
 	CtrGpu_WriteColorCode(&p->r3, ColorCode_GetPacked(&color3));
 	p->tag = *ot | DECAL_HUD_GPU_TAG_LENGTH_POLY_GT4;
 	*ot = CtrGpu_PrimToOTLink24(p);
+	WIDESCREEN_SQUEEZE_X4(p->x0, p->x1, p->x2, p->x3); // true widescreen: keep HUD shape after the stretch
 	primMem->cursor = p + 1;
 }

@@ -32,6 +32,7 @@ extern int g_cfg_pgxpGeometry;
 extern int g_cfg_reuseFifoSelfHeal;
 extern int g_cfg_forceHighLod;
 extern int g_cfg_disableMpImpostors;
+extern int g_cfg_trueWidescreen;
 extern int g_cfg_clampInstanceOt;
 extern int g_cfg_internalResolutionScale;
 extern int g_cfg_internalResolutionAuto;
@@ -195,6 +196,7 @@ internal void Platform_SaveSettings(void)
 	config.reuseFifoSelfHeal = g_cfg_reuseFifoSelfHeal;
 	config.forceHighLod = g_cfg_forceHighLod;
 	config.disableMpImpostors = g_cfg_disableMpImpostors;
+	config.trueWidescreen = g_cfg_trueWidescreen;
 	config.showFps = g_cfg_showFps;
 	config.gamepadDeadzone = (g_cfg_gamepadDeadzone * 100 + 16384) / 32768;
 	config.gamepadAnalog = g_cfg_gamepadAnalog;
@@ -520,7 +522,7 @@ internal void Platform_HandleKey(int key, char down)
 		}
 		else if (key == SDL_SCANCODE_HOME)
 		{
-			g_cfg_aspectRatio = (g_cfg_aspectRatio + 1) % 3;
+			g_cfg_aspectRatio = (g_cfg_aspectRatio + 1) % 5; // Auto, 4:3, 16:9, 16:10, 21:9
 			NativeRenderer_ApplyPresentationAspect();
 			Platform_LogWarn("[CTR Native] aspect ratio mode: %d\n", g_cfg_aspectRatio);
 			NativeOverlay_Show();
