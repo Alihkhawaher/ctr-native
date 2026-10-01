@@ -72,6 +72,24 @@ void MainFrame_RenderFrame(struct GameTracker *gGT, struct GamepadSystem *gGamep
 		RenderStars(&gGT->pushBuffer[0], &gGT->backBuffer->primMem, &gGT->stars, gGT->numPlyrCurrGame);
 	}
 
+#ifdef CTR_NATIVE
+	{
+		// FIX (2026-10-01): disable_mp_impostors (default ON). Retail draws
+		// split-screen rival karts into a 96x64 VRAM tile (DecalMP) every other
+		// frame and pastes it as a sprite. The tile is never cleared and the
+		// native offscreen->VRAM copy leaves it stale/partial, so rivals showed
+		// fragments of old poses ("upper body replaced by flat pieces", 2P+
+		// only, angle dependent). A PC draws them as real 3D for free. Config
+		// only: DecalMP_01 leaves idpp->pushBuffer redirected, so flipping it
+		// mid-race would hide the karts until they respawn.
+		extern int g_cfg_disableMpImpostors;
+		if (g_cfg_disableMpImpostors != 0)
+		{
+			gGT->renderFlags &= ~RENDER_FLAG_MULTIPLAYER_DECALS;
+		}
+	}
+#endif
+
 	if (((gGT->renderFlags & RENDER_FLAG_MULTIPLAYER_DECALS) != 0) && (gGT->numPlyrCurrGame > 1))
 	{
 		DecalMP_01(gGT);

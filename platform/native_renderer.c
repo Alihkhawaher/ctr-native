@@ -146,6 +146,10 @@ int g_cfg_antialiasing = 0;
 // change); 2 = 2x SSAA, 4 = 4x SSAA.
 int g_cfg_internalResolutionScale = 1;
 int g_cfg_internalResolutionAuto = 0;
+int g_cfg_reuseFifoSelfHeal = 0; // EXPERIMENTAL distortion self-heal, OFF (see RenderBucket_LoadPrimRTPS)
+int g_cfg_forceHighLod = 0;       // DIAGNOSTIC: most detailed LOD header always (RenderBucket_SelectModelHeader)
+int g_cfg_disableMpImpostors = 1; // split-screen rivals as real 3D instead of DecalMP VRAM impostors (fixes mangled rival karts)
+int g_cfg_clampInstanceOt = 0;     // DIAGNOSTIC: clamp instance prim OT bins to their allocated range (K key)
 int g_drawIs2D = 0;
 int g_aaForceSharp = 0;
 

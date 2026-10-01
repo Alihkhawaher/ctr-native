@@ -17,6 +17,9 @@ typedef struct
 	int antialiasing;            // 0/1 - smooth (linear) presentation filter
 	int pgxp;                    // 0/1 - EXPERIMENTAL: perspective-correct textures + subpixel geometry; may tear; OFF by default
 	int pgxpGeometry;            // 0/1 - EXPERIMENTAL: subpixel vertex positions (clamped to 0.5px); active only with pgxp
+	int reuseFifoSelfHeal;       // 0/1 - EXPERIMENTAL: FIFO reuse self-heal; causes tearing in special/mirrored flows; OFF by default
+	int forceHighLod;            // 0/1 - DIAGNOSTIC: always draw the most detailed model LOD header (L key toggles live); OFF by default
+	int disableMpImpostors;      // 0/1 - draw rival karts as real 3D in split-screen instead of DecalMP VRAM impostors (needs restart); ON by default (impostors show stale fragments natively)
 	int gamepadDeadzone;         // percent 0..50 applied to stick axes
 	int gamepadAnalog;           // 0/1 - new pads start in analog mode
 	int gamepadRumble;           // 0/1 - allow pad vibration

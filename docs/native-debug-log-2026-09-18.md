@@ -1016,3 +1016,16 @@ Watch item **REOPENED — opponent-kart distortion**: originally reported on the
 GTX 1060/560.94 PC ("opponent karts turn into distorted images when ahead"),
 previously not reproduced on the main PC — now reported again on the main PC,
 **also in normal race mode** (2026-09-26). Repro + capture pending.
+## 22. Split-screen rival-kart distortion — DecalMP impostors (fixed 2026-10-01)
+
+**Symptom.** 2P+ only: rival karts' upper body replaced by flat pieces, angle dependent; own kart always clean; 1P clean. Present in the pre-PGXP build (`72bedaecd`) and in thecodingbob's v0.3.1 build, so inherited from upstream, not a regression.
+
+**Ruled out by measurement** (probes kept, see below): scratchpad overflow (vertex cache max slot 87 = last fitting slot), animation decoder/model data (decoded mesh byte-identical in good/bad frames), LOD selection, GTE saturation (no IR/MAC flags on karts), backface culling (REVERSE_CULL never set, equal cull ratios), OT range escape (64 / 9.8M, menu models only), FIFO/strip assembly (DLT fit of model→screen vertices: 0 bad triangles), packet writes (1P capture: every kart packet reached the GPU unchanged).
+
+**Root cause.** Retail draws split-screen rivals into a 96x64 VRAM tile every other frame (`DecalMP_01/02/03`, `game/DecalMP.c`) and pastes the tile as an `FT4` sprite. The tile is never cleared (`isbg=0`, also in retail); on PS1 the leftovers are one frame old and invisible. Natively the tile is rendered at internal resolution and copied back to emulated VRAM, and that copy goes stale/partial, so the sprite shows fragments of old poses.
+
+**Fix.** `disable_mp_impostors` (config, default **true**): `MainFrame_RenderFrame.c` clears `RENDER_FLAG_MULTIPLAYER_DECALS`, so rivals render as real 3D (free on PC, sharper). `false` restores retail impostors (with the bug). Config-only: toggling mid-race would leave `idpp->pushBuffer` redirected.
+
+**Debug kit left in place** (all `[CTR Debug]`, capped counts): `model census`, `model profile`, `scratch probe`, `gte-sat`, `drvflags`/`drvcull`, `ot-escape`, `mdump` (V key: per-triangle model/screen/packet trace; auto mode behind `RB_DEBUG_AUTO_MESH_DUMP`). Keys: `V` frame dump, `L` force most-detailed LOD header (also turns the 3D place number into "1" — LOD slots are digits there), `K` clamp instance OT bins.
+
+**Also fixed in this pass.** PGXP transform-entry generation was u16 vs a u32 epoch (level PGXP went affine after ~9 min); instance prims now bind PGXP by address; shadow entries carry an epoch and value check; failed chain falls back instead of a negative bind; lines marked 2D; side channel skipped when PGXP is off; `Platform_SaveSettings` wrote an uninitialised `reuse_fifo_self_heal` (could switch the tearing self-heal on).

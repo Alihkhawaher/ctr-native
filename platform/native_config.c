@@ -141,6 +141,12 @@ void NativeConfig_SetDefaults(NativeConfig *config)
 	                          // positions: moves vertices, so partial bindings
 	                          // open visible seams at high internal resolutions
 	                          // (texture-only PGXP cannot tear - nothing moves).
+	config->forceHighLod = 0;       // DIAGNOSTIC (2026-10-01): blob-follows-LOD experiment
+	config->disableMpImpostors = 1; // FIX (2026-10-01): split-screen rival karts as real 3D. The retail
+	                                // DecalMP impostor (rival rendered into a 96x64 VRAM tile, pasted as a
+	                                // sprite) goes stale/partial through the native offscreen VRAM path and
+	                                // shows old-pose fragments ("mangled rival karts", 2P+ only). false = retail impostors.
+	config->reuseFifoSelfHeal = 0; // EXPERIMENTAL (OFF): FIFO reuse self-heal. Substituting SXY0/SZ1 moves vertices in special/mirrored flows = 3D tearing; kept as opt-in for testing.
 	config->internalResolutionAuto = 1; // Auto (match screen height at 240 lines)
 	config->gamepadDeadzone = 5; // percent; wider than the old 1.5% so Xbox sticks at rest stay neutral
 	config->gamepadAnalog = 1;
@@ -226,6 +232,21 @@ int NativeConfig_LoadFile(NativeConfig *config, const char *path)
 	if (NativeConfig_ReadBool(text, "pgxp_geometry", &value) != 0)
 	{
 		config->pgxpGeometry = value;
+	}
+
+	if (NativeConfig_ReadBool(text, "reuse_fifo_self_heal", &value) != 0)
+	{
+		config->reuseFifoSelfHeal = value;
+	}
+
+	if (NativeConfig_ReadBool(text, "force_high_lod", &value) != 0)
+	{
+		config->forceHighLod = value;
+	}
+
+	if (NativeConfig_ReadBool(text, "disable_mp_impostors", &value) != 0)
+	{
+		config->disableMpImpostors = value;
 	}
 
 	if ((NativeConfig_ReadInt(text, "gamepad_deadzone", &value) != 0) && (value >= 0) && (value <= 50))
@@ -344,7 +365,10 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  "    \"antialiasing\": %s,\n"
 	                  "    \"pgxp\": %s,\n"
 	                  "    \"pgxp_geometry\": %s,\n"
-	                  "    \"show_fps\": %s\n"
+	                  "    \"show_fps\": %s,\n"
+	                  "    \"reuse_fifo_self_heal\": %s,\n"
+	                  "    \"force_high_lod\": %s,\n"
+	                  "    \"disable_mp_impostors\": %s\n"
 	                  "  },\n"
 	                  "  \"input\": {\n"
 	                  "    \"pad_mode\": %d,\n"
@@ -370,6 +394,9 @@ int NativeConfig_SaveFile(const NativeConfig *config, const char *path)
 	                  (config->pgxp != 0) ? "true" : "false",
 	                  (config->pgxpGeometry != 0) ? "true" : "false",
 	                  (config->showFps != 0) ? "true" : "false",
+	                  (config->reuseFifoSelfHeal != 0) ? "true" : "false",
+	                  (config->forceHighLod != 0) ? "true" : "false",
+	                  (config->disableMpImpostors != 0) ? "true" : "false",
 	                  config->padMode,
 	                  config->keyboardSlot,
 	                  config->gamepadDeadzone,

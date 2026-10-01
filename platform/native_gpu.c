@@ -25,6 +25,7 @@ void Platform_PollHostEvents(void);
 extern int g_cfg_bilinearFiltering;
 extern int g_dbg_emulatorPaused;
 extern int g_dbg_polygonSelected;
+extern int g_dbg_dumpFrame;
 
 #define NATIVE_GPU_LOG(fmt, ...)   Platform_Log("[CTR GPU] " fmt, __VA_ARGS__)
 #define NATIVE_GPU_ERROR(fmt, ...) Platform_LogError("[CTR GPU] [%s] - " fmt, __func__, __VA_ARGS__)
@@ -177,9 +178,8 @@ typedef struct
 // calls. Without this, a spot vacated by a moving object keeps its old W and a
 // static surface briefly inherits the wrong perspective (visible as texture
 // jiggle when something passes over it).
-// Tightened from 16 (8 frames!) to 4 (~2 frames): 16 silently accepted
-// week-old entries as hits and fed the "texture jiggle" the window exists to
-// prevent (review finding; tighten further only with a hit-age histogram).
+// NOTE: a tighten to 4 (~2 frames) was proposed but never landed - the value
+// is still 16. Tighten only with a hit-age histogram (review finding).
 #define PGXP_FRESH_WINDOW (16)
 
 // Miss forensics showed missing coordinates sitting 1-4 px from a live
@@ -232,6 +232,9 @@ typedef struct
 	const void *addr; // the prim field the value was stored into (&p->x0)
 	s16 sx, sy;       // low-precision values as stored (validated at draw)
 	u16 valid;
+	u32 gen;          // epoch of the bind: prim memory is reused every frame,
+	                  // so an old entry (positive OR negative) must not
+	                  // answer for a new prim at the same address
 	float px, py, w;  // full-precision transform bound to that address
 } PgxpShadowEntry;
 
@@ -241,6 +244,7 @@ internal u32 s_pgxpStatAddrHits = 0;
 internal u32 s_pgxpStatAddrMiss = 0;
 
 internal u32 s_pgxpEpoch; // real definition below; forward for the hooks
+extern int g_cfg_pgxp;    // side channel is skipped entirely while PGXP is off
 
 // Table A: a posScreen field address -> the full-precision transform bound to
 // it right after the GTE store (CTR_GteStoreSXY*); consumed by the prim
@@ -251,7 +255,7 @@ typedef struct
 	const void *addr;
 	s16 sx, sy;
 	u16 valid;
-	u16 gen;      // epoch of the bind (chain must consume it promptly)
+	u32 gen;      // epoch of the bind (chain must consume it promptly); u32 like s_pgxpEpoch - a u16 stopped matching after 65535 epochs (level PGXP went affine)
 	float px, py, w;
 } PgxpTransformEntry;
 
@@ -345,6 +349,11 @@ internal const PgxpCachedVertex *Pgxp_FindFreshPush(s16 sx, s16 sy, int szLow)
 void Pgxp_NoteTransformStore(void *field, u32 packed, int szLow)
 {
 #if PGXP_MEMCACHE_ENABLE
+	if (g_cfg_pgxp == 0)
+	{
+		return;
+	}
+
 	const s16 sx = (s16)packed;
 	const s16 sy = (s16)(packed >> 16);
 
@@ -371,7 +380,7 @@ void Pgxp_NoteTransformStore(void *field, u32 packed, int szLow)
 		e->py = best->py;
 		e->w = best->w;
 		e->valid = 1;
-		e->gen = (u16)s_pgxpEpoch;
+		e->gen = s_pgxpEpoch;
 
 		if (viaXY != 0)
 		{
@@ -397,6 +406,11 @@ void Pgxp_NoteTransformStore(void *field, u32 packed, int szLow)
 void Pgxp_NoteTransformCopy(void *dstField, const void *srcField)
 {
 #if PGXP_MEMCACHE_ENABLE
+	if (g_cfg_pgxp == 0)
+	{
+		return;
+	}
+
 	const u32 hDst = ((u32)(uintptr_t)dstField >> 2) * 2654435761u;
 	PgxpTransformEntry *d = &s_pgxpTransform[hDst & (PGXP_TRANSFORM_SIZE - 1)];
 
@@ -433,8 +447,15 @@ void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed, int sz
 	const s16 sx = (s16)packed;
 	const s16 sy = (s16)(packed >> 16);
 
+	if (g_cfg_pgxp == 0)
+	{
+		return;
+	}
+
 	const u32 hash = ((u32)(uintptr_t)dstField >> 2) * 2654435761u;
 	PgxpShadowEntry *e = &s_pgxpShadow[hash & (PGXP_SHADOW_SIZE - 1)];
+
+	e->gen = s_pgxpEpoch;
 
 	if (srcField != NULL)
 	{
@@ -456,9 +477,10 @@ void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed, int sz
 			return;
 		}
 
-		e->addr = dstField;
-		e->valid = 0;
-		return;
+		// Chain miss (table-A slot evicted or aged out). The sticky source
+		// proved this value IS transform-sourced, so fall through to the
+		// fresh-push bind instead of writing a negative (which also blocked
+		// the draw-time coordinate fallback - review finding).
 	}
 
 	// No source address (RenderBucket-style writers, post-transform): bind
@@ -487,8 +509,11 @@ void Pgxp_NotePrimWrite(void *dstField, const void *srcField, u32 packed, int sz
 
 	// Negative binding: this address did NOT receive fresh GTE output
 	// (UI literal / static / interpolated split vertex). Clearing any older
-	// positive also protects against stale matches on reuse.
+	// positive also protects against stale matches on reuse. The values are
+	// kept so the draw can tell this write from a later one at the address.
 	e->addr = dstField;
+	e->sx = sx;
+	e->sy = sy;
 	e->valid = 0;
 #else
 	(void)dstField; (void)srcField; (void)packed;
@@ -533,19 +558,26 @@ internal int Pgxp_LookupShadow(const void *v, float *px, float *py, float *w)
 		return 0; // no binding for this field: fallback matching may apply
 	}
 
+	// Stale binding from an earlier frame (prim memory is reused every frame,
+	// so the address alone does not identify this write): no opinion.
+	if ((s_pgxpEpoch - e->gen) > PGXP_FRESH_WINDOW)
+	{
+		return 0;
+	}
+
+	// The field must still hold the values seen at bind time - for negative
+	// bindings too (a stale negative used to block a valid coordinate match).
+	if ((e->sx != (s16)((const VERTTYPE *)v)[0]) || (e->sy != (s16)((const VERTTYPE *)v)[1]))
+	{
+		return 0;
+	}
+
 	if (e->valid == 0)
 	{
 		// Negative binding: this field was observed NOT to be transform-sourced
 		// (UI literal / static / interpolated). Block coordinate matching too -
 		// that is the whole point of the memory cache.
 		return -1;
-	}
-
-	// The field must still hold the exact values that were bound (guards
-	// against reuse/overwrite between the store and the draw).
-	if ((e->sx != (s16)((const VERTTYPE *)v)[0]) || (e->sy != (s16)((const VERTTYPE *)v)[1]))
-	{
-		return 0;
 	}
 
 	*px = e->px;
@@ -603,6 +635,11 @@ void Pgxp_AdvanceEpoch(void)
 
 void Pgxp_PushVertex(int sx, int sy, float px, float py, float w, int szLow)
 {
+	if (g_cfg_pgxp == 0)
+	{
+		return;
+	}
+
 	// NOTE(aalhendi): w is the view-space depth (must stay positive for the
 	// renderer's perspective divide); vertices behind the camera are dropped.
 	if (w <= 0.0f)
@@ -1101,6 +1138,24 @@ void MakeLineArray(GrVertex *vertex, VERTTYPE *p0, VERTTYPE *p1)
 	DrawEnvOffset(&ofsX, &ofsY);
 
 	memset(vertex, 0, sizeof(GrVertex) * 4);
+
+	// PGXP: lines never go through Pgxp_FillVertex either - mark them 2D
+	// (status 5) for the same stale-w leak reason as MakeVertexRect below.
+	{
+		const int pgxpBaseLine = (int)(vertex - s_gpu.vertexBuffer);
+
+		if ((pgxpBaseLine >= 0) && ((pgxpBaseLine + 3) < MAX_VERTEX_BUFFER_SIZE))
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				float *d = &s_pgxpVertexData[(pgxpBaseLine + i) * 4];
+				d[0] = 0.0f;
+				d[1] = 0.0f;
+				d[2] = 0.0f;
+				d[3] = 5.0f;
+			}
+		}
+	}
 
 	if (dx > abs((s16)dy))
 	{ // horizontal
@@ -1877,7 +1932,101 @@ void DrawAllSplits()
 	}
 #endif
 
-	// next code ideally should be called before EndScene
+#ifdef CTR_NATIVE
+	// NOTE(ctr-native): permanent vertex-buffer spike probe (2026-09-26).
+	// (a) wild s16 x/y (out-of-range geometry) and (b) "franken" triangles —
+	// triangles whose three vertices disagree on page/clut. PSX prims always
+	// share texture page + CLUT across their vertices, so a mismatch means the
+	// vertex stream is grouped wrongly (shifted stream) and the GL will connect
+	// vertices that belong to different prims = stretched garbage pieces.
+	// Gate, never remove.
+	{
+		static u32 s_vbFrames = 0;
+		static u32 s_vbWildTotal = 0;
+		static u32 s_vbFrankenTotal = 0;
+		static u32 s_vbLogged = 0;
+		int i;
+		int wild = 0;
+		int franken = 0;
+
+		s_vbFrames++;
+
+		for (i = 0; i < s_gpu.vertexIndex; i++)
+		{
+			const GrVertex *vv = &s_gpu.vertexBuffer[i];
+
+			if (vv->x > 0x600 || vv->x < -0x600 || vv->y > 0x600 || vv->y < -0x600)
+			{
+				wild++;
+
+				if (s_vbLogged < 48)
+				{
+					s_vbLogged++;
+					Platform_LogWarn("[CTR Debug] vb spike: frame=%u idx=%d/%d x=%d y=%d u=%d v=%d page=%d clut=%d rgb=%d,%d,%d\n",
+					                 s_vbFrames, i, s_gpu.vertexIndex, vv->x, vv->y, vv->u, vv->v, vv->page, vv->clut, vv->r, vv->g, vv->b);
+				}
+			}
+		}
+
+		for (i = 0; i + 2 < s_gpu.vertexIndex; i += 3)
+		{
+			const GrVertex *a = &s_gpu.vertexBuffer[i];
+			const GrVertex *b = &s_gpu.vertexBuffer[i + 1];
+			const GrVertex *c = &s_gpu.vertexBuffer[i + 2];
+
+			if (a->page != b->page || a->page != c->page || a->clut != b->clut || a->clut != c->clut)
+			{
+				franken++;
+
+				if (s_vbLogged < 96)
+				{
+					s_vbLogged++;
+					Platform_LogWarn("[CTR Debug] vb franken: frame=%u tri=%d a=(%d,%d u%d v%d p%d c%d) b=(%d,%d u%d v%d p%d c%d) c=(%d,%d u%d v%d p%d c%d)\n",
+					                 s_vbFrames, i / 3,
+					                 a->x, a->y, a->u, a->v, a->page, a->clut,
+					                 b->x, b->y, b->u, b->v, b->page, b->clut,
+					                 c->x, c->y, c->u, c->v, c->page, c->clut);
+				}
+			}
+		}
+
+		s_vbWildTotal += wild;
+		s_vbFrankenTotal += franken;
+
+		if ((s_vbFrames & 0xFF) == 0)
+		{
+			Platform_LogWarn("[CTR Debug] vb probe: frames=%u vertsThisFrame=%d wildTotal=%u frankenTotal=%u\n",
+			                 s_vbFrames, s_gpu.vertexIndex, s_vbWildTotal, s_vbFrankenTotal);
+		}
+	}
+#endif
+
+#ifdef CTR_INTERNAL
+	// Diagnostic (2026-09-26): vertex-buffer dump while V-requested. Three
+	// flushes are captured, then the request auto-clears.
+	if (g_dbg_dumpFrame == 1)
+	{
+		static int s_dumpFlushes = 0;
+		int j;
+
+		NATIVE_GPU_LOG("vbdump flush=%d verts=%d\n", s_dumpFlushes, s_gpu.vertexIndex);
+
+		for (j = 0; j < s_gpu.vertexIndex; j++)
+		{
+			const GrVertex *dv = &s_gpu.vertexBuffer[j];
+			NATIVE_GPU_LOG("vbdump %d x=%d y=%d u=%d v=%d p=%d c=%d rgb=%d,%d,%d\n",
+			               j, dv->x, dv->y, dv->u, dv->v, dv->page, dv->clut, dv->r, dv->g, dv->b);
+		}
+
+		s_dumpFlushes++;
+		if (s_dumpFlushes >= 3)
+		{
+			s_dumpFlushes = 0;
+			g_dbg_dumpFrame = 0;
+		}
+	}
+#endif
+
 	NativeRenderer_UpdateVertexBuffer(s_gpu.vertexBuffer, s_gpu.vertexIndex, s_pgxpVertexData);
 
 	// PGXP diagnostics: periodic push/hit/miss counters ([CTR Debug], suppressed by --quiet).
@@ -2733,6 +2882,21 @@ internal int ProcessPsyXPrims(P_TAG *polyTag)
 // returns processed primitive primLength in longs
 int ParsePrimitive(P_TAG *polyTag)
 {
+#ifdef CTR_INTERNAL
+	// Diagnostic (2026-09-26): one-shot per-primitive dump while V-requested
+	// (g_dbg_dumpFrame == 1). Packet address + owning region + raw words let a
+	// corrupted primitive be traced back to the buffer that built it.
+	if (g_dbg_dumpFrame == 1)
+	{
+		char dumpRegion[64];
+		NativeGpu_FormatPointerRegion(dumpRegion, sizeof(dumpRegion), (uintptr_t)polyTag);
+		NATIVE_GPU_LOG("polydump addr=%p region=%s code=%04x len=%d w0=%08x w1=%08x w2=%08x w3=%08x w4=%08x w5=%08x\n",
+		               (void *)polyTag, dumpRegion, (u32)getcode(polyTag), (int)getlen(polyTag),
+		               NativeGpu_ReadPacketWordForLog((uintptr_t)polyTag, 0), NativeGpu_ReadPacketWordForLog((uintptr_t)polyTag, 1),
+		               NativeGpu_ReadPacketWordForLog((uintptr_t)polyTag, 2), NativeGpu_ReadPacketWordForLog((uintptr_t)polyTag, 3),
+		               NativeGpu_ReadPacketWordForLog((uintptr_t)polyTag, 4), NativeGpu_ReadPacketWordForLog((uintptr_t)polyTag, 5));
+	}
+#endif
 	const int primType = polyTag->code & 0xF0;
 
 	int primLength = 0;

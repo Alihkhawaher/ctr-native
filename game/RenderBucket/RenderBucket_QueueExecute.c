@@ -589,8 +589,71 @@ static struct RenderBucketExecuteScratch *RenderBucket_Scratch(void)
 	return CTR_SCRATCHPAD_PTR(struct RenderBucketExecuteScratch, 0);
 }
 
+#ifdef CTR_NATIVE
+// [CTR Debug] GTE saturation probe (2026-10-01): reads the GTE FLAG register
+// after instance-matrix composition and after each instance RTPS/RTPT. IR /
+// MAC saturation on a driver model would collapse an axis (the "flat plate"
+// rival-kart distortion that changes with view angle). Logs the first events
+// per (model, stage) plus the stage's inputs. Gate, never remove.
+// stage: 0 = BuildM3x3 scale MVMVA, 1 = scale columns, 2 = MVP compose,
+// 3 = RTPT, 4 = RTPS.
+static void RenderBucket_ProbeGteFlag(const char *model, int stage, u32 a, u32 b, u32 c)
+{
+	static const char *s_names[64];
+	static u8 s_logged[64][5];
+	static u32 s_total = 0;
+	u32 flag = (u32)CFC2(31);
+	// IR1-3 (24..22), MAC1-3 +/- overflow (30..25), SZ (18), divide (17), SX/SY (14,13)
+	u32 sat = flag & ((7u << 22) | (0x3fu << 25) | (1u << 18) | (1u << 17));
+	int k;
+
+	if ((sat == 0) || (model == NULL))
+	{
+		return;
+	}
+
+	for (k = 0; k < 64; k++)
+	{
+		if ((s_names[k] == model) || (s_names[k] == NULL))
+		{
+			break;
+		}
+	}
+
+	if (k == 64)
+	{
+		return;
+	}
+
+	s_names[k] = model;
+	s_total++;
+
+	if (s_logged[k][stage] < 6)
+	{
+		s_logged[k][stage]++;
+		Platform_LogWarn("[CTR Debug] gte-sat: model=%.16s stage=%d flag=%08x sat=%08x in=(%08x,%08x,%08x) IR=(%d,%d,%d) total=%u\n",
+		                 model, stage, flag, sat, a, b, c, (int)(s16)MFC2(9), (int)(s16)MFC2(10), (int)(s16)MFC2(11), s_total);
+	}
+}
+#endif
+
 static struct RenderBucketPackedVertex *RenderBucket_PackedVertexScratch(u16 stackIndex)
 {
+#ifdef CTR_NATIVE
+	// [CTR Debug] scratch overflow probe (2026-10-01): stackIndex >= 88 lands
+	// past the 0x400-byte native scratchpad. Log each new maximum. Gate, never
+	// remove.
+	{
+		static u16 s_stackIndexMax = 0;
+		if (stackIndex > s_stackIndexMax)
+		{
+			s_stackIndexMax = stackIndex;
+			Platform_LogWarn("[CTR Debug] scratch probe: vertexCache new max stackIndex=%u bytesEnd=0x%x%s\n",
+			                 (u32)stackIndex, (u32)(RENDER_BUCKET_PAYLOAD_SCRATCH_OFFSET + (stackIndex + 1u) * 8u),
+			                 (RENDER_BUCKET_PAYLOAD_SCRATCH_OFFSET + (stackIndex + 1u) * 8u > CTR_SCRATCHPAD_SIZE) ? " OVERFLOW" : "");
+		}
+	}
+#endif
 	return CTR_SCRATCHPAD_PTR(struct RenderBucketPackedVertex, RENDER_BUCKET_PAYLOAD_SCRATCH_OFFSET + (stackIndex * sizeof(struct RenderBucketPackedVertex)));
 }
 
@@ -1210,6 +1273,10 @@ static void RenderBucket_StoreMvpTranslation(struct InstDrawPerPlayer *idpp, con
 	CTC2(viewPos->vz, 7);
 }
 
+#ifdef CTR_NATIVE
+extern int g_cfg_forceHighLod;
+#endif
+
 static struct ModelHeader *RenderBucket_SelectModelHeader(struct Instance *inst, struct PushBuffer *pb, int *lodIndexOut, int *lodExhaustedOut, int viewDepth)
 {
 	struct ModelHeader *mh;
@@ -1251,6 +1318,16 @@ static struct ModelHeader *RenderBucket_SelectModelHeader(struct Instance *inst,
 	{
 		if (RenderBucket_MipsSub(projectedDistance, (u16)mh->maxDistanceLOD) < 0)
 		{
+#ifdef CTR_NATIVE
+			// DIAGNOSTIC (2026-10-01): force_high_lod / L key. Keeps the
+			// visibility decision (still culled when every header is out of
+			// range) but always draws the most detailed header.
+			if (g_cfg_forceHighLod != 0)
+			{
+				*lodIndexOut = 0;
+				return inst->model->headers;
+			}
+#endif
 			*lodIndexOut = lodIndex;
 			return mh;
 		}
@@ -1367,6 +1444,9 @@ static void RenderBucket_BuildM3x3(struct Instance *inst, struct ModelHeader *mh
 	MTC2(RenderBucket_PackXY(scaleX, scaleY), 0);
 	MTC2(scaleZ, 1);
 	doCOP2(0x04c6012);
+#ifdef CTR_NATIVE
+	RenderBucket_ProbeGteFlag(inst->model->name, 0, (u32)RenderBucket_PackXY(scaleX, scaleY), (u32)scaleZ, packedScaleXY);
+#endif
 
 	scaledX = MFC2(9);
 	scaledY = MFC2(10);
@@ -1381,6 +1461,9 @@ static void RenderBucket_BuildM3x3(struct Instance *inst, struct ModelHeader *mh
 	m3 = 0;
 	m4 = scaledZ & 0xffff;
 	RenderBucket_GteScaleMatrixColumns(&m0, &m1, &m2, &m3, &m4);
+#ifdef CTR_NATIVE
+	RenderBucket_ProbeGteFlag(inst->model->name, 1, m0, m2, m4);
+#endif
 	matrixState->m0 = m0;
 	matrixState->m1 = m1;
 	matrixState->m2 = m2;
@@ -2092,6 +2175,42 @@ static struct RenderBucketEntry *RenderBucket_QueueDraw(struct Instance *inst, s
 	RenderBucket_AdvanceInstanceAnimWord(inst, gameMode1, playerIndex, lastFrameAdvance, &queuedFlags);
 	idpp->ptrCurrFrame = frame;
 	idpp->ptrNextFrame = nextFrame;
+#ifdef CTR_NATIVE
+	// [CTR Debug] model census probe (2026-10-01): first sighting of each
+	// (model header, animation) pair - name, LOD, compressed vs raw frames.
+	// For comparing the mangled rival-driver model against a clean one. Gate,
+	// never remove.
+	{
+		static const void *s_seenMh[256];
+		static s16 s_seenAnim[256];
+		static int s_seenCount = 0;
+		int k;
+
+		for (k = 0; k < s_seenCount; k++)
+		{
+			if ((s_seenMh[k] == (const void *)mh) && (s_seenAnim[k] == (s16)inst->animIndex))
+			{
+				break;
+			}
+		}
+
+		if ((k == s_seenCount) && (s_seenCount < 256))
+		{
+			struct ModelAnim *censusAnim = (mh->ptrAnimations != 0) ? RenderBucket_GetAnim(inst, mh) : 0;
+			s_seenMh[s_seenCount] = (const void *)mh;
+			s_seenAnim[s_seenCount] = (s16)inst->animIndex;
+			s_seenCount++;
+			Platform_LogWarn("[CTR Debug] model census: model=%.16s mh=%p lod=%d/%d player=%d drv=%d anim=%d/%d animName=%.16s frames=%04x frameSize=%d delta=%p frame=%p next=%p\n",
+			                 inst->model->name, (void *)mh, lodIndex, (int)inst->model->numHeaders, playerIndex,
+			                 (int)(inst->compressedNormalAndDriverIndex >> 24) - 1,
+			                 (int)inst->animIndex, (int)mh->numAnimations,
+			                 (censusAnim != 0) ? censusAnim->name : "-",
+			                 (censusAnim != 0) ? (u32)censusAnim->numFrames : 0u,
+			                 (censusAnim != 0) ? (int)censusAnim->frameSize : 0,
+			                 (void *)deltaArray, (void *)frame, (void *)nextFrame);
+		}
+	}
+#endif
 	RenderBucket_StoreMatrixWords(&idpp->m3x3, matrixState.m0, matrixState.m1, matrixState.m2, matrixState.m3, matrixState.m4);
 	split = RenderBucket_BuildSplitState(inst, mh, frame, nextFrame, pb, idpp, viewDepth, &queuedFlags, &matrixState, &projectionMvp);
 
@@ -2268,6 +2387,24 @@ static void RenderBucket_CopyScratchColorCache(struct RenderBucketDrawContext *c
 	u32 *commandList = (u32 *)ctx->idpp->ptrCommandList;
 	u32 *colorLayout = (u32 *)ctx->idpp->ptrColorLayout;
 	u32 count = commandList[0];
+
+#ifdef CTR_NATIVE
+	// [CTR Debug] scratch overflow probe (2026-10-01): the native scratchpad is
+	// a 0x400-byte static; a copy of more than (0x400-0x140)/4 = 176 words runs
+	// past it into unrelated host memory. Log the per-model maximum. Gate,
+	// never remove.
+	{
+		static u32 s_colorCountMax = 0;
+		if (count > s_colorCountMax)
+		{
+			s_colorCountMax = count;
+			Platform_LogWarn("[CTR Debug] scratch probe: colorCopy new max=%u bytesEnd=0x%x%s model=%.16s mh=%p\n",
+			                 count, (u32)(RENDER_BUCKET_PAYLOAD_SCRATCH_OFFSET + count * 4u),
+			                 (RENDER_BUCKET_PAYLOAD_SCRATCH_OFFSET + count * 4u > CTR_SCRATCHPAD_SIZE) ? " OVERFLOW" : "",
+			                 (ctx->inst->model != NULL) ? ctx->inst->model->name : "?", (void *)ctx->idpp->mh);
+		}
+	}
+#endif
 
 	// NOTE(aalhendi): Retail Execute copies ptrColorLayout to scratchpad 0x140
 	// before DrawFunc_Normal so UncompressAnimationFrame can service command
@@ -2510,6 +2647,17 @@ static struct RenderBucketUncompressResult RenderBucket_DispatchUncompressAnimat
 	}
 }
 
+#ifdef CTR_NATIVE
+// [CTR Debug] OT range escape probe (2026-10-01): the draw being executed
+// (set in RenderBucket_DispatchDrawFunc) so the unclamped OT lookup below can
+// check its bin against the instance's allocated [depthOffset0, depthOffset1].
+// A bin outside the range links the prim into a NEIGHBOUR's OT range -> drawn
+// out of order with the rest of its own model (angle-dependent). K toggles
+// g_cfg_clampInstanceOt to clamp instead. Gate, never remove.
+static struct RenderBucketDrawContext *g_rbCurCtx = NULL;
+extern int g_cfg_clampInstanceOt;
+#endif
+
 static u32 *RenderBucket_GetNormalOTEntry(int activeRange, int depthMac0)
 {
 	int depthBin = (int)((u32)depthMac0 >> 17);
@@ -2518,6 +2666,34 @@ static u32 *RenderBucket_GetNormalOTEntry(int activeRange, int depthMac0)
 	{
 		return 0;
 	}
+
+#ifdef CTR_NATIVE
+	if (g_rbCurCtx != NULL)
+	{
+		static u32 s_checked = 0, s_escLow = 0, s_escHigh = 0, s_logged = 0;
+		const int lo = g_rbCurCtx->idpp->depthOffset[0];
+		const int hi = g_rbCurCtx->idpp->depthOffset[1];
+
+		s_checked++;
+		if ((depthBin < lo) || (depthBin > hi))
+		{
+			if (depthBin < lo) { s_escLow++; } else { s_escHigh++; }
+
+			if (s_logged < 120)
+			{
+				s_logged++;
+				Platform_LogWarn("[CTR Debug] ot-escape: model=%.16s idpp=%p bin=%d range=[%d,%d] escLow=%u escHigh=%u checked=%u clamp=%d\n",
+				                 (g_rbCurCtx->inst->model != NULL) ? g_rbCurCtx->inst->model->name : "?", (void *)g_rbCurCtx->idpp,
+				                 depthBin, lo, hi, s_escLow, s_escHigh, s_checked, g_cfg_clampInstanceOt);
+			}
+
+			if (g_cfg_clampInstanceOt != 0)
+			{
+				depthBin = (depthBin < lo) ? lo : hi;
+			}
+		}
+	}
+#endif
 
 	// NOTE(aalhendi): Source-backs DrawInstPrim_Normal's active-range +
 	// (MAC0 >> 17) OT lookup at 0x8006ad88-0x8006ad98. Retail trusts QueueDraw's
@@ -2582,7 +2758,39 @@ static void RenderBucket_LoadPrimRTPT(struct RenderBucketDrawContext *ctx)
 	MTC2(ctx->tempPacked[3].z, 5);
 
 	gte_rtpt();
+#ifdef CTR_NATIVE
+	RenderBucket_ProbeGteFlag((ctx->inst->model != NULL) ? ctx->inst->model->name : NULL, 3, ctx->tempPacked[1].xy, ctx->tempPacked[1].z, (u32)MFC2(14));
+#endif
 }
+
+// Instance prim SXY store + PGXP address binding (2026-10-01). CTR_GteStoreSXY3
+// only records table A (posScreen chain), which the GPU layer never reads for
+// prim fields, so instance/kart prims fell back to coordinate matching and a
+// stale shadow entry left at the reused prim address could override them.
+// Binding the prim fields here (SZ-keyed, like the split writers) fixes both.
+static void RenderBucket_StorePrimSXY3(VERTTYPE *xy0, VERTTYPE *xy1, VERTTYPE *xy2)
+{
+	CTR_GteStoreSXY3(xy0, xy1, xy2);
+#ifdef CTR_NATIVE
+	Pgxp_NoteSxyStore(xy0, (u32)MFC2(12), (int)(u16)MFC2(17));
+	Pgxp_NoteSxyStore(xy1, (u32)MFC2(13), (int)(u16)MFC2(18));
+	Pgxp_NoteSxyStore(xy2, (u32)MFC2(14), (int)(u16)MFC2(19));
+#endif
+}
+
+// Cross-probe bridge (2026-09-26): per-instance expected FIFO state set by the
+// instance-prim dispatch probes, consumed by RenderBucket_LoadPrimRTPS to
+// detect contaminated chained reuses (an interleaved draw overwrote SXY0/SZ1
+// between two prims of the same instance).
+extern int g_cfg_reuseFifoSelfHeal;
+
+#define RB_CHAIN_SLOTS 64
+static u32 g_rbChainInst[RB_CHAIN_SLOTS];
+static u32 g_rbChainSx0[RB_CHAIN_SLOTS];
+static u32 g_rbChainSz1[RB_CHAIN_SLOTS];
+static u32 g_rbReuseContaminated = 0;
+static u32 g_rbReuseContamHealed = 0;
+static u32 g_rbReuseContamLogged = 0;
 
 static void RenderBucket_LoadPrimRTPS(struct RenderBucketDrawContext *ctx, int reuseFirstVertex)
 {
@@ -2590,6 +2798,38 @@ static void RenderBucket_LoadPrimRTPS(struct RenderBucketDrawContext *ctx, int r
 	{
 		u32 sxy0 = MFC2(12);
 		u32 sz1 = MFC2(17);
+
+		{
+			// Contamination check + self-heal (2026-09-26): if an interleaved
+			// draw clobbered the FIFO since this instance's last dispatch, the
+			// reuse would copy a foreign vertex into SXY1 and scramble this
+			// prim. Substitute the instance's own pinned SXY0/SZ1 instead.
+			int slot = (int)(((u32)(uintptr_t)ctx->inst >> 4) & (RB_CHAIN_SLOTS - 1));
+			if (g_rbChainInst[slot] == (u32)(uintptr_t)ctx->inst)
+			{
+				u32 expected = g_rbChainSx0[slot];
+				if (expected != sxy0)
+				{
+					int ex = (s16)(expected & 0xffff), ey = (s16)((expected >> 16) & 0xffff);
+					int ax = (s16)(sxy0 & 0xffff), ay = (s16)((sxy0 >> 16) & 0xffff);
+
+					g_rbReuseContaminated++;
+					if (g_rbReuseContamLogged < 96)
+					{
+						g_rbReuseContamLogged++;
+						Platform_LogWarn("[CTR Debug] reuse-contam: inst=%p expected=(%d,%d) actual=(%d,%d) delta=(%d,%d) total=%u healed=%u\n",
+						                 (void *)ctx->inst, ex, ey, ax, ay, ax - ex, ay - ey, g_rbReuseContaminated, g_rbReuseContamHealed);
+					}
+
+					if (g_cfg_reuseFifoSelfHeal)
+					{
+						sxy0 = expected;
+						sz1 = g_rbChainSz1[slot];
+						g_rbReuseContamHealed++;
+					}
+				}
+			}
+		}
 
 		// NOTE(aalhendi): Source-backs DrawFunc_Normal's bit30 continuation
 		// sequence at 0x8006a680-0x8006a690: copy SXY0/SZ1 into the RTPS FIFO
@@ -2602,6 +2842,9 @@ static void RenderBucket_LoadPrimRTPS(struct RenderBucketDrawContext *ctx, int r
 	MTC2(ctx->tempPacked[3].z, 1);
 
 	gte_rtps();
+#ifdef CTR_NATIVE
+	RenderBucket_ProbeGteFlag((ctx->inst->model != NULL) ? ctx->inst->model->name : NULL, 4, ctx->tempPacked[3].xy, ctx->tempPacked[3].z, (u32)MFC2(14));
+#endif
 }
 
 static void RenderBucket_StoreProjectedRegs(struct RenderBucketProjectedRegs *regs)
@@ -2630,6 +2873,14 @@ static int RenderBucket_RestoreProjectedRegsAndReturn(const struct RenderBucketP
 	return ret;
 }
 
+#ifdef CTR_NATIVE
+// [CTR Debug] cull probe (2026-10-01): per-draw NCLIP kept/culled counts,
+// reported by the driver flags probe in RenderBucket_DispatchDrawFunc.
+static u32 g_rbCullTested = 0;
+static u32 g_rbCullRejected = 0;
+static u32 g_rbCullZero = 0;
+#endif
+
 static int RenderBucket_CheckProjectedPrim(struct RenderBucketDrawContext *ctx, u32 command, u32 gteFlag, u16 cullXorMask, int *depthMac0Out)
 {
 	int depthMac0;
@@ -2649,14 +2900,23 @@ static int RenderBucket_CheckProjectedPrim(struct RenderBucketDrawContext *ctx, 
 
 		gte_nclip();
 		gte_stopz(&opZ);
+#ifdef CTR_NATIVE
+		g_rbCullTested++;
+#endif
 		if (opZ == 0)
 		{
+#ifdef CTR_NATIVE
+			g_rbCullZero++;
+#endif
 			return 0;
 		}
 
 		cullXor = (s32)cullFlags ^ (s32)(command << 2);
 		if ((s32)((u32)opZ ^ (u32)cullXor) <= 0)
 		{
+#ifdef CTR_NATIVE
+			g_rbCullRejected++;
+#endif
 			return 0;
 		}
 	}
@@ -2822,7 +3082,7 @@ static int RenderBucket_DrawInstPrim_NormalAtOTEntry(struct RenderBucketDrawCont
 		CtrGpu_WriteColorCode(&p->r0, 0x30000000 | (u32)MFC2(20));
 		CtrGpu_WriteColorCode(&p->r1, (u32)MFC2(21));
 		CtrGpu_WriteColorCode(&p->r2, (u32)MFC2(22));
-		CTR_GteStoreSXY3(&p->x0, &p->x1, &p->x2);
+		RenderBucket_StorePrimSXY3(&p->x0, &p->x1, &p->x2);
 		RenderBucket_LinkPrimRaw(otEntry, p, 0x06000000);
 		ctx->primMem->cursor = (char *)p + 0x1c;
 	}
@@ -2842,7 +3102,7 @@ static int RenderBucket_DrawInstPrim_NormalAtOTEntry(struct RenderBucketDrawCont
 		CtrGpu_WritePackedUVWord(&p->u0, RenderBucket_ReadTextureWord(tex, RENDER_BUCKET_TEX_WORD0_OFFSET));
 		CtrGpu_WritePackedUVWord(&p->u1, texWord1);
 		CtrGpu_WritePackedUVWord(&p->u2, RenderBucket_ReadTextureWord(tex, RENDER_BUCKET_TEX_WORD2_OFFSET));
-		CTR_GteStoreSXY3(&p->x0, &p->x1, &p->x2);
+		RenderBucket_StorePrimSXY3(&p->x0, &p->x1, &p->x2);
 		RenderBucket_LinkPrimRaw(otEntry, p, 0x09000000);
 		ctx->primMem->cursor = (char *)p + 0x28;
 	}
@@ -2898,7 +3158,7 @@ static int RenderBucket_DrawInstPrim_KeyRelicTokenAtRange(struct RenderBucketDra
 	}
 
 	POLY_FT3 *p = ctx->primMem->cursor;
-	CTR_GteStoreSXY3(&p->x0, &p->x1, &p->x2);
+	RenderBucket_StorePrimSXY3(&p->x0, &p->x1, &p->x2);
 
 	u32 sourceColor = (u32)ctx->tempColor[1];
 	MTC2((s32)(sourceColor << 24) >> 19, 9);
@@ -3046,7 +3306,7 @@ static int RenderBucket_DrawInstPrim_DepthFadeAtRange(struct RenderBucketDrawCon
 	CtrGpu_WriteColorCode(&p->r0, 0x36000000 | (color0 & 0x00ffffff));
 	CtrGpu_WriteColorCode(&p->r1, color1);
 	CtrGpu_WriteColorCode(&p->r2, color2);
-	CTR_GteStoreSXY3(&p->x0, &p->x1, &p->x2);
+	RenderBucket_StorePrimSXY3(&p->x0, &p->x1, &p->x2);
 	CtrGpu_WritePackedUVWord(&p->u0, RenderBucket_ReadTextureWord(tex, RENDER_BUCKET_TEX_WORD0_OFFSET));
 	CtrGpu_WritePackedUVWord(&p->u1, RenderBucket_ReadTextureWord(tex, RENDER_BUCKET_TEX_WORD1_OFFSET));
 	CtrGpu_WritePackedUVWord(&p->u2, RenderBucket_ReadTextureWord(tex, RENDER_BUCKET_TEX_WORD2_OFFSET));
@@ -3190,7 +3450,7 @@ static int RenderBucket_DrawInstPrim_LitTextureAtRange(struct RenderBucketDrawCo
 
 	p = ctx->primMem->cursor;
 	CtrGpu_WriteColorCode(&p->r0, codeWord | (b << 16) | (g << 8) | r);
-	CTR_GteStoreSXY3(&p->x0, &p->x1, &p->x2);
+	RenderBucket_StorePrimSXY3(&p->x0, &p->x1, &p->x2);
 	CtrGpu_WritePackedUVWord(&p->u0, RenderBucket_ReadTextureWord(tex, RENDER_BUCKET_TEX_WORD0_OFFSET));
 	CtrGpu_WritePackedUVWord(&p->u1, texWord1 | tpageMask);
 	CtrGpu_WritePackedUVWord(&p->u2, RenderBucket_ReadTextureWord(tex, RENDER_BUCKET_TEX_WORD2_OFFSET));
@@ -3289,6 +3549,129 @@ static int RenderBucket_DrawInstPrim_Ghost(struct RenderBucketDrawContext *ctx, 
 
 static int RenderBucket_DispatchDrawInstPrimAtRange(struct RenderBucketDrawContext *ctx, u32 command, struct TextureLayout *tex, int activeRange, int depthMac0)
 {
+#ifdef CTR_NATIVE
+	// NOTE(ctr-native): permanent inst-prim vertex probe (log-gated, 2026-09-26).
+	// Reads the GTE FIFO (SXY0-2 in regs 12-14, SZ0-2 in 16-18) at the moment a
+	// non-split instance primitive is dispatched. Wild screen vertices here mean
+	// the instance's own vertex transform produced garbage (upstream of the
+	// emitter); sane values here with a broken screen = the fault is downstream
+	// (packet build / port GPU layer). Gate, never remove.
+	{
+		static u32 s_dispCalls = 0;
+		static u32 s_dispWild = 0;
+		static u32 s_dispLogged = 0;
+		static u32 s_census[8];
+
+		int x0 = (s16)(MFC2(12) & 0xffff);
+		int y0 = (s16)((u32)MFC2(12) >> 16);
+		int x1 = (s16)(MFC2(13) & 0xffff);
+		int y1 = (s16)((u32)MFC2(13) >> 16);
+		int x2 = (s16)(MFC2(14) & 0xffff);
+		int y2 = (s16)((u32)MFC2(14) >> 16);
+		int wild = 0;
+
+		s_dispCalls++;
+
+		if (x0 > 0x700 || x0 < -0x700) { wild = 1; }
+		else if (y0 > 0x700 || y0 < -0x700) { wild = 1; }
+		else if (x1 > 0x700 || x1 < -0x700) { wild = 1; }
+		else if (y1 > 0x700 || y1 < -0x700) { wild = 1; }
+		else if (x2 > 0x700 || x2 < -0x700) { wild = 1; }
+		else if (y2 > 0x700 || y2 < -0x700) { wild = 1; }
+
+		if (wild != 0)
+		{
+			s_dispWild++;
+		}
+
+		// Chain-continuity probe v2 (2026-09-26): per-instance tracking so
+		// interleaved runs are not missed. The GTE FIFO carries the previous
+		// prim's last vertex in SXY1; a chained prim stream reads it (MFC2 13)
+		// as its first vertex. If something else RTPSes between two prims of the
+		// same instance, the chain silently breaks and the prim connects to an
+		// unrelated screen vertex. driverID (compressedNormalAndDriverIndex
+		// high byte - 1) marks kart instances.
+		{
+			#define CHAIN_SLOTS 64
+
+			static u32 s_chainInst[CHAIN_SLOTS];
+			static u32 s_chainXy2[CHAIN_SLOTS];
+			static u32 s_chainBreaks = 0;
+			static u32 s_chainKartBreaks = 0;
+			static u32 s_chainLogged = 0;
+
+			u32 curInst = (u32)(uintptr_t)ctx->inst;
+			u32 curXy1 = (u32)MFC2(13);
+			u32 curXy2 = (u32)MFC2(14);
+			int slot = (int)((curInst >> 4) & (CHAIN_SLOTS - 1));
+
+			if (s_chainInst[slot] == curInst)
+			{
+				if (s_chainXy2[slot] != curXy1)
+				{
+					u32 drvRaw = ctx->inst->compressedNormalAndDriverIndex;
+					int drv = (int)(drvRaw >> 24) - 1;
+					int px = (s16)(s_chainXy2[slot] & 0xffff), py = (s16)((s_chainXy2[slot] >> 16) & 0xffff);
+					int cx = (s16)(curXy1 & 0xffff), cy = (s16)((curXy1 >> 16) & 0xffff);
+
+					s_chainBreaks++;
+					if (drv >= 0)
+					{
+						s_chainKartBreaks++;
+					}
+
+					if (s_chainLogged < 64)
+					{
+						s_chainLogged++;
+						Platform_LogWarn("[CTR Debug] chainbreak: inst=%p drv=%d prev2=(%d,%d) cur1=(%d,%d) delta=(%d,%d) kartBreaks=%u totalBreaks=%u\n",
+						                 (void *)ctx->inst, drv, px, py, cx, cy, cx - px, cy - py, s_chainKartBreaks, s_chainBreaks);
+					}
+				}
+			}
+			else
+			{
+				s_chainInst[slot] = curInst;
+			}
+
+			s_chainXy2[slot] = curXy2;
+
+			// Record for the reuse-contamination check in LoadPrimRTPS.
+			g_rbChainInst[slot & (RB_CHAIN_SLOTS - 1)] = curInst;
+			g_rbChainSx0[slot & (RB_CHAIN_SLOTS - 1)] = (u32)MFC2(12);
+			g_rbChainSz1[slot & (RB_CHAIN_SLOTS - 1)] = (u32)MFC2(17);
+		}
+
+		// Type census (2026-09-26): which instance-prim writers actually draw,
+		// and how much. The distorted rival kart must come through here; the
+		// census says through which writer type.
+		{
+			u32 tp = (u32)(u32)ctx->inst->funcPtr[1];
+			if (tp == RB_RETAIL_INST_PRIM_NORMAL) { s_census[0]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_SELECT_RANGE) { s_census[1]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_DEPTH_FADE) { s_census[2]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_KEY_TOKEN) { s_census[3]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_CLAMP_DEPTH) { s_census[4]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_LIT_TEXTURE) { s_census[5]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_GHOST) { s_census[6]++; }
+			else { s_census[7]++; }
+		}
+
+		if ((wild != 0 && s_dispLogged < 64) || ((s_dispCalls & 0x3FFFF) == 0))
+		{
+			if (wild != 0)
+			{
+				s_dispLogged++;
+			}
+
+			Platform_LogWarn("[CTR Debug] instprim probe: calls=%u wild=%u inst=%p pb=%p prim=%08x range=%d mac0=%d xy0=(%d,%d) xy1=(%d,%d) xy2=(%d,%d) sz=(%u,%u,%u) census[N,SR,DF,KT,CD,LT,G,?]=%u,%u,%u,%u,%u,%u,%u,%u\n",
+			                 s_dispCalls, s_dispWild, (void *)ctx->inst, (void *)ctx->pb, (u32)(u32)ctx->inst->funcPtr[1], activeRange, depthMac0,
+			                 x0, y0, x1, y1, x2, y2,
+			                 (u32)(u16)MFC2(16), (u32)(u16)MFC2(17), (u32)(u16)MFC2(18),
+			                 s_census[0], s_census[1], s_census[2], s_census[3], s_census[4], s_census[5], s_census[6], s_census[7]);
+		}
+	}
+#endif
+
 	switch ((u32)(u32)ctx->inst->funcPtr[1])
 	{
 	case RB_RETAIL_INST_PRIM_SELECT_RANGE:
@@ -3321,6 +3704,121 @@ static int RenderBucket_DispatchDrawInstPrimAtRange(struct RenderBucketDrawConte
 
 static int RenderBucket_DispatchDrawInstPrim(struct RenderBucketDrawContext *ctx, u32 command, struct TextureLayout *tex, int depthMac0)
 {
+#ifdef CTR_NATIVE
+	// NOTE(ctr-native): permanent inst-prim vertex probe (log-gated, 2026-09-26).
+	// Same contract as the AtRange variant above: wild GTE FIFO vertices here =
+	// the instance transform produced garbage; sane values with a broken screen
+	// = downstream fault. Gate, never remove.
+	{
+		static u32 s_dispNCalls = 0;
+		static u32 s_dispNWild = 0;
+		static u32 s_dispNLogged = 0;
+		static u32 s_censusN[8];
+
+		int x0 = (s16)(MFC2(12) & 0xffff);
+		int y0 = (s16)((u32)MFC2(12) >> 16);
+		int x1 = (s16)(MFC2(13) & 0xffff);
+		int y1 = (s16)((u32)MFC2(13) >> 16);
+		int x2 = (s16)(MFC2(14) & 0xffff);
+		int y2 = (s16)((u32)MFC2(14) >> 16);
+		int wild = 0;
+
+		s_dispNCalls++;
+
+		if (x0 > 0x700 || x0 < -0x700) { wild = 1; }
+		else if (y0 > 0x700 || y0 < -0x700) { wild = 1; }
+		else if (x1 > 0x700 || x1 < -0x700) { wild = 1; }
+		else if (y1 > 0x700 || y1 < -0x700) { wild = 1; }
+		else if (x2 > 0x700 || x2 < -0x700) { wild = 1; }
+		else if (y2 > 0x700 || y2 < -0x700) { wild = 1; }
+
+		if (wild != 0)
+		{
+			s_dispNWild++;
+		}
+
+		// Chain-continuity probe v2 (2026-09-26): same contract as the AtRange
+		// variant above — per-instance FIFO chain tracking, driverID tagged.
+		{
+			#define CHAIN_SLOTS_N 64
+
+			static u32 s_chainNInst[CHAIN_SLOTS_N];
+			static u32 s_chainNXy2[CHAIN_SLOTS_N];
+			static u32 s_chainNBreaks = 0;
+			static u32 s_chainNKartBreaks = 0;
+			static u32 s_chainNLogged = 0;
+
+			u32 curInst = (u32)(uintptr_t)ctx->inst;
+			u32 curXy1 = (u32)MFC2(13);
+			u32 curXy2 = (u32)MFC2(14);
+			int slot = (int)((curInst >> 4) & (CHAIN_SLOTS_N - 1));
+
+			if (s_chainNInst[slot] == curInst)
+			{
+				if (s_chainNXy2[slot] != curXy1)
+				{
+					u32 drvRaw = ctx->inst->compressedNormalAndDriverIndex;
+					int drv = (int)(drvRaw >> 24) - 1;
+					int px = (s16)(s_chainNXy2[slot] & 0xffff), py = (s16)((s_chainNXy2[slot] >> 16) & 0xffff);
+					int cx = (s16)(curXy1 & 0xffff), cy = (s16)((curXy1 >> 16) & 0xffff);
+
+					s_chainNBreaks++;
+					if (drv >= 0)
+					{
+						s_chainNKartBreaks++;
+					}
+
+					// Log kart breaks first (they matter most), then a few others.
+					if ((drv >= 0 && s_chainNLogged < 256) || (drv < 0 && s_chainNLogged < 64))
+					{
+						s_chainNLogged++;
+						Platform_LogWarn("[CTR Debug] chainbreak: inst=%p drv=%d prev2=(%d,%d) cur1=(%d,%d) delta=(%d,%d) kartBreaks=%u totalBreaks=%u\n",
+						                 (void *)ctx->inst, drv, px, py, cx, cy, cx - px, cy - py, s_chainNKartBreaks, s_chainNBreaks);
+					}
+				}
+			}
+			else
+			{
+				s_chainNInst[slot] = curInst;
+			}
+
+			s_chainNXy2[slot] = curXy2;
+
+			// Record for the reuse-contamination check in LoadPrimRTPS.
+			g_rbChainInst[slot & (RB_CHAIN_SLOTS - 1)] = curInst;
+			g_rbChainSx0[slot & (RB_CHAIN_SLOTS - 1)] = (u32)MFC2(12);
+			g_rbChainSz1[slot & (RB_CHAIN_SLOTS - 1)] = (u32)MFC2(17);
+		}
+
+		// Type census (2026-09-26): see the AtRange variant above.
+		{
+			u32 tp = (u32)(u32)ctx->inst->funcPtr[1];
+			if (tp == RB_RETAIL_INST_PRIM_NORMAL) { s_censusN[0]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_SELECT_RANGE) { s_censusN[1]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_DEPTH_FADE) { s_censusN[2]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_KEY_TOKEN) { s_censusN[3]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_CLAMP_DEPTH) { s_censusN[4]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_LIT_TEXTURE) { s_censusN[5]++; }
+			else if (tp == RB_RETAIL_INST_PRIM_GHOST) { s_censusN[6]++; }
+			else { s_censusN[7]++; }
+		}
+
+		if ((wild != 0 && s_dispNLogged < 64) || ((s_dispNCalls & 0x3FFFF) == 0))
+		{
+			if (wild != 0)
+			{
+				s_dispNLogged++;
+			}
+
+			Platform_LogWarn("[CTR Debug] instprim probe (norm): calls=%u wild=%u inst=%p pb=%p prim=%08x mac0=%d xy0=(%d,%d) xy1=(%d,%d) xy2=(%d,%d) sz=(%u,%u,%u) census[N,SR,DF,KT,CD,LT,G,?]=%u,%u,%u,%u,%u,%u,%u,%u\n",
+			                 s_dispNCalls, s_dispNWild, (void *)ctx->inst, (void *)ctx->pb, (u32)(u32)ctx->inst->funcPtr[1], depthMac0,
+			                 x0, y0, x1, y1, x2, y2,
+			                 (u32)(u16)MFC2(16), (u32)(u16)MFC2(17), (u32)(u16)MFC2(18),
+			                 s_censusN[0], s_censusN[1], s_censusN[2], s_censusN[3], s_censusN[4], s_censusN[5], s_censusN[6], s_censusN[7]);
+		}
+	}
+#endif
+
 	switch ((u32)(u32)ctx->inst->funcPtr[1])
 	{
 	case RB_RETAIL_INST_PRIM_SELECT_RANGE:
@@ -3840,6 +4338,54 @@ static int RenderBucket_DrawSplitPrimitiveAtRange(struct RenderBucketDrawContext
 {
 	u32 prim = (u32)(u32)ctx->inst->funcPtr[1];
 
+#ifdef CTR_NATIVE
+	// NOTE(ctr-native): permanent split-spike probe (log-gated, 2026-09-26).
+	// Split primitives are only emitted for instance triangles that cross an OT
+	// range / depth boundary. A wild screen-space vertex here (|x| or |y| way
+	// past the 512x240 buffer) is the "distorted far-kart" signature; the
+	// counters also show how hot this path is in a given scene. Gate, never
+	// remove.
+	{
+		static u32 s_splitCalls = 0;
+		static u32 s_splitWild = 0;
+		static u32 s_splitLogged = 0;
+
+		int x0 = (s16)(v0->sxy & 0xffff);
+		int y0 = (s16)(v0->sxy >> 16);
+		int x1 = (s16)(v1->sxy & 0xffff);
+		int y1 = (s16)(v1->sxy >> 16);
+		int x2 = (s16)(v2->sxy & 0xffff);
+		int y2 = (s16)(v2->sxy >> 16);
+		int wild = 0;
+
+		s_splitCalls++;
+
+		if (x0 > 0x700 || x0 < -0x700) { wild = 1; }
+		else if (y0 > 0x700 || y0 < -0x700) { wild = 1; }
+		else if (x1 > 0x700 || x1 < -0x700) { wild = 1; }
+		else if (y1 > 0x700 || y1 < -0x700) { wild = 1; }
+		else if (x2 > 0x700 || x2 < -0x700) { wild = 1; }
+		else if (y2 > 0x700 || y2 < -0x700) { wild = 1; }
+
+		if (wild != 0)
+		{
+			s_splitWild++;
+		}
+
+		if ((wild != 0 && s_splitLogged < 64) || ((s_splitCalls & 0x3FF) == 0))
+		{
+			if (wild != 0)
+			{
+				s_splitLogged++;
+			}
+
+			Platform_LogWarn("[CTR Debug] split probe: calls=%u wild=%u prim=%08x range=%d mac0=%d v0=(%d,%d,%08x) v1=(%d,%d,%08x) v2=(%d,%d,%08x)\n",
+			                 s_splitCalls, s_splitWild, prim, activeRange, depthMac0,
+			                 x0, y0, v0->z, x1, y1, v1->z, x2, y2, v2->z);
+		}
+	}
+#endif
+
 	// NOTE(aalhendi): Retail tail-calls Instance+0x60 from the generated split
 	// helpers. Native only claims the labels whose generated-UV ABI is modeled.
 	if (RenderBucket_SplitPrimitiveWriterSupported(ctx) == 0)
@@ -4317,8 +4863,95 @@ static int RenderBucket_DrawWaterSplitClipped(struct RenderBucketDrawContext *ct
 	return RenderBucket_RestoreProjectedRegsAndReturn(&savedRegs, 0);
 }
 
+#ifdef CTR_NATIVE
+extern int g_dbg_dumpFrame;
+
+#ifndef RB_DEBUG_AUTO_MESH_DUMP
+#define RB_DEBUG_AUTO_MESH_DUMP 0
+#endif
+
+// [CTR Debug] driver mesh dump (2026-10-01): on the V-key frame dump, log the
+// decoded model-space vertex and packed screen vertex of every command for up
+// to 16 driver-model draws. Rendered offline, it shows whether a mangled kart
+// is already mangled in model space (decoder/data) or only on screen
+// (transform/projection). Gate, never remove.
+static int RenderBucket_DriverMeshDumpBegin(struct RenderBucketDrawContext *ctx)
+{
+	static const char *const s_driverNames[] = {
+	    "crash", "cortex", "tiny", "coco", "ngin", "dingo", "polar", "pura", "pinstripe", "papu", "roo", "joe", "fake", "penta", "oxide", "tropy", "komodo", "crunch", "nash", "norm", "ripper",
+	};
+	static int s_dumped = 0;
+	static const void *s_autoMh[32];
+	static int s_autoCount = 0;
+	const char *name;
+	unsigned n;
+	int autoDump = 0;
+
+	if (ctx->inst->model == NULL)
+	{
+		return 0;
+	}
+
+	// Auto mode (2026-10-01): dump the first lod0 draw of every animated driver
+	// model header once per session, no key needed (draws with a delta stream
+	// = in-race animated drivers, not the static menu models). ~800 log lines
+	// per model, so opt-in: set RB_DEBUG_AUTO_MESH_DUMP to 1. The V key dump
+	// is always available.
+	if ((RB_DEBUG_AUTO_MESH_DUMP != 0) && (ctx->idpp->lodIndex == 0) && (ctx->idpp->ptrDeltaArray != 0) && (s_autoCount < 32))
+	{
+		int k;
+		for (k = 0; k < s_autoCount; k++)
+		{
+			if (s_autoMh[k] == (const void *)ctx->mh)
+			{
+				break;
+			}
+		}
+		if (k == s_autoCount)
+		{
+			autoDump = 1;
+		}
+	}
+
+	if ((g_dbg_dumpFrame == 0) && (autoDump == 0))
+	{
+		s_dumped = 0;
+		return 0;
+	}
+
+	if ((autoDump == 0) && (s_dumped >= 16))
+	{
+		return 0;
+	}
+
+	name = ctx->inst->model->name;
+	for (n = 0; n < sizeof(s_driverNames) / sizeof(s_driverNames[0]); n++)
+	{
+		if (strncmp(name, s_driverNames[n], 16) == 0)
+		{
+			if (autoDump != 0)
+			{
+				s_autoMh[s_autoCount++] = (const void *)ctx->mh;
+			}
+			s_dumped++;
+			Platform_LogWarn("[CTR Debug] mdump begin: n=%d model=%.16s inst=%p idpp=%p pb=%p mh=%p lod=%d frame=%p pos=(%d,%d,%d) delta=%p next=%p animFrame=%d\n",
+			                 s_dumped, name, (void *)ctx->inst, (void *)ctx->idpp, (void *)ctx->pb, (void *)ctx->mh, (int)ctx->idpp->lodIndex,
+			                 (void *)ctx->mf, (ctx->mf != NULL) ? ctx->mf->pos.x : 0, (ctx->mf != NULL) ? ctx->mf->pos.y : 0, (ctx->mf != NULL) ? ctx->mf->pos.z : 0,
+			                 (void *)ctx->idpp->ptrDeltaArray, (void *)ctx->idpp->ptrNextFrame, (int)ctx->inst->animFrame);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+#endif
+
 void RenderBucket_DrawFunc_Normal(struct RenderBucketDrawContext *ctx)
 {
+#ifdef CTR_NATIVE
+	const int meshDump = RenderBucket_DriverMeshDumpBegin(ctx);
+	int meshDumpIndex = 0;
+#endif
 	u32 *pCmd;
 
 	// Native uses the explicit RenderBucketDrawContext command/FIFO ABI.
@@ -4358,6 +4991,15 @@ void RenderBucket_DrawFunc_Normal(struct RenderBucketDrawContext *ctx)
 		ctx->tempPacked[1] = ctx->tempPacked[2];
 		ctx->tempPacked[2] = ctx->tempPacked[3];
 		ctx->tempPacked[3] = decoded.packed;
+#ifdef CTR_NATIVE
+		if (meshDump != 0)
+		{
+			Platform_LogWarn("[CTR Debug] mdump v %d f=%02x s=%u m=(%d,%d,%d) sxy=(%d,%d) sz=%u\n",
+			                 meshDumpIndex++, (u32)flags, (u32)stackIndex,
+			                 ctx->stack[stackIndex].x, ctx->stack[stackIndex].y, ctx->stack[stackIndex].z,
+			                 (s16)(decoded.packed.xy & 0xffff), (s16)(decoded.packed.xy >> 16), decoded.packed.z);
+		}
+#endif
 
 		ctx->tempColor[0] = ctx->tempColor[1];
 		ctx->tempColor[1] = ctx->tempColor[2];
@@ -4403,6 +5045,19 @@ void RenderBucket_DrawFunc_Normal(struct RenderBucketDrawContext *ctx)
 			int shouldDraw;
 
 			shouldDraw = RenderBucket_ProjectPrim_Normal(ctx, drawCommand, useRtps, reuseFirstVertex, &depthMac0);
+#ifdef CTR_NATIVE
+			if (meshDump != 0)
+			{
+				u32 q0 = (u32)MFC2(12), q1 = (u32)MFC2(13), q2 = (u32)MFC2(14);
+				Platform_LogWarn("[CTR Debug] mdump t %d cmd=%08x rtps=%d reuse=%d draw=%d m1=(%d,%d,%d) m2=(%d,%d,%d) m3=(%d,%d,%d) s0=(%d,%d) s1=(%d,%d) s2=(%d,%d) mac0=%d\n",
+				                 meshDumpIndex - 1, drawCommand, useRtps, reuseFirstVertex, shouldDraw,
+				                 ctx->tempCoords[1].x, ctx->tempCoords[1].y, ctx->tempCoords[1].z,
+				                 ctx->tempCoords[2].x, ctx->tempCoords[2].y, ctx->tempCoords[2].z,
+				                 ctx->tempCoords[3].x, ctx->tempCoords[3].y, ctx->tempCoords[3].z,
+				                 (s16)(q0 & 0xffff), (s16)(q0 >> 16), (s16)(q1 & 0xffff), (s16)(q1 >> 16), (s16)(q2 & 0xffff), (s16)(q2 >> 16),
+				                 (shouldDraw != 0) ? depthMac0 : 0);
+			}
+#endif
 			if (shouldDraw == 0)
 			{
 				ctx->stripLength++;
@@ -4416,10 +5071,20 @@ void RenderBucket_DrawFunc_Normal(struct RenderBucketDrawContext *ctx)
 				continue;
 			}
 
+#ifdef CTR_NATIVE
+			void *mdumpPkt = ctx->primMem->cursor;
+#endif
 			if (RenderBucket_DispatchDrawInstPrim(ctx, drawCommand, tex, depthMac0) < 0)
 			{
 				return;
 			}
+#ifdef CTR_NATIVE
+			if (meshDump != 0)
+			{
+				Platform_LogWarn("[CTR Debug] mdump p %d pkt=%p written=%d bin=%d\n",
+				                 meshDumpIndex - 1, mdumpPkt, (ctx->primMem->cursor != mdumpPkt) ? 1 : 0, (int)((u32)depthMac0 >> 17));
+			}
+#endif
 		}
 
 		ctx->stripLength++;
@@ -5097,10 +5762,141 @@ static void RenderBucket_DispatchDrawFunc(struct RenderBucketDrawContext *ctx)
 	// cache to scratchpad 0x140 before Instance+0x5c setup callback dispatch.
 	RenderBucket_CopyScratchColorCache(ctx);
 
+#ifdef CTR_NATIVE
+	g_rbCurCtx = ctx;
+#endif
+
+#ifdef CTR_NATIVE
+	// [CTR Debug] model draw profile (2026-10-01): first draw of each model
+	// header - draw func, setup callback, prim writer, and a static scan of
+	// its command list (flag mix, cached-vertex reuse, scratch colors, max
+	// stack slot, decoded vertex count). Compare a mangled driver model with
+	// a clean one. Gate, never remove.
+	{
+		static const void *s_profMh[256];
+		static int s_profCount = 0;
+		int k;
+
+		for (k = 0; k < s_profCount; k++)
+		{
+			if (s_profMh[k] == (const void *)ctx->mh)
+			{
+				break;
+			}
+		}
+
+		if ((k == s_profCount) && (s_profCount < 256))
+		{
+			const u32 *cl = (const u32 *)ctx->idpp->ptrCommandList;
+			u32 nCmd = 0, nColorOnly = 0, nCached = 0, nScratchColor = 0, nDecoded = 0, flagOr = 0, maxSlot = 0, i;
+
+			s_profMh[s_profCount++] = (const void *)ctx->mh;
+
+			if (cl != NULL)
+			{
+				for (i = 1; (i < 8192) && (cl[i] != 0xffffffff); i++)
+				{
+					u32 c = cl[i];
+					nCmd++;
+					if ((c >> 16) == 0) { nColorOnly++; continue; }
+					flagOr |= (c >> 24) & 0xff;
+					if (((c >> 16) & 0xff) > maxSlot) { maxSlot = (c >> 16) & 0xff; }
+					if (((c >> 24) & 4) != 0) { nCached++; } else { nDecoded++; }
+					if ((s32)(c << 4) < 0) { nScratchColor++; }
+				}
+			}
+
+			Platform_LogWarn("[CTR Debug] model profile: model=%.16s mh=%p drawFunc=%08x setup=%08x prim=%08x cl0=%u cmds=%u colorOnly=%u decoded=%u cached=%u scratchColor=%u flagOr=%02x maxSlot=%u delta=%p next=%p frameVO=%u\n",
+			                 (ctx->inst->model != NULL) ? ctx->inst->model->name : "?", (void *)ctx->mh,
+			                 (u32)ctx->idpp->unkEC, (u32)(uintptr_t)ctx->inst->funcPtr[0], (u32)(uintptr_t)ctx->inst->funcPtr[1],
+			                 (cl != NULL) ? cl[0] : 0u, nCmd, nColorOnly, nDecoded, nCached, nScratchColor, flagOr, maxSlot,
+			                 (void *)ctx->idpp->ptrDeltaArray, (void *)ctx->idpp->ptrNextFrame,
+			                 (ctx->mf != NULL) ? (u32)ctx->mf->vertexOffset : 0u);
+		}
+	}
+#endif
+
 	if (RenderBucket_RunInstanceSetupCallback(ctx) == 0)
 	{
 		return;
 	}
+
+#ifdef CTR_NATIVE
+	// [CTR Debug] driver flags/cull probe (2026-10-01): for driver models, log
+	// the per-viewport instFlags whenever they change, and every 64th draw the
+	// NCLIP tested/culled/zero counts of that draw. A wrong REVERSE_CULL_DIRECTION
+	// (0x8000) bit or a cull-ratio jump would show the "inside-out" angle-
+	// dependent driver distortion. Gate, never remove.
+	{
+		static const char *const s_drv[] = {"crash", "cortex", "tiny", "coco", "ngin", "dingo", "polar", "pura", "pinstripe", "papu", "roo", "joe", "fake", "penta", "oxide"};
+		static const void *s_idpp[64];
+		static u32 s_flags[64];
+		static u32 s_draws = 0;
+		static u32 s_logged = 0;
+		int isDriver = 0;
+		unsigned n;
+
+		if (ctx->inst->model != NULL)
+		{
+			for (n = 0; n < sizeof(s_drv) / sizeof(s_drv[0]); n++)
+			{
+				if (strncmp(ctx->inst->model->name, s_drv[n], 16) == 0)
+				{
+					isDriver = 1;
+					break;
+				}
+			}
+		}
+
+		if (isDriver != 0)
+		{
+			int k;
+			u32 t0 = g_rbCullTested, r0 = g_rbCullRejected, z0 = g_rbCullZero;
+
+			for (k = 0; k < 64; k++)
+			{
+				if ((s_idpp[k] == (const void *)ctx->idpp) || (s_idpp[k] == NULL))
+				{
+					break;
+				}
+			}
+
+			if ((k < 64) && ((s_idpp[k] == NULL) || (s_flags[k] != (u32)ctx->idpp->instFlags)) && (s_logged < 400))
+			{
+				s_logged++;
+				Platform_LogWarn("[CTR Debug] drvflags: model=%.16s idpp=%p pb=%p instFlags=%08x (was %08x) revCull=%d unkEC=%08x\n",
+				                 ctx->inst->model->name, (void *)ctx->idpp, (void *)ctx->pb, (u32)ctx->idpp->instFlags,
+				                 (s_idpp[k] == NULL) ? 0u : s_flags[k], ((ctx->idpp->instFlags & 0x8000) != 0) ? 1 : 0, (u32)ctx->idpp->unkEC);
+			}
+
+			if (k < 64)
+			{
+				s_idpp[k] = (const void *)ctx->idpp;
+				s_flags[k] = (u32)ctx->idpp->instFlags;
+			}
+
+			switch ((u32)ctx->idpp->unkEC)
+			{
+			case RB_RETAIL_DRAWFUNC_NORMAL:
+				RenderBucket_DrawFunc_Normal(ctx);
+				break;
+			default:
+				goto rbDrvProbeFallthrough;
+			}
+
+			s_draws++;
+			if (((s_draws & 4095) == 0) && (s_logged < 400))
+			{
+				s_logged++;
+				Platform_LogWarn("[CTR Debug] drvcull: model=%.16s idpp=%p tested=%u culled=%u zero=%u instFlags=%08x\n",
+				                 ctx->inst->model->name, (void *)ctx->idpp, g_rbCullTested - t0, g_rbCullRejected - r0, g_rbCullZero - z0,
+				                 (u32)ctx->idpp->instFlags);
+			}
+			return;
+		}
+	}
+rbDrvProbeFallthrough:
+#endif
 
 	switch ((u32)ctx->idpp->unkEC)
 	{
@@ -5260,6 +6056,9 @@ void RenderBucket_Execute(void *param_1, struct PrimMem *param_2)
 	for (; entry->inst != 0; entry++)
 	{
 		struct RenderBucketDrawContext ctx = {0};
+#ifdef CTR_NATIVE
+		g_rbCurCtx = NULL;
+#endif
 
 		scratch->nextEntryPtr32 = (u32)(u32)(entry + 1);
 

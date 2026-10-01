@@ -291,3 +291,4 @@ Engine + launcher defaults aligned.
 ## Pitfalls
 
 - **Fullscreen toggle vs window size (debug log 20):** the persisted window size is the separate s_windowedWidth/Height preference, updated only while windowed; never store a fullscreen size as the window preference.
+- **Split-screen rival karts mangled = DecalMP impostors**, not geometry/PGXP/LOD. Retail renders rivals into uncleared 96x64 VRAM tiles; natively the tile goes stale. Fixed by `disable_mp_impostors` (default true, rivals as real 3D). Before chasing a 2P-only render bug, flip that switch first. See debug log §22.

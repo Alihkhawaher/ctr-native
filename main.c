@@ -254,6 +254,9 @@ int main(int argc, char *argv[])
 
 	extern int g_cli_dumpBoot;
 	extern int g_cli_allowForeignDisc;
+	extern int g_cfg_reuseFifoSelfHeal;
+	extern int g_cfg_forceHighLod;
+	extern int g_cfg_disableMpImpostors;
 
 	for (int argIndex = 1; argIndex < argc; argIndex++)
 	{
@@ -395,6 +398,15 @@ int main(int argc, char *argv[])
 		g_cfg_antialiasing = nativeConfig.antialiasing;
 		g_cfg_pgxp = nativeConfig.pgxp;
 		g_cfg_pgxpGeometry = nativeConfig.pgxpGeometry;
+		g_cfg_reuseFifoSelfHeal = nativeConfig.reuseFifoSelfHeal;
+		g_cfg_forceHighLod = nativeConfig.forceHighLod;
+		g_cfg_disableMpImpostors = nativeConfig.disableMpImpostors;
+
+		if ((g_cfg_reuseFifoSelfHeal != 0) || (g_cfg_forceHighLod != 0) || (g_cfg_disableMpImpostors != 0))
+		{
+			Platform_LogWarn("[CTR Debug] diagnostic switches: reuse_fifo_self_heal=%d force_high_lod=%d disable_mp_impostors=%d\n",
+			                 g_cfg_reuseFifoSelfHeal, g_cfg_forceHighLod, g_cfg_disableMpImpostors);
+		}
 		g_cfg_showFps = nativeConfig.showFps;
 
 		g_cfg_gamepadDeadzone = nativeConfig.gamepadDeadzone * 32768 / 100;

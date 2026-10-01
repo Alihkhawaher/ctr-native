@@ -22,12 +22,17 @@
 
 SDL_Window *g_window = NULL;
 int g_dbg_polygonSelected = 0;
+int g_dbg_dumpFrame = 0;
 
 extern int g_cfg_aspectRatio;
 extern int g_cfg_antialiasing;
 extern int g_cfg_bilinearFiltering;
 extern int g_cfg_pgxp;
 extern int g_cfg_pgxpGeometry;
+extern int g_cfg_reuseFifoSelfHeal;
+extern int g_cfg_forceHighLod;
+extern int g_cfg_disableMpImpostors;
+extern int g_cfg_clampInstanceOt;
 extern int g_cfg_internalResolutionScale;
 extern int g_cfg_internalResolutionAuto;
 extern int g_cfg_showFps;
@@ -185,6 +190,11 @@ internal void Platform_SaveSettings(void)
 	config.antialiasing = g_cfg_antialiasing;
 	config.pgxp = g_cfg_pgxp;
 	config.pgxpGeometry = g_cfg_pgxpGeometry;
+	// These were missing: the uninitialized stack value was written to the
+	// config (the sandbox config ended up with reuse_fifo_self_heal=true).
+	config.reuseFifoSelfHeal = g_cfg_reuseFifoSelfHeal;
+	config.forceHighLod = g_cfg_forceHighLod;
+	config.disableMpImpostors = g_cfg_disableMpImpostors;
 	config.showFps = g_cfg_showFps;
 	config.gamepadDeadzone = (g_cfg_gamepadDeadzone * 100 + 16384) / 32768;
 	config.gamepadAnalog = g_cfg_gamepadAnalog;
@@ -451,6 +461,15 @@ internal void Platform_HandleKey(int key, char down)
 			// pad/SDL path can be verified without any game event.
 			Platform_InputRumbleTest();
 			break;
+		case SDL_SCANCODE_V:
+			// Diagnostic (2026-09-26): one-shot geometry dump of the next
+			// frame — every parsed primitive (packet address + region + raw
+			// words) and the assembled vertex buffer (coords + uv + page/clut).
+			// For hunting packet-level corruption (e.g. the distorted rival
+			// kart in split-screen).
+			g_dbg_dumpFrame = 1;
+			Platform_LogWarn("[CTR Native] frame geometry dump: requested (next frame)\n");
+			break;
 		}
 	}
 #endif
@@ -530,6 +549,23 @@ internal void Platform_HandleKey(int key, char down)
 			g_dbg_emulatorPaused ^= 1;
 			Platform_LogWarn("[CTR Native] debug freeze: %s\n", (g_dbg_emulatorPaused != 0) ? "FROZEN" : "running");
 			NativeOverlay_Show();
+		}
+		else if (key == SDL_SCANCODE_K)
+		{
+			// Diagnostic (2026-10-01): clamp instance prim OT bins into the
+			// instance's own allocated range (rival-kart distortion test).
+			g_cfg_clampInstanceOt ^= 1;
+			Platform_LogWarn("[CTR Debug] clamp instance OT bins: %s\n", (g_cfg_clampInstanceOt != 0) ? "ON" : "OFF");
+			NativeOverlay_Show();
+		}
+		else if (key == SDL_SCANCODE_L)
+		{
+			// Diagnostic (2026-10-01): does the rival-kart blob follow the
+			// model LOD? Saved like the other toggles.
+			g_cfg_forceHighLod ^= 1;
+			Platform_LogWarn("[CTR Debug] force high LOD (most detailed model header): %s\n", (g_cfg_forceHighLod != 0) ? "ON" : "OFF");
+			NativeOverlay_Show();
+			Platform_SaveSettings();
 		}
 		else if (key == SDL_SCANCODE_G)
 		{
