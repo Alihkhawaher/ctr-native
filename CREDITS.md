@@ -25,6 +25,15 @@ License compatibility: ctr-native is **GPL-3.0** (CTR-ModSDK lineage); the
 original PGXP is GPL-3.0 as well, so the licensing is compatible regardless.
 This port's own PGXP code is original work and carries the repository license.
 
+## True widescreen
+
+The Hor+ widescreen mode (view-projection X scaling, widened X frustum, HUD
+squeeze) is ported from **thecodingbob/ctr-native**
+(<https://github.com/thecodingbob/ctr-native>, PR #16 "Add widescreen option",
+GPL-3.0). This fork derives the factor from the presented aspect, adds a
+`true_widescreen` toggle and 16:10/21:9 modes, and squeezes the weapon shine
+around its shared centre.
+
 ## The wider project
 
 - **CTR-tools / ctr-native** — the Crash Team Racing decompilation and native
